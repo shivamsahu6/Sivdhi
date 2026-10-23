@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Customers | Sivdhi Admin</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#f1f5f9;
+    color:#0f172a;
+}
+
+/* HEADER */
+
+.header{
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+    padding:25px 30px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.header h1{
+    font-size:26px;
+}
+
+.header p{
+    margin-top:6px;
+    font-size:14px;
+    opacity:.8;
+}
+
+.back{
+    text-decoration:none;
+    color:white;
+    background:rgba(255,255,255,.15);
+    padding:11px 18px;
+    border-radius:10px;
+}
+
+/* CONTAINER */
+
+.container{
+    max-width:1400px;
+    margin:30px auto;
+    padding:0 20px;
+}
+
+/* TOP */
+
+.top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+}
+
+.top h2{
+    font-size:22px;
+}
+
+.count{
+    color:#64748b;
+    font-size:14px;
+    margin-top:5px;
+}
+
+/* SEARCH */
+
+.search-box{
+    background:white;
+    padding:18px;
+    border-radius:16px;
+
+    box-shadow:
+        0 5px 18px rgba(15,23,42,.06);
+
+    margin-bottom:20px;
+}
+
+.search-box input{
+    width:100%;
+    padding:14px 16px;
+
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+
+    outline:none;
+    font-size:15px;
+}
+
+.search-box input:focus{
+    border-color:#2563eb;
+}
+
+/* TABLE */
+
+.table-card{
+    background:white;
+    border-radius:18px;
+    overflow:hidden;
+
+    box-shadow:
+        0 7px 25px rgba(15,23,42,.07);
+}
+
+.table-wrapper{
+    overflow-x:auto;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:1050px;
+}
+
+thead{
+    background:#f8fafc;
+}
+
+th{
+    text-align:left;
+    padding:17px;
+
+    font-size:13px;
+    color:#64748b;
+
+    text-transform:uppercase;
+    white-space:nowrap;
+}
+
+td{
+    padding:17px;
+
+    border-top:1px solid #f1f5f9;
+
+    font-size:14px;
+    white-space:nowrap;
+}
+
+tr:hover{
+    background:#f8fafc;
+}
+
+/* CUSTOMER */
+
+.customer{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.avatar{
+    width:42px;
+    height:42px;
+
+    border-radius:50%;
+
+    background:
+        linear-gradient(
+            135deg,
+            #2563eb,
+            #0f172a
+        );
+
+    color:white;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    font-weight:bold;
+}
+
+.name{
+    font-weight:600;
+}
+
+.id{
+    font-size:12px;
+    color:#64748b;
+    margin-top:3px;
+}
+
+/* VERIFIED */
+
+.verified{
+    display:inline-block;
+
+    padding:6px 11px;
+
+    border-radius:20px;
+
+    font-size:12px;
+    font-weight:bold;
+
+    background:#dcfce7;
+    color:#166534;
+}
+
+.unverified{
+    display:inline-block;
+
+    padding:6px 11px;
+
+    border-radius:20px;
+
+    font-size:12px;
+    font-weight:bold;
+
+    background:#fef3c7;
+    color:#92400e;
+}
+
+/* VIEW */
+
+.view{
+    text-decoration:none;
+
+    background:#eff6ff;
+    color:#2563eb;
+
+    padding:8px 13px;
+
+    border-radius:8px;
+
+    font-weight:bold;
+    font-size:13px;
+}
+
+.view:hover{
+    background:#2563eb;
+    color:white;
+}
+
+/* EMPTY */
+
+.empty{
+    text-align:center;
+
+    padding:60px 20px;
+
+    color:#64748b;
+
+    font-size:15px;
+}
+
+/* MOBILE */
+
+@media(max-width:700px){
+
+    .header{
+        padding:20px;
+    }
+
+    .header h1{
+        font-size:21px;
+    }
+
+    .back{
+        padding:9px 12px;
+        font-size:13px;
+    }
+
+    .container{
+        margin:20px auto;
+        padding:0 12px;
+    }
+
+    .top{
+        align-items:flex-start;
+        flex-direction:column;
+        gap:5px;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+<!-- HEADER -->
+
+<div class="header">
+
+    <div>
+
+        <h1>
+            👥 Customers
+        </h1>
+
+        <p>
+            Manage customer profiles, account status and deleted accounts
+        </p>
+
+    </div>
+
+
+    <a
+        href="/admin/dashboard"
+        class="back"
+    >
+        ← Dashboard
+    </a>
+
+</div>
+
+
+<div class="container">
+
+
+<!-- TITLE -->
+
+<div class="top">
+
+    <div>
+
+        <h2>
+            Customer Management
+        </h2>
+
+        <div class="count">
+            Total Customers: {{ customers|length }}
+            · <a href="/admin/deleted-accounts" style="color:#2563eb;font-weight:700">Deleted Accounts</a>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- SEARCH -->
+
+<div class="search-box">
+
+    <input
+        type="text"
+        id="search"
+        placeholder="🔎 Search by name, Customer ID, email or mobile..."
+        onkeyup="searchCustomers()"
+    >
+
+</div>
+
+
+<!-- TABLE -->
+
+<div class="table-card">
+
+<div class="table-wrapper">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>
+Customer
+</th>
+
+<th>
+Email
+</th>
+
+<th>
+Mobile
+</th>
+
+<th>
+Location
+</th>
+
+<th>
+Verification
+</th>
+
+<th>
+Joined
+</th>
+<th>Status</th>
+<th>Actions</th>
+
+</tr>
+
+</thead>
+
+
+<tbody id="customerTable">
+
+
+{% for customer in customers %}
+
+<tr class="customer-row">
+
+
+<!-- CUSTOMER -->
+
+<td>
+
+<div class="customer">
+
+<div class="avatar">
+
+{{ customer["fullname"][0]|upper }}
+
+</div>
+
+
+<div>
+
+<div class="name">
+
+{{ customer["fullname"] }}
+
+</div>
+
+
+<div class="id">
+
+{{ customer["customer_id"] }}
+
+</div>
+
+</div>
+
+</div>
+
+</td>
+
+
+<!-- EMAIL -->
+
+<td>
+
+{{ customer["email"] }}
+
+</td>
+
+
+<!-- MOBILE -->
+
+<td>
+
+{{ customer["mobile"] }}
+
+</td>
+
+
+<!-- LOCATION -->
+
+<td>
+
+{% if customer["city"] %}
+
+{{ customer["city"] }}
+
+{% elif customer["state"] %}
+
+{{ customer["state"] }}
+
+{% else %}
+
+Not Added
+
+{% endif %}
+
+</td>
+
+
+<!-- VERIFICATION -->
+
+<td>
+
+{% if customer["email_verified"] == 1 %}
+
+<span class="verified">
+
+✓ Verified
+
+</span>
+
+{% else %}
+
+<span class="unverified">
+
+Not Verified
+
+</span>
+
+{% endif %}
+
+</td>
+
+
+<!-- JOINED -->
+
+<td>
+
+{{ customer["created_at"] }}
+
+</td>
+
+
+<!-- STATUS -->
+<td>
+{% if customer["status"]|default("active")|lower == "suspended" %}
+<span class="unverified">Suspended</span>
+{% else %}
+<span class="verified">Active</span>
+{% endif %}
+</td>
+
+<!-- ACTION -->
+<td>
+<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+<a href="/admin/customer/{{ customer['id'] }}" class="view">Manage</a>
+<form method="POST" action="/admin/customer/delete/{{ customer['id'] }}" onsubmit="return confirm('Move this customer to Deleted Accounts?')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button type="submit" class="view" style="background:#fee2e2;color:#b91c1c;border:0;cursor:pointer">Delete</button>
+</form>
+</div>
+</td>
+
+
+</tr>
+
+
+{% else %}
+
+
+<tr>
+
+<td colspan="8">
+
+<div class="empty">
+
+👥 No customers found.
+
+</div>
+
+</td>
+
+</tr>
+
+
+{% endfor %}
+
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+
+</div>
+
+
+<script>
+
+function searchCustomers(){
+
+    let input =
+        document
+        .getElementById("search")
+        .value
+        .toLowerCase();
+
+
+    let rows =
+        document
+        .querySelectorAll(".customer-row");
+
+
+    rows.forEach(function(row){
+
+        let text =
+            row.innerText
+            .toLowerCase();
+
+
+        if(text.includes(input)){
+
+            row.style.display = "";
+
+        }else{
+
+            row.style.display = "none";
+
+        }
+
+    });
+
+}
+
+</script>
+
+
+</body>
+
+</html>

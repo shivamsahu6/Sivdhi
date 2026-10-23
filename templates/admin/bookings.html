@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Bookings | Sivdhi Admin</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#f1f5f9;
+    color:#0f172a;
+}
+
+.header{
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+
+    padding:25px 30px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.header h1{
+    font-size:26px;
+}
+
+.header p{
+    margin-top:6px;
+    font-size:14px;
+    opacity:.8;
+}
+
+.back{
+    color:white;
+    text-decoration:none;
+    background:rgba(255,255,255,.15);
+    padding:11px 18px;
+    border-radius:10px;
+}
+
+.container{
+    max-width:1450px;
+    margin:30px auto;
+    padding:0 20px;
+}
+
+.top{
+    margin-bottom:20px;
+}
+
+.top h2{
+    font-size:22px;
+}
+
+.count{
+    color:#64748b;
+    font-size:14px;
+    margin-top:6px;
+}
+
+.search-box{
+    background:white;
+    padding:18px;
+    border-radius:16px;
+    margin-bottom:20px;
+
+    box-shadow:
+        0 5px 18px rgba(15,23,42,.06);
+}
+
+.search-box input{
+    width:100%;
+    padding:14px 16px;
+
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+
+    outline:none;
+    font-size:15px;
+}
+
+.search-box input:focus{
+    border-color:#2563eb;
+}
+
+.table-card{
+    background:white;
+    border-radius:18px;
+    overflow:hidden;
+
+    box-shadow:
+        0 7px 25px rgba(15,23,42,.07);
+}
+
+.table-wrapper{
+    overflow-x:auto;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:1150px;
+}
+
+thead{
+    background:#f8fafc;
+}
+
+th{
+    padding:17px;
+    text-align:left;
+
+    color:#64748b;
+    font-size:12px;
+
+    text-transform:uppercase;
+}
+
+td{
+    padding:17px;
+
+    border-top:1px solid #f1f5f9;
+
+    font-size:14px;
+}
+
+tr:hover{
+    background:#f8fafc;
+}
+
+.booking-id{
+    font-weight:bold;
+    color:#2563eb;
+}
+
+.customer-name{
+    font-weight:600;
+}
+
+.customer-mobile{
+    color:#64748b;
+    font-size:12px;
+    margin-top:4px;
+}
+
+.service{
+    font-weight:600;
+}
+
+.date{
+    font-weight:600;
+}
+
+.amount{
+    font-weight:bold;
+}
+
+.badge{
+    display:inline-block;
+
+    padding:6px 11px;
+
+    border-radius:20px;
+
+    font-size:11px;
+    font-weight:bold;
+
+    text-transform:capitalize;
+}
+
+.pending{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.confirmed{
+    background:#dbeafe;
+    color:#1d4ed8;
+}
+
+.assigned{
+    background:#ede9fe;
+    color:#6d28d9;
+}
+
+.in_progress{
+    background:#cffafe;
+    color:#155e75;
+}
+
+.completed{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.cancelled{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+.view{
+    display:inline-block;
+
+    padding:8px 13px;
+
+    background:#eff6ff;
+    color:#2563eb;
+
+    text-decoration:none;
+
+    border-radius:8px;
+
+    font-size:13px;
+    font-weight:bold;
+}
+
+.view:hover{
+    background:#2563eb;
+    color:white;
+}
+
+.empty{
+    text-align:center;
+    padding:60px;
+    color:#64748b;
+}
+
+@media(max-width:700px){
+
+    .header{
+        padding:20px;
+    }
+
+    .header h1{
+        font-size:21px;
+    }
+
+    .container{
+        padding:0 12px;
+        margin:20px auto;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+<div class="header">
+
+    <div>
+
+        <h1>📋 Bookings</h1>
+
+        <p>
+            Manage all customer bookings
+        </p>
+
+    </div>
+
+
+    <a
+        href="/admin/dashboard"
+        class="back"
+    >
+        ← Dashboard
+    </a>
+
+</div>
+
+
+<div class="container">
+
+
+<div class="top">
+
+    <h2>
+        Booking Management
+    </h2>
+
+    <div class="count">
+
+        Total Bookings:
+        {{ bookings|length }}
+
+    </div>
+
+</div>
+
+
+<div class="search-box">
+
+    <input
+        type="text"
+        id="search"
+        placeholder="🔎 Search booking, customer, mobile or service..."
+        onkeyup="searchBookings()"
+    >
+
+</div>
+
+
+<div class="table-card">
+
+<div class="table-wrapper">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>Booking</th>
+
+<th>Customer</th>
+
+<th>Service</th>
+
+<th>Date</th>
+
+<th>Amount</th>
+
+<th>Payment</th>
+
+<th>Status</th>
+
+<th>Action</th>
+
+</tr>
+
+</thead>
+
+
+<tbody>
+
+
+{% for booking in bookings %}
+
+<tr class="booking-row">
+
+
+<td>
+
+<div class="booking-id">
+
+{{ booking["booking_id"] }}
+
+</div>
+
+</td>
+
+
+<td>
+
+<div class="customer-name">
+
+{{ booking["customer_name"] or "Unknown Customer" }}
+
+</div>
+
+<div class="customer-mobile">
+
+{{ booking["customer_mobile"] or "No mobile" }}
+
+</div>
+
+</td>
+
+
+<td>
+
+<div class="service">
+
+{{ booking["service_name"] or "Unknown Service" }}
+
+</div>
+
+</td>
+
+
+<td>
+
+<div class="date">
+
+{{ booking["booking_date"] or "Not Set" }}
+
+</div>
+
+{% if booking["booking_time"] %}
+
+<div class="customer-mobile">
+
+{{ booking["booking_time"] }}
+
+</div>
+
+{% endif %}
+
+</td>
+
+
+<td>
+
+<div class="amount">
+
+₹{{ booking["total_amount"] or booking["amount"] or "0" }}
+
+</div>
+
+</td>
+
+
+<td>
+
+<span
+    class="badge
+    {% if booking['payment_status'] %}
+        {{ booking['payment_status']|lower|replace(' ','_') }}
+    {% else %}
+        pending
+    {% endif %}
+    "
+>
+
+{{ booking["payment_status"] or "Pending" }}
+
+</span>
+
+</td>
+
+
+<td>
+
+<span
+    class="badge
+    {% if booking['status'] %}
+        {{ booking['status']|lower|replace(' ','_') }}
+    {% else %}
+        pending
+    {% endif %}
+    "
+>
+
+{{ booking["status"] or "Pending" }}
+
+</span>
+
+</td>
+
+
+<td>
+
+<a
+    href="/admin/booking/{{ booking['id'] }}"
+    class="view"
+>
+    View
+</a>
+
+</td>
+
+
+</tr>
+
+
+{% else %}
+
+
+<tr>
+
+<td colspan="8">
+
+<div class="empty">
+
+📋 No bookings found.
+
+</div>
+
+</td>
+
+</tr>
+
+
+{% endfor %}
+
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+
+</div>
+
+
+<script>
+
+function searchBookings(){
+
+    const input =
+        document
+        .getElementById("search")
+        .value
+        .toLowerCase();
+
+
+    const rows =
+        document
+        .querySelectorAll(".booking-row");
+
+
+    rows.forEach(function(row){
+
+        const text =
+            row.innerText.toLowerCase();
+
+
+        row.style.display =
+            text.includes(input)
+            ? ""
+            : "none";
+
+    });
+
+}
+
+</script>
+
+
+</body>
+
+</html>

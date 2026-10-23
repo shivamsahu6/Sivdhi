@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Booking Details | Sivdhi Admin</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#f1f5f9;
+    color:#0f172a;
+}
+
+.header{
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+
+    padding:25px 30px;
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.header h1{
+    font-size:25px;
+}
+
+.header p{
+    margin-top:6px;
+    font-size:14px;
+    opacity:.8;
+}
+
+.back{
+    color:white;
+    text-decoration:none;
+
+    background:rgba(255,255,255,.15);
+
+    padding:11px 18px;
+
+    border-radius:10px;
+}
+
+.container{
+    max-width:1100px;
+    margin:30px auto;
+    padding:0 20px;
+}
+
+.card{
+    background:white;
+
+    border-radius:20px;
+
+    padding:25px;
+
+    margin-bottom:20px;
+
+    box-shadow:
+        0 7px 25px rgba(15,23,42,.07);
+}
+
+.card h2{
+    font-size:19px;
+    margin-bottom:20px;
+
+    padding-bottom:14px;
+
+    border-bottom:1px solid #e2e8f0;
+}
+
+.booking-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+}
+
+.booking-id{
+    color:#2563eb;
+    font-size:22px;
+    font-weight:bold;
+}
+
+.row{
+    display:flex;
+    justify-content:space-between;
+    gap:30px;
+
+    padding:14px 0;
+
+    border-bottom:1px solid #f1f5f9;
+}
+
+.row:last-child{
+    border-bottom:none;
+}
+
+.label{
+    color:#64748b;
+}
+
+.value{
+    font-weight:600;
+    text-align:right;
+}
+
+.status{
+    padding:7px 13px;
+
+    border-radius:20px;
+
+    background:#fef3c7;
+    color:#92400e;
+
+    font-size:12px;
+    font-weight:bold;
+
+    text-transform:capitalize;
+}
+
+.form-group{
+    margin-top:20px;
+}
+
+.form-group label{
+    display:block;
+
+    margin-bottom:8px;
+
+    font-weight:600;
+}
+
+select{
+    width:100%;
+
+    padding:13px;
+
+    border:1px solid #e2e8f0;
+
+    border-radius:10px;
+
+    outline:none;
+
+    font-size:14px;
+}
+
+button{
+    margin-top:15px;
+
+    border:none;
+
+    background:#2563eb;
+    color:white;
+
+    padding:12px 20px;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-weight:bold;
+}
+
+button:hover{
+    background:#1d4ed8;
+}
+
+@media(max-width:650px){
+
+    .header{
+        padding:20px;
+    }
+
+    .container{
+        padding:0 12px;
+        margin:20px auto;
+    }
+
+    .booking-header{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
+    .row{
+        flex-direction:column;
+        gap:6px;
+    }
+
+    .value{
+        text-align:left;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+<div class="header">
+
+    <div>
+
+        <h1>
+            📋 Booking Details
+        </h1>
+
+        <p>
+            Admin Booking Management
+        </p>
+
+    </div>
+
+
+    <a
+        href="/admin/bookings"
+        class="back"
+    >
+        ← Bookings
+    </a>
+
+</div>
+
+
+<div class="container">
+
+
+<!-- BASIC -->
+
+<div class="card">
+
+<div class="booking-header">
+
+<div>
+
+<div class="booking-id">
+
+{{ booking["booking_id"] }}
+
+</div>
+
+</div>
+
+
+<div class="status">
+
+{{ booking["status"] or "Pending" }}
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- CUSTOMER -->
+
+<div class="card">
+
+<h2>
+👤 Customer Information
+</h2>
+
+
+<div class="row">
+
+<span class="label">
+Name
+</span>
+
+<span class="value">
+{{ booking["customer_name"] or "Unknown" }}
+</span>
+
+</div>
+
+
+<div class="row">
+
+<span class="label">
+Mobile
+</span>
+
+<span class="value">
+{{ booking["customer_mobile"] or "Not Available" }}
+</span>
+
+</div>
+
+
+<div class="row">
+
+<span class="label">
+Email
+</span>
+
+<span class="value">
+{{ booking["customer_email"] or "Not Available" }}
+</span>
+
+</div>
+
+</div>
+
+
+<!-- BOOKING -->
+
+<div class="card">
+
+<h2>
+🛠 Booking Information
+</h2>
+
+
+<div class="row">
+
+<span class="label">
+Service
+</span>
+
+<span class="value">
+{{ booking["service_name"] or "Unknown Service" }}
+</span>
+
+</div>
+
+
+<div class="row">
+
+<span class="label">
+Booking Date
+</span>
+
+<span class="value">
+{{ booking["booking_date"] or "Not Set" }}
+</span>
+
+</div>
+
+
+<div class="row">
+
+<span class="label">
+Booking Time
+</span>
+
+<span class="value">
+{{ booking["booking_time"] or "Not Set" }}
+</span>
+
+</div>
+
+
+<div class="row">
+
+<span class="label">
+Amount
+</span>
+
+<span class="value">
+₹{{ booking["total_amount"] or booking["amount"] or "0" }}
+</span>
+
+</div>
+
+
+<div class="row">
+
+<span class="label">
+Payment Status
+</span>
+
+<span class="value">
+{{ booking["payment_status"] or "Pending" }}
+</span>
+
+</div>
+
+</div>
+
+
+<!-- STATUS -->
+
+<div class="card">
+
+<h2>
+🔄 Update Booking Status
+</h2>
+
+
+<form
+    method="POST"
+    action="/admin/booking/{{ booking['id'] }}/status"
+>
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+
+<div class="form-group">
+
+<label>
+Booking Status
+</label>
+
+
+<select name="status">
+
+
+<option
+    value="pending"
+    {% if booking["status"] == "pending" %}selected{% endif %}
+>
+Pending
+</option>
+
+
+<option
+    value="confirmed"
+    {% if booking["status"] == "confirmed" %}selected{% endif %}
+>
+Confirmed
+</option>
+
+
+<option
+    value="assigned"
+    {% if booking["status"] == "assigned" %}selected{% endif %}
+>
+Assigned
+</option>
+
+
+<option
+    value="in_progress"
+    {% if booking["status"] == "in_progress" %}selected{% endif %}
+>
+In Progress
+</option>
+
+
+<option
+    value="completed"
+    {% if booking["status"] == "completed" %}selected{% endif %}
+>
+Completed
+</option>
+
+
+<option
+    value="cancelled"
+    {% if booking["status"] == "cancelled" %}selected{% endif %}
+>
+Cancelled
+</option>
+
+
+</select>
+
+
+<button type="submit">
+
+Update Status
+
+</button>
+
+</div>
+
+
+</form>
+
+</div>
+
+
+</div>
+
+</body>
+
+</html>

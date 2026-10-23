@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Help & Support</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:30px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:30px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+margin-bottom:5px;
+}
+
+.card{
+margin:18px;
+background:white;
+border-radius:18px;
+overflow:hidden;
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+}
+
+.item{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:18px;
+text-decoration:none;
+color:#111827;
+border-bottom:1px solid #eee;
+transition:.3s;
+}
+
+.item:last-child{
+border-bottom:none;
+}
+
+.item:hover{
+background:#f8fafc;
+}
+
+.left{
+display:flex;
+align-items:center;
+gap:14px;
+}
+
+.icon{
+width:45px;
+height:45px;
+border-radius:12px;
+background:#eff6ff;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:22px;
+}
+
+.title{
+font-weight:600;
+font-size:16px;
+}
+
+.sub{
+font-size:13px;
+color:#6b7280;
+margin-top:3px;
+}
+
+.arrow{
+font-size:22px;
+color:#9ca3af;
+}
+
+.version{
+margin:20px;
+text-align:center;
+font-size:13px;
+color:#6b7280;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>
+❓ Help & Support
+</h2>
+
+<p>
+Need help? Use one of the configured support options below.
+</p>
+
+</div>
+
+<div class="card">
+{% if not config.get("SUPPORT_PHONE") and not config.get("SUPPORT_EMAIL") %}
+<div class="sub">Support contacts are not configured yet. Please contact the site administrator.</div>
+{% endif %}
+
+
+
+{% if config.get("SUPPORT_PHONE") %}
+<a class="item" href="tel:+{{ config.get('SUPPORT_PHONE') }}">
+
+<div class="left">
+
+<div class="icon">
+📞
+</div>
+
+<div>
+
+<div class="title">
+Call Support
+</div>
+
+<div class="sub">
+Talk with our support team
+</div>
+
+</div>
+
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</a>
+
+{% endif %}
+{% if config.get("SUPPORT_PHONE") %}
+<a class="item" href="https://wa.me/{{ config.get('SUPPORT_PHONE') }}">
+
+<div class="left">
+
+<div class="icon">
+💬
+</div>
+
+<div>
+
+<div class="title">
+WhatsApp Support
+</div>
+
+<div class="sub">
+Quick help on WhatsApp
+</div>
+
+</div>
+
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</a>
+
+{% endif %}
+{% if config.get("SUPPORT_EMAIL") %}
+<a class="item" href="mailto:{{ config.get('SUPPORT_EMAIL') }}">
+
+<div class="left">
+
+<div class="icon">
+📧
+</div>
+
+<div>
+
+<div class="title">
+Email Support
+</div>
+
+<div class="sub">
+{{ config.get('SUPPORT_EMAIL') }}
+</div>
+
+</div>
+
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</a>
+
+{% endif %}
+<a class="item" href="/partner/faq">
+
+<div class="left">
+
+<div class="icon">
+❔
+</div>
+
+<div>
+
+<div class="title">
+FAQ
+</div>
+
+<div class="sub">
+Frequently Asked Questions
+</div>
+
+</div>
+
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</a>
+
+<a class="item" href="/partner/privacy">
+
+<div class="left">
+
+<div class="icon">
+🔒
+</div>
+
+<div>
+
+<div class="title">
+Privacy Policy
+</div>
+
+<div class="sub">
+Read our privacy policy
+</div>
+
+</div>
+
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</a>
+
+<a class="item" href="/partner/terms">
+
+<div class="left">
+
+<div class="icon">
+📄
+</div>
+
+<div>
+
+<div class="title">
+Terms & Conditions
+</div>
+
+<div class="sub">
+Read our terms
+</div>
+
+</div>
+
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</a>
+
+</div>
+
+<div class="version">
+
+Sivdhi Partner App<br>
+Version 1.0.0
+
+</div>
+
+</body>
+
+</html>

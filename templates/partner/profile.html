@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Partner Profile</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:90px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:35px 20px;
+text-align:center;
+color:white;
+border-radius:0 0 25px 25px;
+position:relative;
+}
+
+.photo{
+width:110px;
+height:110px;
+margin:auto;
+margin-bottom:15px;
+border-radius:50%;
+background:white;
+display:flex;
+justify-content:center;
+align-items:center;
+overflow:hidden;
+font-size:45px;
+color:#2563eb;
+}
+
+.photo img{
+width:100%;
+height:100%;
+object-fit:cover;
+}
+
+.menu{
+position:absolute;
+top:20px;
+right:20px;
+}
+
+.menu-btn{
+background:none;
+border:none;
+color:white;
+font-size:30px;
+cursor:pointer;
+}
+
+.menu-list{
+display:none;
+position:absolute;
+right:0;
+top:40px;
+background:white;
+border-radius:12px;
+width:210px;
+overflow:hidden;
+box-shadow:0 8px 20px rgba(0,0,0,.15);
+z-index:1000;
+}
+
+.menu-list a{
+display:block;
+padding:14px;
+text-decoration:none;
+color:#111827;
+font-size:15px;
+}
+
+.menu-list a:hover{
+background:#f3f4f6;
+}
+
+.card{
+margin:18px;
+background:white;
+padding:20px;
+border-radius:18px;
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+}
+
+.row{
+padding:14px 0;
+border-bottom:1px solid #eee;
+}
+
+.row:last-child{
+border:none;
+}
+
+.label{
+font-size:13px;
+color:#777;
+}
+
+.value{
+font-size:17px;
+font-weight:bold;
+margin-top:4px;
+color:#111827;
+}
+
+.wallet{
+font-size:22px;
+color:#22c55e;
+font-weight:bold;
+}
+
+.withdraw{
+margin-top:15px;
+width:100%;
+padding:14px;
+background:#16a34a;
+color:white;
+border:none;
+border-radius:12px;
+font-size:16px;
+font-weight:bold;
+cursor:pointer;
+}
+
+.bottom{
+position:fixed;
+bottom:0;
+left:0;
+width:100%;
+height:70px;
+background:white;
+display:flex;
+justify-content:space-around;
+align-items:center;
+box-shadow:0 -5px 15px rgba(0,0,0,.08);
+}
+
+.bottom a{
+text-decoration:none;
+color:#555;
+font-size:14px;
+text-align:center;
+}
+
+.active{
+color:#2563eb;
+font-weight:bold;
+}
+
+.menu-list hr{
+border:none;
+border-top:1px solid #eee;
+margin:4px 0;
+}
+
+.logout{
+color:#dc2626 !important;
+font-weight:600;
+}
+
+.logout:hover{
+background:#fef2f2 !important;
+}
+.logout-form{margin:0;padding:0}
+button.logout-button{display:block;background:transparent;border:0;padding:14px;width:100%;text-align:left;font:inherit;font-size:15px;cursor:pointer} .menu-list button.logout-button:hover{background:#f3f4f6 !important}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<div class="menu">
+
+<button class="menu-btn" onclick="toggleMenu()">
+⋮
+</button>
+
+<div class="menu-list" id="menu">
+
+<a href="/partner/edit-profile">
+✏ Edit Profile
+</a>
+
+<a href="/partner/bank">
+🏦 Bank Details
+</a>
+
+<a href="/partner/settings">
+⚙ Settings
+</a>
+
+<a href="/partner/help">
+❓ Help & Support
+</a>
+
+<hr>
+
+<form method="post" action="/logout" class="logout-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button type="submit" class="logout logout-button">🚪 Logout</button>
+</form>
+
+</div>
+
+</div>
+
+<div class="photo">
+
+{% if partner["profile_photo"] %}
+
+<img src="{{ url_for('static', filename='uploads/' + partner['profile_photo']) }}">
+
+{% else %}
+
+🤝
+
+{% endif %}
+
+</div>
+
+<h2>{{ partner["fullname"] }}</h2>
+
+<p>{{ partner["partner_id"] }}</p>
+
+</div>
+
+<div class="card">
+
+<div class="row">
+<div class="label">Partner ID</div>
+<div class="value">{{ partner["partner_id"] }}</div>
+</div>
+
+<div class="row">
+<div class="label">Referral Code</div>
+<div class="value">{{ partner["referral_code"] }}</div>
+</div>
+
+<div class="row">
+<div class="label">Mobile</div>
+<div class="value">{{ partner["mobile"] }}</div>
+</div>
+
+<div class="row">
+<div class="label">Email</div>
+<div class="value">{{ partner["email"] }}</div>
+</div>
+
+<div class="row">
+
+<div class="label">
+Wallet Balance
+</div>
+
+<div class="wallet">
+₹ {{ partner["wallet"] }}
+</div>
+
+
+
+</div>
+
+<div class="row">
+<div class="label">Status</div>
+<div class="value">{{ partner["status"] }}</div>
+</div>
+
+</div>
+
+<div class="bottom">
+
+<a href="/partner/home">
+🏠<br>Home
+</a>
+
+<a href="/partner/workers">
+👷<br>Workers
+</a>
+
+<a href="/partner/jobs">
+💼<br>Jobs
+</a>
+
+<a href="/partner/wallet">
+💰<br>Wallet
+</a>
+
+
+<a class="active" href="/partner/profile">
+👤<br>Profile
+</a>
+
+</div>
+
+<script>
+
+function toggleMenu(){
+
+var menu=document.getElementById("menu");
+
+if(menu.style.display==="block"){
+menu.style.display="none";
+}else{
+menu.style.display="block";
+}
+
+}
+
+window.onclick=function(e){
+
+if(!e.target.closest(".menu")){
+document.getElementById("menu").style.display="none";
+}
+
+}
+
+</script>
+
+</body>
+</html>

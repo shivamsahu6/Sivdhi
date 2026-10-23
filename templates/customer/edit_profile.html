@@ -1,0 +1,1125 @@
+<!-- templates/customer/edit_profile.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>Edit Profile | Sivdhi</title>
+
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --panel-light: #1d1628;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190,130,255,.20);
+            --green: #78e5b0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        html {
+            min-height: 100%;
+            background: var(--bg);
+            scroll-behavior: smooth;
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding-bottom: 105px;
+            color: var(--text);
+            background:
+                radial-gradient(ellipse at 0 0,
+                    rgba(255,67,140,.08), transparent 38%),
+                radial-gradient(ellipse at 100% 45%,
+                    rgba(115,67,255,.08), transparent 42%),
+                var(--bg);
+            font-family: Inter, -apple-system, BlinkMacSystemFont,
+                         "Segoe UI", Arial, sans-serif;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button,
+        input,
+        textarea {
+            font: inherit;
+        }
+
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible,
+        textarea:focus-visible {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 0 22px 30px;
+        }
+
+        /* Header */
+
+        .top-header {
+            min-height: 72px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid rgba(255,255,255,.065);
+        }
+
+        .back-button {
+            width: 41px;
+            height: 41px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            color: #ead8fa;
+            background: rgba(255,255,255,.025);
+            font-size: 23px;
+        }
+
+        .back-button:hover {
+            background: rgba(164,77,255,.12);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .brand-icon {
+            width: 39px;
+            height: 39px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 13px;
+            color: #fff;
+            background: linear-gradient(
+                135deg, var(--pink), var(--purple), var(--blue)
+            );
+            font-size: 21px;
+            font-weight: 850;
+        }
+
+        .brand-name {
+            font-size: 21px;
+            font-weight: 850;
+            letter-spacing: -.6px;
+        }
+
+        .brand-name span {
+            color: #ff72b6;
+        }
+
+        .brand-caption {
+            display: block;
+            margin-top: 3px;
+            color: #9788a6;
+            font-size: 8px;
+            letter-spacing: 1.3px;
+        }
+
+        /* Page title */
+
+        .page-intro {
+            padding: 27px 0 20px;
+        }
+
+        .eyebrow {
+            margin-bottom: 9px;
+            color: #d7a5ff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.7px;
+        }
+
+        .page-title {
+            font-size: clamp(26px, 4vw, 34px);
+            font-weight: 850;
+            letter-spacing: -.8px;
+            line-height: 1.25;
+        }
+
+        .page-title span {
+            color: #ff72b6;
+        }
+
+        .page-description {
+            max-width: 520px;
+            margin-top: 9px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        /* Flash messages */
+
+        .flash-wrap {
+            margin-bottom: 17px;
+        }
+
+        .flash {
+            padding: 12px 14px;
+            margin-bottom: 9px;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            font-size: 12px;
+            line-height: 1.65;
+        }
+
+        .flash.success {
+            color: #baf4d7;
+            background: rgba(120,229,176,.08);
+            border-color: rgba(120,229,176,.20);
+        }
+
+        .flash.danger,
+        .flash.error {
+            color: #ffb1c6;
+            background: rgba(255,67,140,.08);
+            border-color: rgba(255,67,140,.22);
+        }
+
+        .flash.warning {
+            color: #ffdda0;
+            background: rgba(245,158,11,.08);
+            border-color: rgba(245,158,11,.20);
+        }
+
+        .flash.info {
+            color: #c9c5ff;
+            background: rgba(86,109,255,.08);
+            border-color: rgba(86,109,255,.22);
+        }
+
+        /* Profile picture */
+
+        .photo-card {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 20px;
+            margin-bottom: 17px;
+            border: 1px solid var(--border);
+            border-radius: 21px;
+            background:
+                radial-gradient(ellipse at 100% 0,
+                    rgba(164,77,255,.11), transparent 50%),
+                linear-gradient(145deg, #1d1628, #110d18);
+        }
+
+        .avatar-ring {
+            width: 91px;
+            height: 91px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            padding: 3px;
+            border-radius: 50%;
+            background: linear-gradient(
+                135deg, var(--pink), var(--purple), var(--blue)
+            );
+        }
+
+        .avatar {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            border: 3px solid #1d1628;
+            border-radius: 50%;
+            color: #fff;
+            background: #241831;
+            font-size: 31px;
+            font-weight: 850;
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+        }
+
+        .photo-content {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .photo-content h2 {
+            margin-bottom: 6px;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .photo-content p {
+            margin-bottom: 11px;
+            color: #aa9ab9;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .file-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+
+        .photo-label {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 35px;
+            padding: 9px 12px;
+            border: 1px solid rgba(194,117,255,.30);
+            border-radius: 10px;
+            color: #eddbff;
+            background: rgba(164,77,255,.10);
+            font-size: 11px;
+            font-weight: 750;
+            cursor: pointer;
+        }
+
+        .photo-label:hover {
+            background: rgba(164,77,255,.18);
+        }
+
+        .file-input:focus-visible + .photo-label {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        /* Form */
+
+        .form-card {
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: 21px;
+            background: rgba(23,18,31,.94);
+            box-shadow: 0 15px 40px rgba(0,0,0,.16);
+        }
+
+        .form-heading {
+            padding-bottom: 17px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+        }
+
+        .form-heading h2 {
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .form-heading p {
+            margin-top: 6px;
+            color: #aa9ab9;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px 15px;
+        }
+
+        .field {
+            min-width: 0;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e8ddf3;
+            font-size: 11px;
+            font-weight: 750;
+            line-height: 1.5;
+        }
+
+        .required {
+            color: #ff72b6;
+        }
+
+        .field input,
+        .field textarea {
+            display: block;
+            width: 100%;
+            min-height: 47px;
+            padding: 12px 13px;
+            border: 1px solid rgba(190,130,255,.20);
+            border-radius: 12px;
+            outline: none;
+            color: #faf6ff;
+            background: #100c17;
+            font-size: 12px;
+            transition: border-color .18s, box-shadow .18s;
+        }
+
+        .field input:focus,
+        .field textarea:focus {
+            border-color: rgba(194,117,255,.75);
+            box-shadow: 0 0 0 3px rgba(164,77,255,.10);
+        }
+
+        .field input::placeholder,
+        .field textarea::placeholder {
+            color: #81728e;
+        }
+
+        /* Locked mobile and email fields */
+
+        .field input.locked-input,
+        .field input.locked-input:focus {
+            color: #a99bb7;
+            background: #1a1422;
+            border-color: rgba(190,130,255,.13);
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .locked-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            margin-top: 7px;
+            color: #b39acb;
+            font-size: 10px;
+            line-height: 1.6;
+        }
+
+        .locked-note span {
+            flex-shrink: 0;
+        }
+
+        .field textarea {
+            min-height: 93px;
+            resize: vertical;
+            line-height: 1.7;
+        }
+
+        .field-help {
+            display: block;
+            margin-top: 7px;
+            color: #9788a6;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .section-divider {
+            height: 1px;
+            margin: 24px 0;
+            border: 0;
+            background: rgba(255,255,255,.07);
+        }
+
+        .form-actions {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            margin-top: 24px;
+        }
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 49px;
+            padding: 13px 18px;
+            border: 1px solid transparent;
+            border-radius: 13px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .15s, opacity .15s, background .15s;
+        }
+
+        .button-primary {
+            flex: 1;
+            color: #fff;
+            background: linear-gradient(
+                110deg, var(--pink), var(--purple), var(--blue)
+            );
+            box-shadow: 0 8px 22px rgba(164,77,255,.18);
+        }
+
+        .button-primary:hover {
+            transform: translateY(-1px);
+        }
+
+        .button-secondary {
+            color: #d6c6e5;
+            background: rgba(255,255,255,.025);
+            border-color: var(--border);
+        }
+
+        .button-secondary:hover {
+            background: rgba(164,77,255,.09);
+        }
+
+        .button:disabled {
+            opacity: .65;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Customer's three bottom tabs */
+
+        .bottom-nav {
+            position: fixed;
+            z-index: 20;
+            left: 50%;
+            bottom: max(9px, env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            width: min(490px, calc(100vw - 28px));
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 4px;
+            padding: 7px;
+            border: 1px solid rgba(196,133,255,.22);
+            border-radius: 21px;
+            background: rgba(17,13,24,.96);
+            box-shadow: 0 15px 50px rgba(0,0,0,.45);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-item {
+            min-height: 47px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-radius: 13px;
+            color: #9d90aa;
+            font-size: 19px;
+        }
+
+        .nav-item small {
+            font-size: 10px;
+        }
+
+        .nav-item.active {
+            color: #ff89c1;
+            background: linear-gradient(
+                135deg,
+                rgba(255,65,139,.13),
+                rgba(139,69,255,.15)
+            );
+            font-weight: 800;
+        }
+
+        @media (max-width: 600px) {
+            .app {
+                padding: 0 13px 25px;
+            }
+
+            .top-header {
+                min-height: 65px;
+            }
+
+            .page-intro {
+                padding-top: 23px;
+            }
+
+            .photo-card {
+                padding: 15px 13px;
+                gap: 13px;
+            }
+
+            .avatar-ring {
+                width: 70px;
+                height: 70px;
+            }
+
+            .avatar {
+                font-size: 24px;
+            }
+
+            .form-card {
+                padding: 18px 14px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .field.full {
+                grid-column: auto;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .form-actions .button {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 350px) {
+            .brand-name {
+                font-size: 18px;
+            }
+
+            .photo-card {
+                align-items: flex-start;
+            }
+
+            .avatar-ring {
+                width: 60px;
+                height: 60px;
+            }
+
+            .photo-content h2 {
+                font-size: 13px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: .01ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    {% set available_keys = customer.keys() if customer else [] %}
+
+    {% set saved_name =
+        customer['fullname']
+        if 'fullname' in available_keys and customer['fullname']
+        else (
+            customer['name']
+            if 'name' in available_keys and customer['name']
+            else ''
+        )
+    %}
+
+    {% set saved_mobile =
+        customer['mobile']
+        if 'mobile' in available_keys and customer['mobile']
+        else ''
+    %}
+
+    {% set saved_email =
+        customer['email']
+        if 'email' in available_keys and customer['email']
+        else ''
+    %}
+
+    {% set saved_address =
+        customer['address']
+        if 'address' in available_keys and customer['address']
+        else ''
+    %}
+
+    {% set saved_city =
+        customer['city']
+        if 'city' in available_keys and customer['city']
+        else ''
+    %}
+
+    {% set saved_state =
+        customer['state']
+        if 'state' in available_keys and customer['state']
+        else ''
+    %}
+
+    {% set saved_pincode =
+        customer['pincode']
+        if 'pincode' in available_keys and customer['pincode']
+        else ''
+    %}
+
+    {% set saved_photo =
+        customer['profile_photo']
+        if 'profile_photo' in available_keys and customer['profile_photo']
+        else ''
+    %}
+
+    <div class="app">
+
+        <header class="top-header">
+            <a href="{{ url_for('customer.profile') }}"
+               class="back-button"
+               aria-label="Back to profile">‹</a>
+
+            <a href="{{ url_for('customer.home') }}"
+               class="brand"
+               aria-label="Sivdhi home">
+                <span class="brand-icon" aria-hidden="true">S</span>
+
+                <span>
+                    <span class="brand-name">Siv<span>dh</span>i</span>
+                    <span class="brand-caption">CUSTOMER ACCOUNT</span>
+                </span>
+            </a>
+        </header>
+
+        <main>
+            <section class="page-intro">
+                <p class="eyebrow">YOUR ACCOUNT</p>
+
+                <h1 class="page-title">
+                    Edit <span>Profile</span>
+                </h1>
+
+                <p class="page-description">
+                    Update your personal information, address and profile photo.
+                    Your registered mobile number and email address cannot be
+                    changed from this page.
+                </p>
+            </section>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-wrap" aria-live="polite">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category|e }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form
+                method="POST"
+                action="{{ url_for('customer.edit_profile') }}"
+                enctype="multipart/form-data"
+                id="customerEditProfileForm"
+            >
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token() }}"
+                >
+
+                <!-- Profile Photo -->
+
+                <section class="photo-card">
+                    <div class="avatar-ring">
+                        <div class="avatar" id="profilePhotoPreview">
+                            {% if saved_photo %}
+                                <img
+                                    src="{{ url_for('static', filename='uploads/' + saved_photo) }}"
+                                    alt="Customer profile photo"
+                                >
+                            {% else %}
+                                <span>
+                                    {{ (saved_name|string|trim|first|upper) or 'C' }}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="photo-content">
+                        <h2>Profile Photo</h2>
+
+                        <p>
+                            Choose a clear photo for your customer account.
+                        </p>
+
+                        <input
+                            class="file-input"
+                            id="profile_photo"
+                            name="profile_photo"
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        >
+
+                        <label class="photo-label" for="profile_photo">
+                            <span aria-hidden="true">📷</span>
+                            <span>Choose Photo</span>
+                        </label>
+
+                        <small class="field-help">
+                            JPG, PNG or WEBP. Maximum 5 MB.
+                        </small>
+                    </div>
+                </section>
+
+                <!-- Personal information -->
+
+                <section class="form-card">
+                    <div class="form-heading">
+                        <h2>Personal Information</h2>
+                        <p>
+                            Update your name and contact information.
+                            Mobile number and email are locked.
+                        </p>
+                    </div>
+
+                    <div class="form-grid">
+
+                        <div class="field full">
+                            <label for="fullname">
+                                Full Name <span class="required">*</span>
+                            </label>
+
+                            <input
+                                id="fullname"
+                                name="fullname"
+                                type="text"
+                                maxlength="100"
+                                autocomplete="name"
+                                placeholder="Enter your full name"
+                                value="{{ saved_name }}"
+                                required
+                            >
+                        </div>
+
+                        <div class="field">
+                            <label for="mobile">Mobile Number</label>
+
+                            <input
+                                id="mobile"
+                                name="mobile"
+                                class="locked-input"
+                                type="tel"
+                                value="{{ saved_mobile }}"
+                                readonly
+                                aria-readonly="true"
+                                autocomplete="tel-national"
+                                title="Mobile number cannot be changed here"
+                            >
+
+                            <small class="locked-note">
+                                <span aria-hidden="true">🔒</span>
+                                <span>Mobile number cannot be changed here.</span>
+                            </small>
+                        </div>
+
+                        <div class="field">
+                            <label for="email">Email Address</label>
+
+                            <input
+                                id="email"
+                                name="email"
+                                class="locked-input"
+                                type="email"
+                                value="{{ saved_email }}"
+                                readonly
+                                aria-readonly="true"
+                                autocomplete="email"
+                                title="Email address cannot be changed here"
+                            >
+
+                            <small class="locked-note">
+                                <span aria-hidden="true">🔒</span>
+                                <span>Email address cannot be changed here.</span>
+                            </small>
+                        </div>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <!-- Address information -->
+
+                    <div class="form-heading">
+                        <h2>Address Information</h2>
+                        <p>
+                            Keep your service address up to date.
+                        </p>
+                    </div>
+
+                    <div class="form-grid">
+
+                        <div class="field full">
+                            <label for="address">Address</label>
+
+                            <textarea
+                                id="address"
+                                name="address"
+                                maxlength="250"
+                                autocomplete="street-address"
+                                placeholder="House number, street, locality or landmark"
+                            >{{ saved_address }}</textarea>
+                        </div>
+
+                        <div class="field">
+                            <label for="city">City</label>
+
+                            <input
+                                id="city"
+                                name="city"
+                                type="text"
+                                maxlength="100"
+                                autocomplete="address-level2"
+                                placeholder="Enter your city"
+                                value="{{ saved_city }}"
+                            >
+                        </div>
+
+                        <div class="field">
+                            <label for="state">State</label>
+
+                            <input
+                                id="state"
+                                name="state"
+                                type="text"
+                                maxlength="100"
+                                autocomplete="address-level1"
+                                placeholder="Enter your state"
+                                value="{{ saved_state }}"
+                            >
+                        </div>
+
+                        <div class="field">
+                            <label for="pincode">PIN Code</label>
+
+                            <input
+                                id="pincode"
+                                name="pincode"
+                                type="text"
+                                inputmode="numeric"
+                                pattern="[0-9]{6}"
+                                maxlength="6"
+                                autocomplete="postal-code"
+                                placeholder="6-digit PIN code"
+                                value="{{ saved_pincode }}"
+                            >
+
+                            <small class="field-help">
+                                Enter six digits if you provide a PIN code.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button
+                            class="button button-primary"
+                            type="submit"
+                            id="saveProfileButton"
+                        >
+                            <span aria-hidden="true">✓</span>
+                            <span>Save Changes</span>
+                        </button>
+
+                        <a
+                            class="button button-secondary"
+                            href="{{ url_for('customer.profile') }}"
+                        >
+                            Cancel
+                        </a>
+                    </div>
+                </section>
+            </form>
+        </main>
+    </div>
+
+    <!-- Exactly three customer tabs -->
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a class="nav-item" href="{{ url_for('customer.home') }}">
+            <span aria-hidden="true">⌂</span>
+            <small>Home</small>
+        </a>
+
+        <a class="nav-item" href="{{ url_for('customer.bookings') }}">
+            <span aria-hidden="true">▤</span>
+            <small>Bookings</small>
+        </a>
+
+        <a class="nav-item"
+           href="{{ url_for('customer.profile') }}">
+            <span aria-hidden="true">♙</span>
+            <small>Profile</small>
+        </a>
+    </nav>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const form = document.getElementById("customerEditProfileForm");
+            const photoInput = document.getElementById("profile_photo");
+            const photoPreview = document.getElementById("profilePhotoPreview");
+            const saveButton = document.getElementById("saveProfileButton");
+            const pincodeInput = document.getElementById("pincode");
+
+            if (!form) {
+                return;
+            }
+
+            const originalPhotoMarkup = photoPreview
+                ? photoPreview.innerHTML
+                : "";
+
+            let previewObjectUrl = null;
+
+            /*
+             * Profile picture preview.
+             * The backend still validates file type, size and image content.
+             */
+
+            if (photoInput && photoPreview) {
+                photoInput.addEventListener("change", function () {
+                    const file = this.files && this.files[0];
+
+                    if (!file) {
+                        if (previewObjectUrl) {
+                            URL.revokeObjectURL(previewObjectUrl);
+                            previewObjectUrl = null;
+                        }
+
+                        photoPreview.innerHTML = originalPhotoMarkup;
+                        return;
+                    }
+
+                    const allowedTypes = [
+                        "image/jpeg",
+                        "image/png",
+                        "image/webp"
+                    ];
+
+                    const validExtension =
+                        /\.(jpg|jpeg|png|webp)$/i.test(file.name);
+
+                    if (
+                        !validExtension ||
+                        (file.type && !allowedTypes.includes(file.type))
+                    ) {
+                        this.value = "";
+                        alert("Choose a JPG, PNG or WEBP image.");
+                        return;
+                    }
+
+                    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+                        this.value = "";
+                        alert("The profile photo must be 5 MB or smaller.");
+                        return;
+                    }
+
+                    if (previewObjectUrl) {
+                        URL.revokeObjectURL(previewObjectUrl);
+                    }
+
+                    previewObjectUrl = URL.createObjectURL(file);
+
+                    const image = document.createElement("img");
+                    image.src = previewObjectUrl;
+                    image.alt = "New customer profile photo preview";
+
+                    image.onerror = function () {
+                        photoPreview.innerHTML = originalPhotoMarkup;
+                        alert("The selected image could not be previewed.");
+                    };
+
+                    photoPreview.replaceChildren(image);
+                });
+            }
+
+            /*
+             * Allow only six digits in the optional PIN Code field.
+             */
+
+            if (pincodeInput) {
+                pincodeInput.addEventListener("input", function () {
+                    this.value = this.value.replace(/\D/g, "").slice(0, 6);
+                    this.setCustomValidity("");
+                });
+            }
+
+            /*
+             * Mobile number and email are intentionally not editable here.
+             * They are submitted unchanged so the existing form validation
+             * can continue to work with the current values.
+             */
+
+            form.addEventListener("submit", function (event) {
+                const nameInput = document.getElementById("fullname");
+
+                if (nameInput && !nameInput.value.trim()) {
+                    event.preventDefault();
+                    nameInput.setCustomValidity("Please enter your full name.");
+                    nameInput.reportValidity();
+                    nameInput.focus();
+                    return;
+                }
+
+                if (nameInput) {
+                    nameInput.setCustomValidity("");
+                }
+
+                if (pincodeInput && pincodeInput.value.trim()) {
+                    if (!/^[0-9]{6}$/.test(pincodeInput.value)) {
+                        event.preventDefault();
+                        pincodeInput.setCustomValidity(
+                            "PIN Code must contain exactly six digits."
+                        );
+                        pincodeInput.reportValidity();
+                        pincodeInput.focus();
+                        return;
+                    }
+
+                    pincodeInput.setCustomValidity("");
+                }
+
+                if (saveButton) {
+                    saveButton.disabled = true;
+                    saveButton.innerHTML = "<span>Saving Changes...</span>";
+                }
+            });
+
+            window.addEventListener("pageshow", function () {
+                if (saveButton) {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML =
+                        '<span aria-hidden="true">✓</span><span>Save Changes</span>';
+                }
+            });
+
+            window.addEventListener("beforeunload", function () {
+                if (previewObjectUrl) {
+                    URL.revokeObjectURL(previewObjectUrl);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Notifications</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:30px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:30px 20px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+font-size:26px;
+}
+
+.header p{
+margin-top:5px;
+opacity:.85;
+font-size:14px;
+}
+
+.card{
+margin:20px;
+background:white;
+border-radius:18px;
+box-shadow:0 5px 15px rgba(0,0,0,.08);
+overflow:hidden;
+}
+
+.item{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:18px;
+border-bottom:1px solid #eee;
+}
+
+.item:last-child{
+border-bottom:none;
+}
+
+.left{
+display:flex;
+flex-direction:column;
+}
+
+.title{
+font-size:16px;
+font-weight:600;
+}
+
+.sub{
+font-size:13px;
+color:#6b7280;
+margin-top:4px;
+}
+
+.switch{
+position:relative;
+width:48px;
+height:26px;
+}
+
+.switch input{
+display:none;
+}
+
+.slider{
+position:absolute;
+top:0;
+left:0;
+right:0;
+bottom:0;
+background:#d1d5db;
+border-radius:30px;
+cursor:pointer;
+transition:.3s;
+}
+
+.slider:before{
+content:"";
+position:absolute;
+height:20px;
+width:20px;
+left:3px;
+top:3px;
+background:white;
+border-radius:50%;
+transition:.3s;
+}
+
+input:checked + .slider{
+background:#2563eb;
+}
+
+input:checked + .slider:before{
+transform:translateX(22px);
+}
+
+.save-btn{
+margin:20px;
+width:calc(100% - 40px);
+padding:15px;
+border:none;
+border-radius:12px;
+background:#2563eb;
+color:white;
+font-size:16px;
+font-weight:bold;
+cursor:pointer;
+}
+
+.save-btn:hover{
+background:#1d4ed8;
+}
+
+.flash{
+margin:20px;
+padding:14px;
+border-radius:10px;
+background:#dcfce7;
+color:#166534;
+transition:opacity .5s ease;
+}
+
+.error{
+background:#fee2e2;
+color:#991b1b;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>🔔 Notifications</h2>
+
+<p>Manage Notification Settings</p>
+
+</div>
+
+{% with messages=get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category,message in messages %}
+
+<div class="flash {% if category=='danger' %}error{% endif %}">
+{{ message }}
+</div>
+
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<div class="card">
+
+<div class="item">
+
+<div class="left">
+<div class="title">App Notifications</div>
+<div class="sub">Receive app notifications</div>
+</div>
+
+<label class="switch">
+<input
+type="checkbox"
+name="app_notification"
+{% if partner["app_notification"] %}checked{% endif %}
+>
+<span class="slider"></span>
+</label>
+
+</div>
+
+<div class="item">
+
+<div class="left">
+<div class="title">Email Notifications</div>
+<div class="sub">Receive updates by email</div>
+</div>
+
+<label class="switch">
+<input
+type="checkbox"
+name="email_notification"
+{% if partner["email_notification"] %}checked{% endif %}
+>
+<span class="slider"></span>
+</label>
+
+</div>
+
+<div class="item">
+
+<div class="left">
+<div class="title">Job Alerts</div>
+<div class="sub">Receive new job alerts</div>
+</div>
+
+<label class="switch">
+<input
+type="checkbox"
+name="job_notification"
+{% if partner["job_notification"] %}checked{% endif %}
+>
+<span class="slider"></span>
+</label>
+
+</div>
+
+<div class="item">
+
+<div class="left">
+<div class="title">Withdraw Updates</div>
+<div class="sub">Receive withdraw updates</div>
+</div>
+
+<label class="switch">
+<input
+type="checkbox"
+name="withdraw_notification"
+{% if partner["withdraw_notification"] %}checked{% endif %}
+>
+<span class="slider"></span>
+</label>
+
+</div>
+
+<div class="item">
+
+<div class="left">
+<div class="title">Promotional Offers</div>
+<div class="sub">Receive promotional offers</div>
+</div>
+
+<label class="switch">
+<input
+type="checkbox"
+name="promo_notification"
+{% if partner["promo_notification"] %}checked{% endif %}
+>
+<span class="slider"></span>
+</label>
+
+</div>
+
+</div>
+
+<button class="save-btn" type="submit">
+Save Settings
+</button>
+
+</form>
+<script>
+
+setTimeout(function(){
+
+const flash=document.querySelector(".flash");
+
+if(flash){
+
+flash.style.opacity="0";
+
+setTimeout(function(){
+
+flash.remove();
+
+},500);
+
+}
+
+},2000);
+
+</script>
+</body>
+</html>

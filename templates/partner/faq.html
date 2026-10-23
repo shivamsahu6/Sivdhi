@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>FAQ</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:30px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:30px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+margin-bottom:5px;
+}
+
+.card{
+margin:18px;
+background:white;
+border-radius:18px;
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+overflow:hidden;
+}
+
+details{
+border-bottom:1px solid #eee;
+}
+
+details:last-child{
+border:none;
+}
+
+summary{
+padding:18px;
+font-size:16px;
+font-weight:600;
+cursor:pointer;
+list-style:none;
+}
+
+summary::-webkit-details-marker{
+display:none;
+}
+
+.answer{
+padding:0 18px 18px;
+font-size:14px;
+line-height:24px;
+color:#555;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>
+❓ Frequently Asked Questions
+</h2>
+
+<p>
+Find answers to common questions.
+</p>
+
+</div>
+
+<div class="card">
+
+<details>
+
+<summary>
+How do I withdraw my earnings?
+</summary>
+
+<div class="answer">
+Open Wallet → Withdraw Money → Enter amount → Submit request. After admin approval, the amount will be transferred to your registered bank account.
+</div>
+
+</details>
+
+<details>
+
+<summary>
+Why can't I withdraw money?
+</summary>
+
+<div class="answer">
+Please make sure your bank details are added and your wallet balance is sufficient.
+</div>
+
+</details>
+
+<details>
+
+<summary>
+How can I change my bank account?
+</summary>
+
+<div class="answer">
+Go to Profile → Bank Details. Update your details and verify them using the OTP sent to your registered email.
+</div>
+
+</details>
+
+<details>
+
+<summary>
+How can I contact support?
+</summary>
+
+<div class="answer">
+Open Help & Support and contact us via Call, WhatsApp or Email.
+</div>
+
+</details>
+
+<details>
+
+<summary>
+How do I edit my profile?
+</summary>
+
+<div class="answer">
+Open your Profile, tap the 3-dot menu, then select Edit Profile.
+</div>
+
+</details>
+
+</div>
+
+</body>
+
+</html>

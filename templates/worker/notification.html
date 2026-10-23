@@ -1,0 +1,589 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Worker Notifications | Sivdhi</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Poppins, Arial, sans-serif;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --dark: #0f172a;
+            --page: #f5f7fb;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e5e7eb;
+        }
+
+        html {
+            width: 100%;
+            min-height: 100%;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            width: 100%;
+            min-height: 100vh;
+            background: var(--page);
+            color: var(--text);
+            overflow-x: hidden;
+            padding-bottom: 28px;
+        }
+
+        a {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Same responsive content width as the worker dashboard */
+        .page-container {
+            width: 100%;
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        /* Header follows the Worker Home gradient and rounded corners */
+        .header {
+            width: 100%;
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            padding: 30px 20px;
+            color: white;
+            border-radius: 0 0 25px 25px;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
+        }
+
+        .back {
+            width: 44px;
+            height: 44px;
+            flex: 0 0 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.16);
+            color: white;
+            text-decoration: none;
+            font-size: 27px;
+            line-height: 1;
+            transition: background 0.2s ease;
+        }
+
+        .back:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .header-copy {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .header h1 {
+            font-size: 23px;
+            line-height: 1.3;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .header p {
+            margin-top: 8px;
+            padding-left: 58px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Summary card */
+        .summary {
+            margin: 20px;
+            padding: 22px;
+            min-width: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            background: white;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 18px;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .summary-copy {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .summary-label {
+            color: #555;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .summary-value {
+            margin-top: 9px;
+            color: var(--primary);
+            font-size: 35px;
+            line-height: 1.2;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        /* Clickable settings icon */
+        .summary-icon {
+            width: 48px;
+            height: 48px;
+            flex: 0 0 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #dbeafe;
+            border-radius: 15px;
+            background: #eff6ff;
+            color: var(--primary);
+            font-size: 24px;
+            text-decoration: none;
+            transition:
+                background 0.2s ease,
+                transform 0.2s ease;
+        }
+
+        .summary-icon:hover {
+            background: #dbeafe;
+            transform: translateY(-2px);
+        }
+
+        .summary-icon:focus-visible,
+        .back:focus-visible {
+            outline: 3px solid #93c5fd;
+            outline-offset: 3px;
+        }
+
+        /* Notification section */
+        .section-heading {
+            margin: 25px 20px 14px;
+            font-size: 18px;
+            line-height: 1.4;
+            font-weight: 700;
+        }
+
+        .notification-list {
+            margin: 0 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 13px;
+        }
+
+        .notification {
+            width: 100%;
+            min-width: 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 20px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .notification.unread {
+            border-left: 4px solid var(--primary);
+            background: #f8fbff;
+        }
+
+        .notification-icon {
+            width: 44px;
+            height: 44px;
+            flex: 0 0 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 14px;
+            background: #eff6ff;
+            font-size: 21px;
+        }
+
+        .notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .notification-title-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .notification-title {
+            min-width: 0;
+            color: var(--text);
+            font-size: 15px;
+            line-height: 1.5;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .unread-dot {
+            width: 9px;
+            height: 9px;
+            margin-top: 6px;
+            flex: 0 0 9px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .notification-message {
+            margin-top: 7px;
+            color: #4b5563;
+            font-size: 13px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        .notification-time {
+            margin-top: 11px;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
+        /* Empty state */
+        .empty {
+            margin: 0 20px;
+            padding: 35px 22px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            text-align: center;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .empty-icon {
+            width: 68px;
+            height: 68px;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 22px;
+            background: #eff6ff;
+            font-size: 32px;
+        }
+
+        .empty h2 {
+            font-size: 18px;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .empty p {
+            max-width: 360px;
+            margin: 0 auto;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        /* Small mobile screens */
+        @media (max-width: 480px) {
+            body {
+                padding-bottom: 20px;
+            }
+
+            .header {
+                padding: 25px 16px 27px;
+                border-radius: 0 0 22px 22px;
+            }
+
+            .header-top {
+                gap: 12px;
+            }
+
+            .back {
+                width: 42px;
+                height: 42px;
+                flex-basis: 42px;
+            }
+
+            .header h1 {
+                font-size: 21px;
+            }
+
+            .header p {
+                padding-left: 54px;
+                font-size: 13px;
+            }
+
+            .summary {
+                margin: 16px;
+                padding: 19px 17px;
+                border-radius: 16px;
+            }
+
+            .summary-label {
+                font-size: 14px;
+            }
+
+            .summary-value {
+                font-size: 31px;
+            }
+
+            .summary-icon {
+                width: 45px;
+                height: 45px;
+                flex-basis: 45px;
+                border-radius: 13px;
+            }
+
+            .section-heading {
+                margin: 24px 16px 12px;
+                font-size: 17px;
+            }
+
+            .notification-list {
+                margin: 0 16px;
+                gap: 11px;
+            }
+
+            .notification {
+                padding: 15px 13px;
+                gap: 11px;
+                border-radius: 15px;
+            }
+
+            .notification-icon {
+                width: 39px;
+                height: 39px;
+                flex-basis: 39px;
+                border-radius: 12px;
+                font-size: 19px;
+            }
+
+            .notification-title {
+                font-size: 14px;
+            }
+
+            .notification-message {
+                font-size: 13px;
+                line-height: 1.65;
+            }
+
+            .notification-time {
+                font-size: 11px;
+            }
+
+            .empty {
+                margin: 0 16px;
+                padding: 30px 17px;
+            }
+        }
+
+        @media (max-width: 350px) {
+            .header h1 {
+                font-size: 19px;
+            }
+
+            .summary {
+                margin: 13px;
+                padding: 16px 13px;
+            }
+
+            .section-heading {
+                margin-left: 13px;
+                margin-right: 13px;
+            }
+
+            .notification-list {
+                margin-left: 13px;
+                margin-right: 13px;
+            }
+
+            .notification {
+                padding: 12px 10px;
+                gap: 9px;
+            }
+
+            .notification-icon {
+                width: 34px;
+                height: 34px;
+                flex-basis: 34px;
+                font-size: 17px;
+            }
+
+            .empty {
+                margin-left: 13px;
+                margin-right: 13px;
+            }
+        }
+
+        /* Laptop / desktop */
+        @media (min-width: 768px) {
+            .header {
+                padding: 30px 24px;
+            }
+
+            .summary {
+                margin-top: 24px;
+                margin-bottom: 24px;
+                padding: 24px;
+            }
+
+            .section-heading {
+                margin-top: 28px;
+                margin-bottom: 16px;
+            }
+
+            .notification-list {
+                gap: 15px;
+            }
+
+            .notification {
+                padding: 21px 22px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+    <main class="page-container">
+
+        <header class="header">
+            <div class="header-top">
+
+                <a
+                    class="back"
+                    href="{{ url_for('worker.worker_home') }}"
+                    aria-label="Back to worker home"
+                >‹</a>
+
+                <div class="header-copy">
+                    <h1>🔔 Notifications</h1>
+                </div>
+
+            </div>
+
+            <p>Your job, payment and account updates</p>
+        </header>
+
+        <section class="summary" aria-label="Notification summary">
+
+            <div class="summary-copy">
+                <div class="summary-label">
+                    Unread notifications
+                </div>
+
+                <div class="summary-value">
+                    {{ unread_count|default(0) }}
+                </div>
+            </div>
+
+            <a
+                class="summary-icon"
+                href="{{ url_for('worker.notifications') }}"
+                aria-label="Open Notification Settings"
+                title="Notification Settings"
+            >⚙️</a>
+
+        </section>
+
+        <h2 class="section-heading">Recent notifications</h2>
+
+        {% if notifications %}
+
+            <section
+                class="notification-list"
+                aria-label="Recent notifications"
+            >
+
+                {% for item in notifications %}
+
+                    <article class="notification {% if not item['is_read'] %}unread{% endif %}">
+
+                        <div class="notification-icon" aria-hidden="true">
+                            🔔
+                        </div>
+
+                        <div class="notification-content">
+
+                            <div class="notification-title-row">
+
+                                <h3 class="notification-title">
+                                    {{ item['title'] or 'Sivdhi update' }}
+                                </h3>
+
+                                {% if not item['is_read'] %}
+                                    <span
+                                        class="unread-dot"
+                                        aria-label="Unread notification"
+                                    ></span>
+                                {% endif %}
+
+                            </div>
+
+                            <p class="notification-message">{{ item['message'] or 'You have a new update.' }}</p>
+
+                            <p class="notification-time">
+                                {{ item['created_at'] or '' }}
+                            </p>
+
+                        </div>
+
+                    </article>
+
+                {% endfor %}
+
+            </section>
+
+        {% else %}
+
+            <section class="empty">
+
+                <div class="empty-icon" aria-hidden="true">
+                    🔕
+                </div>
+
+                <h2>You're all caught up!</h2>
+
+                <p>
+                    You don't have any notifications yet.
+                    New job and payment updates will appear here.
+                </p>
+
+            </section>
+
+        {% endif %}
+
+    </main>
+
+</body>
+</html>

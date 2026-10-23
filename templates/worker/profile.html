@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>Worker Profile | Sivdhi</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Poppins, Arial, sans-serif;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --navy: #0f172a;
+            --background: #f5f7fb;
+            --text: #111827;
+            --muted: #777;
+            --border: #eeeeee;
+            --green: #16a34a;
+        }
+
+        html {
+            min-height: 100%;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--background);
+            color: var(--text);
+            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+            overflow-x: hidden;
+        }
+
+        a,
+        button {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Profile header */
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            padding: 35px 20px;
+            text-align: center;
+            color: white;
+            border-radius: 0 0 25px 25px;
+            position: relative;
+        }
+
+        .photo {
+            width: 110px;
+            height: 110px;
+            margin: 0 auto 15px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-size: 45px;
+            color: var(--primary);
+        }
+
+        .photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .header h2 {
+            font-size: 23px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .header p {
+            margin-top: 6px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.85);
+            overflow-wrap: anywhere;
+        }
+
+        /* Profile menu */
+        .menu {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .menu-btn {
+            width: 42px;
+            height: 42px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+        }
+
+        .menu-btn:hover {
+            background: rgba(255, 255, 255, 0.23);
+        }
+
+        .menu-list {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 48px;
+            background: white;
+            border-radius: 12px;
+            width: min(225px, calc(100vw - 30px));
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            text-align: left;
+        }
+
+        .menu-list a {
+            display: block;
+            padding: 14px;
+            text-decoration: none;
+            color: #111827;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .menu-list a:hover {
+            background: #f3f4f6;
+        }
+
+        .menu-list hr {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 4px 0;
+        }
+
+        .logout-form {
+            margin: 0;
+            padding: 0;
+        }
+
+        .logout-button {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            background: white;
+            color: #dc2626;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .logout-button:hover {
+            background: #fef2f2;
+        }
+
+        /* Profile information card */
+        .card {
+            width: auto;
+            margin: 18px;
+            padding: 20px;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .row {
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .row:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .value {
+            margin-top: 4px;
+            color: var(--text);
+            font-size: 16px;
+            line-height: 1.5;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        /* Today's earnings replaces Wallet Balance */
+        .today-earning {
+            margin-top: 5px;
+            color: var(--green);
+            font-size: 25px;
+            line-height: 1.4;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .earning-note {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        /* Consistent fixed footer tabs */
+        .bottom {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: calc(70px + env(safe-area-inset-bottom, 0px));
+            padding: 5px 4px env(safe-area-inset-bottom, 0px);
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            background: #fff;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+        }
+
+        .bottom a {
+            flex: 1 1 25%;
+            min-width: 0;
+            height: 100%;
+            padding: 5px 2px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            text-decoration: none;
+            color: #555;
+            font-size: 12px;
+            line-height: 1.2;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .bottom a .nav-icon {
+            display: block;
+            font-size: 20px;
+            line-height: 1.1;
+        }
+
+        .bottom a .nav-label {
+            display: block;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .bottom a.active {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .bottom a:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: -3px;
+            border-radius: 10px;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 480px) {
+            .header {
+                padding: 30px 16px;
+            }
+
+            .photo {
+                width: 95px;
+                height: 95px;
+                font-size: 38px;
+            }
+
+            .header h2 {
+                font-size: 21px;
+            }
+
+            .card {
+                margin: 14px;
+                padding: 17px;
+            }
+
+            .value {
+                font-size: 15px;
+            }
+
+            .today-earning {
+                font-size: 24px;
+            }
+
+            .bottom a,
+            .bottom a .nav-label {
+                font-size: 11px;
+            }
+
+            .bottom a .nav-icon {
+                font-size: 19px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+    <header class="header">
+
+        <div class="menu">
+
+            <button
+                class="menu-btn"
+                type="button"
+                onclick="toggleMenu()"
+                aria-label="Open profile menu"
+                aria-controls="menu"
+                aria-expanded="false"
+            >⋮</button>
+
+            <div class="menu-list" id="menu">
+
+                <a href="{{ url_for('worker.edit_profile') }}">
+                    ✏ Edit Profile
+                </a>
+
+                <a href="/worker/bank">
+                    🏦 Bank Details
+                </a>
+
+                <a href="{{ url_for('worker.worker_settings') }}">
+                    ⚙ Settings
+                </a>
+
+                <a href="/worker/help">
+                    ❓ Help &amp; Support
+                </a>
+
+                <hr>
+
+                <form
+                    method="post"
+                    action="/logout"
+                    class="logout-form"
+                >
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    >
+
+                    <button
+                        type="submit"
+                        class="logout-button"
+                    >🚪 Logout</button>
+                </form>
+
+            </div>
+        </div>
+
+        <div class="photo">
+            {% if worker["profile_photo"] %}
+                <img
+                    src="{{ url_for('static', filename='uploads/' + worker['profile_photo']) }}"
+                    alt="Worker profile photo"
+                >
+            {% else %}
+                <span aria-label="Worker">👷</span>
+            {% endif %}
+        </div>
+
+        <h2>{{ worker["fullname"] }}</h2>
+        <p>{{ worker["worker_id"] }}</p>
+
+    </header>
+
+    <main class="card">
+
+        <div class="row">
+            <div class="label">Worker ID</div>
+            <div class="value">{{ worker["worker_id"] }}</div>
+        </div>
+
+        <div class="row">
+            <div class="label">Mobile</div>
+            <div class="value">{{ worker["mobile"] }}</div>
+        </div>
+
+        <div class="row">
+            <div class="label">Email</div>
+            <div class="value">{{ worker["email"] }}</div>
+        </div>
+
+        <!-- Actual earnings recorded today -->
+        <div class="row">
+            <div class="label">Today's Earnings</div>
+
+            <div class="today-earning">
+                ₹ {{ "%.2f"|format(today_earning|default(0, true)|float) }}
+            </div>
+
+            <div class="earning-note">
+                Service earnings recorded today
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">Status</div>
+            <div class="value">{{ worker["status"] }}</div>
+        </div>
+
+    </main>
+
+    <nav class="bottom" aria-label="Worker navigation">
+
+        <a href="{{ url_for('worker.worker_home') }}">
+            <span class="nav-icon" aria-hidden="true">🏠</span>
+            <span class="nav-label">Home</span>
+        </a>
+
+        <a href="{{ url_for('worker.worker_jobs') }}">
+            <span class="nav-icon" aria-hidden="true">💼</span>
+            <span class="nav-label">Jobs</span>
+        </a>
+
+        <a href="{{ url_for('worker.wallet') }}">
+            <span class="nav-icon" aria-hidden="true">💰</span>
+            <span class="nav-label">Wallet</span>
+        </a>
+
+        <a
+            class="active"
+            href="{{ url_for('worker.profile') }}"
+            aria-current="page"
+        >
+            <span class="nav-icon" aria-hidden="true">👤</span>
+            <span class="nav-label">Profile</span>
+        </a>
+
+    </nav>
+
+    <script>
+        function toggleMenu() {
+            const menu = document.getElementById("menu");
+            const button = document.querySelector(".menu-btn");
+
+            if (!menu || !button) {
+                return;
+            }
+
+            const isOpen = menu.style.display === "block";
+
+            menu.style.display = isOpen ? "none" : "block";
+            button.setAttribute("aria-expanded", String(!isOpen));
+        }
+
+        document.addEventListener("click", function (event) {
+            const menuWrapper = document.querySelector(".menu");
+            const menu = document.getElementById("menu");
+            const button = document.querySelector(".menu-btn");
+
+            if (
+                menuWrapper &&
+                menu &&
+                !menuWrapper.contains(event.target)
+            ) {
+                menu.style.display = "none";
+
+                if (button) {
+                    button.setAttribute("aria-expanded", "false");
+                }
+            }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                const menu = document.getElementById("menu");
+                const button = document.querySelector(".menu-btn");
+
+                if (menu) {
+                    menu.style.display = "none";
+                }
+
+                if (button) {
+                    button.setAttribute("aria-expanded", "false");
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>

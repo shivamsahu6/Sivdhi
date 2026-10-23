@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Privacy Policy</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:30px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:30px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+margin-bottom:5px;
+}
+
+.card{
+margin:18px;
+background:white;
+padding:22px;
+border-radius:18px;
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+line-height:26px;
+color:#4b5563;
+font-size:15px;
+}
+
+.card h3{
+color:#111827;
+margin-top:20px;
+margin-bottom:10px;
+}
+
+.card h3:first-child{
+margin-top:0;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>
+🔒 Privacy Policy
+</h2>
+
+<p>
+Your privacy is important to us.
+</p>
+
+</div>
+
+<div class="card">
+
+<h3>Information We Collect</h3>
+
+<p>
+We collect information such as your name, mobile number, email address, bank details, profile information and account activity to provide Sivdhi Partner services.
+</p>
+
+<h3>How We Use Your Information</h3>
+
+<p>
+Your information is used to manage your account, process payments, verify your identity, provide support and improve our services.
+</p>
+
+<h3>Data Security</h3>
+
+<p>
+We use appropriate security measures to help protect your personal information from unauthorized access or misuse.
+</p>
+
+<h3>Sharing of Information</h3>
+
+<p>
+We do not sell your personal information. Data may only be shared when required by law or to provide Sivdhi services.
+</p>
+
+<h3>Your Rights</h3>
+
+<p>
+You can update your profile, bank details and other personal information from your account at any time.
+</p>
+
+<h3>Contact Us</h3>
+
+<p>
+If you have any questions regarding this Privacy Policy, please contact the Sivdhi Support Team.
+</p>
+
+</div>
+
+</body>
+
+</html>

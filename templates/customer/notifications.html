@@ -1,0 +1,1196 @@
+<!-- templates/customer/notifications.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+
+    <title>Notifications | Sivdhi</title>
+
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --panel-light: #1d1628;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190,130,255,.20);
+            --green: #78e5b0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            min-height: 100%;
+            background: var(--bg);
+            scroll-behavior: smooth;
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding-bottom: 110px;
+            color: var(--text);
+            background:
+                radial-gradient(
+                    ellipse at 0 0,
+                    rgba(255,67,140,.08),
+                    transparent 38%
+                ),
+                radial-gradient(
+                    ellipse at 100% 45%,
+                    rgba(115,67,255,.08),
+                    transparent 42%
+                ),
+                var(--bg);
+            font-family: Inter, -apple-system, BlinkMacSystemFont,
+                         "Segoe UI", Arial, sans-serif;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button {
+            font: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 0 23px 30px;
+        }
+
+        /* Customer header */
+
+        .top-header {
+            min-height: 74px;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            border-bottom: 1px solid rgba(255,255,255,.065);
+        }
+
+        .back-button {
+            width: 41px;
+            height: 41px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            color: #ead8fa;
+            background: rgba(255,255,255,.025);
+            font-size: 23px;
+            transition: background .15s;
+        }
+
+        .back-button:hover {
+            background: rgba(164,77,255,.12);
+        }
+
+        .brand {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 41px;
+            height: 41px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 14px;
+            background: linear-gradient(
+                135deg,
+                var(--pink),
+                var(--purple),
+                var(--blue)
+            );
+            box-shadow: 0 7px 22px rgba(164,77,255,.18);
+            color: #fff;
+            font-size: 22px;
+            font-weight: 850;
+        }
+
+        .brand-name {
+            font-size: 22px;
+            font-weight: 850;
+            letter-spacing: -.7px;
+        }
+
+        .brand-name span {
+            color: #ff72b6;
+        }
+
+        .brand-caption {
+            display: block;
+            margin-top: 3px;
+            color: #9788a6;
+            font-size: 8px;
+            letter-spacing: 1.3px;
+        }
+
+        /* Introduction */
+
+        .page-intro {
+            padding: 28px 0 22px;
+        }
+
+        .eyebrow {
+            margin-bottom: 10px;
+            color: #d7a5ff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.7px;
+            text-transform: uppercase;
+        }
+
+        .intro-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .page-title {
+            font-size: clamp(27px, 4vw, 35px);
+            font-weight: 850;
+            letter-spacing: -1px;
+            line-height: 1.25;
+        }
+
+        .page-title span {
+            color: #ff72b6;
+        }
+
+        .page-description {
+            max-width: 500px;
+            margin-top: 9px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .unread-count {
+            min-width: 43px;
+            min-height: 43px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            padding: 8px;
+            border: 1px solid rgba(255,67,140,.24);
+            border-radius: 14px;
+            color: #ff9bc5;
+            background: rgba(255,67,140,.08);
+            font-size: 15px;
+            font-weight: 850;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Manage notification preferences */
+
+        .preferences-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            margin-bottom: 23px;
+            border: 1px solid var(--border);
+            border-radius: 17px;
+            background:
+                linear-gradient(
+                    105deg,
+                    rgba(255,67,140,.045),
+                    rgba(164,77,255,.065)
+                );
+            transition: border-color .15s, background .15s;
+        }
+
+        .preferences-link:hover {
+            border-color: rgba(194,117,255,.42);
+            background: rgba(164,77,255,.08);
+        }
+
+        .preferences-icon {
+            width: 43px;
+            height: 43px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(194,117,255,.20);
+            border-radius: 13px;
+            color: #e1bdff;
+            background: rgba(164,77,255,.10);
+            font-size: 20px;
+        }
+
+        .preferences-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .preferences-copy strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .preferences-copy p {
+            color: #aa9ab9;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .preferences-arrow {
+            flex-shrink: 0;
+            color: #b5a0ca;
+            font-size: 22px;
+        }
+
+        /* Flash messages */
+
+        .flash-wrap {
+            margin-bottom: 17px;
+        }
+
+        .flash {
+            padding: 12px 14px;
+            margin-bottom: 9px;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            font-size: 12px;
+            line-height: 1.65;
+        }
+
+        .flash.success {
+            color: #baf4d7;
+            background: rgba(120,229,176,.08);
+            border-color: rgba(120,229,176,.20);
+        }
+
+        .flash.danger,
+        .flash.error {
+            color: #ffb1c6;
+            background: rgba(255,67,140,.08);
+            border-color: rgba(255,67,140,.22);
+        }
+
+        .flash.warning {
+            color: #ffdda0;
+            background: rgba(245,158,11,.08);
+            border-color: rgba(245,158,11,.20);
+        }
+
+        .flash.info {
+            color: #c9c5ff;
+            background: rgba(86,109,255,.08);
+            border-color: rgba(86,109,255,.22);
+        }
+
+        /* Filters and bulk action */
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 13px;
+            margin-bottom: 15px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .filter-button {
+            min-height: 36px;
+            padding: 9px 13px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: #aa9ab9;
+            background: rgba(255,255,255,.02);
+            font-size: 11px;
+            font-weight: 750;
+            cursor: pointer;
+            transition: color .15s, background .15s, border-color .15s;
+        }
+
+        .filter-button:hover {
+            border-color: rgba(194,117,255,.4);
+        }
+
+        .filter-button.active {
+            border-color: transparent;
+            color: #fff;
+            background: linear-gradient(
+                110deg,
+                var(--pink),
+                var(--purple)
+            );
+            box-shadow: 0 5px 14px rgba(164,77,255,.14);
+        }
+
+        .mark-all-form {
+            flex-shrink: 0;
+        }
+
+        .mark-all-button {
+            min-height: 35px;
+            padding: 7px 0 7px 8px;
+            border: 0;
+            color: #d7a5ff;
+            background: transparent;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .mark-all-button:hover {
+            color: #ff89c1;
+        }
+
+        .mark-all-button:disabled {
+            color: #746680;
+            cursor: not-allowed;
+        }
+
+        /* Notification list */
+
+        .notification-list {
+            display: grid;
+            gap: 11px;
+        }
+
+        .notification-card {
+            min-width: 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 13px;
+            padding: 17px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: rgba(23,18,31,.88);
+            box-shadow: 0 7px 23px rgba(0,0,0,.12);
+            transition: border-color .15s, background .15s;
+        }
+
+        .notification-card:hover {
+            border-color: rgba(190,130,255,.32);
+        }
+
+        .notification-card.unread {
+            border-color: rgba(255,67,140,.26);
+            background:
+                linear-gradient(
+                    110deg,
+                    rgba(255,67,140,.045),
+                    rgba(164,77,255,.045)
+                ),
+                rgba(23,18,31,.94);
+        }
+
+        .notification-card[hidden] {
+            display: none !important;
+        }
+
+        .notification-icon {
+            width: 45px;
+            height: 45px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(194,117,255,.19);
+            border-radius: 14px;
+            color: #e1bdff;
+            background: rgba(164,77,255,.10);
+            font-size: 21px;
+        }
+
+        .notification-card[data-kind="booking"] .notification-icon {
+            color: #b5c7ff;
+            background: rgba(86,109,255,.10);
+            border-color: rgba(86,109,255,.20);
+        }
+
+        .notification-card[data-kind="payment"] .notification-icon {
+            color: #baf4d7;
+            background: rgba(120,229,176,.08);
+            border-color: rgba(120,229,176,.17);
+        }
+
+        .notification-card[data-kind="account"] .notification-icon {
+            color: #ffd6a2;
+            background: rgba(245,158,11,.08);
+            border-color: rgba(245,158,11,.18);
+        }
+
+        .notification-content {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .notification-title-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .notification-title {
+            min-width: 0;
+            margin: 0 0 7px;
+            color: #faf6ff;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .unread-dot {
+            width: 8px;
+            height: 8px;
+            margin-top: 6px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: var(--pink);
+            box-shadow: 0 0 10px rgba(255,67,140,.4);
+        }
+
+        .notification-message {
+            color: #b5a6c2;
+            font-size: 11px;
+            line-height: 1.8;
+            overflow-wrap: anywhere;
+            white-space: pre-line;
+        }
+
+        .notification-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 13px;
+            padding-top: 11px;
+            border-top: 1px solid rgba(255,255,255,.055);
+        }
+
+        .notification-time {
+            color: #8f7d9e;
+            font-size: 10px;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
+        .notification-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .notification-action {
+            padding: 4px 0;
+            border: 0;
+            color: #d7a5ff;
+            background: transparent;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .notification-action:hover {
+            color: #ff89c1;
+        }
+
+        .notification-action:disabled {
+            color: #746680;
+            cursor: not-allowed;
+        }
+
+        /* Empty state */
+
+        .empty-state {
+            display: none;
+            padding: 42px 20px;
+            border: 1px solid var(--border);
+            border-radius: 21px;
+            background: rgba(23,18,31,.88);
+            text-align: center;
+        }
+
+        .empty-state.visible {
+            display: block;
+        }
+
+        .empty-icon {
+            width: 76px;
+            height: 76px;
+            display: grid;
+            place-items: center;
+            margin: 0 auto 18px;
+            border: 1px solid rgba(194,117,255,.20);
+            border-radius: 24px;
+            color: #e1bdff;
+            background: rgba(164,77,255,.10);
+            font-size: 32px;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 9px;
+            font-size: 17px;
+            font-weight: 850;
+        }
+
+        .empty-state p {
+            max-width: 310px;
+            margin: 0 auto;
+            color: #aa9ab9;
+            font-size: 11px;
+            line-height: 1.8;
+        }
+
+        .empty-help {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 39px;
+            margin-top: 17px;
+            padding: 10px 14px;
+            border: 1px solid rgba(194,117,255,.24);
+            border-radius: 11px;
+            color: #eddbff;
+            background: rgba(164,77,255,.09);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        /* Bottom navigation */
+
+        .bottom-nav {
+            position: fixed;
+            z-index: 20;
+            left: 50%;
+            bottom: max(9px, env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            width: min(490px, calc(100vw - 28px));
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 4px;
+            padding: 7px;
+            border: 1px solid rgba(196,133,255,.22);
+            border-radius: 21px;
+            background: rgba(17,13,24,.96);
+            box-shadow: 0 15px 50px rgba(0,0,0,.45);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-item {
+            min-height: 47px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-radius: 13px;
+            color: #9d90aa;
+            font-size: 19px;
+        }
+
+        .nav-item small {
+            font-size: 10px;
+        }
+
+        .nav-item.active {
+            color: #ff89c1;
+            background: linear-gradient(
+                135deg,
+                rgba(255,65,139,.13),
+                rgba(139,69,255,.15)
+            );
+            font-weight: 800;
+        }
+
+        @media (max-width: 600px) {
+            .app {
+                padding: 0 13px 25px;
+            }
+
+            .top-header {
+                min-height: 66px;
+            }
+
+            .brand-name {
+                font-size: 20px;
+            }
+
+            .page-intro {
+                padding-top: 24px;
+            }
+
+            .notification-card {
+                gap: 11px;
+                padding: 14px 12px;
+            }
+
+            .notification-icon {
+                width: 40px;
+                height: 40px;
+                border-radius: 12px;
+                font-size: 19px;
+            }
+
+            .notification-title {
+                font-size: 12px;
+            }
+
+            .notification-message {
+                font-size: 10px;
+            }
+
+            .toolbar {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .mark-all-form {
+                align-self: flex-end;
+            }
+
+            .mark-all-button {
+                padding-right: 2px;
+            }
+        }
+
+        @media (max-width: 350px) {
+            .brand-name {
+                font-size: 18px;
+            }
+
+            .intro-row {
+                gap: 9px;
+            }
+
+            .unread-count {
+                min-width: 36px;
+                min-height: 36px;
+            }
+
+            .notification-footer {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: .01ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    <div class="app">
+
+        <!-- Customer header -->
+
+        <header class="top-header">
+            <a
+                href="{{ url_for('customer.settings') }}"
+                class="back-button"
+                aria-label="Back to settings"
+            >‹</a>
+
+            <a
+                href="{{ url_for('customer.home') }}"
+                class="brand"
+                aria-label="Sivdhi customer home"
+            >
+                <span class="brand-icon" aria-hidden="true">S</span>
+
+                <span>
+                    <span class="brand-name">Siv<span>dh</span>i</span>
+                    <span class="brand-caption">CUSTOMER ACCOUNT</span>
+                </span>
+            </a>
+        </header>
+
+        <main>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-wrap" aria-live="polite">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category|e }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            {% set unread = namespace(count=0) %}
+
+            {% if notifications %}
+                {% for notification in notifications %}
+                    {% if not notification['is_read'] %}
+                        {% set unread.count = unread.count + 1 %}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+            <section class="page-intro">
+                <p class="eyebrow">YOUR ACCOUNT</p>
+
+                <div class="intro-row">
+                    <div>
+                        <h1 class="page-title">
+                            <span>Notifications</span>
+                        </h1>
+
+                        <p class="page-description">
+                            Stay updated with your bookings and account.
+                            Your latest notifications appear here.
+                        </p>
+                    </div>
+
+                    <span
+                        class="unread-count"
+                        id="unreadCount"
+                        aria-label="Unread notification count"
+                    >{{ unread.count }}</span>
+                </div>
+            </section>
+
+            <!-- Notification preferences are managed by the existing
+                 Customer Settings page. -->
+
+            <a
+                href="{{ url_for('customer.settings') }}"
+                class="preferences-link"
+            >
+                <span class="preferences-icon" aria-hidden="true">⚙</span>
+
+                <span class="preferences-copy">
+                    <strong>Notification Preferences</strong>
+                    <p>
+                        Manage app notifications, booking updates
+                        and promotional preferences in Settings.
+                    </p>
+                </span>
+
+                <span class="preferences-arrow" aria-hidden="true">›</span>
+            </a>
+
+            <div class="toolbar">
+                <div
+                    class="filter-buttons"
+                    role="group"
+                    aria-label="Filter notifications"
+                >
+                    <button
+                        type="button"
+                        class="filter-button active"
+                        data-filter="all"
+                        aria-pressed="true"
+                    >All</button>
+
+                    <button
+                        type="button"
+                        class="filter-button"
+                        data-filter="unread"
+                        aria-pressed="false"
+                    >Unread</button>
+
+                    <button
+                        type="button"
+                        class="filter-button"
+                        data-filter="read"
+                        aria-pressed="false"
+                    >Read</button>
+                </div>
+
+                <form
+                    method="POST"
+                    action="{{ url_for('customer.mark_all_notifications_read') }}"
+                    class="mark-all-form"
+                    id="markAllForm"
+                >
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    >
+
+                    <button
+                        type="submit"
+                        class="mark-all-button"
+                        id="markAllButton"
+                        {% if unread.count == 0 %}disabled{% endif %}
+                    >Mark all as read</button>
+                </form>
+            </div>
+
+            <section aria-label="Notification history">
+                <div class="notification-list" id="notificationList">
+
+                    {% if notifications %}
+                        {% for notification in notifications %}
+
+                            {% set is_unread = not notification['is_read'] %}
+
+                            {% set search_text =
+                                (
+                                    (notification['title'] or '') ~ ' ' ~
+                                    (notification['message'] or '')
+                                )|lower
+                            %}
+
+                            {% set kind = 'general' %}
+
+                            {% if 'booking' in search_text
+                                or 'worker' in search_text
+                                or 'service' in search_text %}
+                                {% set kind = 'booking' %}
+                            {% elif 'payment' in search_text
+                                or 'refund' in search_text
+                                or 'wallet' in search_text %}
+                                {% set kind = 'payment' %}
+                            {% elif 'account' in search_text
+                                or 'profile' in search_text
+                                or 'password' in search_text %}
+                                {% set kind = 'account' %}
+                            {% endif %}
+
+                            <article
+                                class="notification-card{% if is_unread %} unread{% endif %}"
+                                data-notification-id="{{ notification['id'] }}"
+                                data-unread="{{ 'true' if is_unread else 'false' }}"
+                                data-kind="{{ kind }}"
+                                data-search="{{ search_text|e }}"
+                            >
+                                <div
+                                    class="notification-icon"
+                                    aria-hidden="true"
+                                >
+                                    {% if kind == 'booking' %}
+                                        ▤
+                                    {% elif kind == 'payment' %}
+                                        ₹
+                                    {% elif kind == 'account' %}
+                                        ♙
+                                    {% else %}
+                                        ♧
+                                    {% endif %}
+                                </div>
+
+                                <div class="notification-content">
+                                    <div class="notification-title-row">
+                                        <h2 class="notification-title">
+                                            {{ notification['title'] or 'Sivdhi Notification' }}
+                                        </h2>
+
+                                        {% if is_unread %}
+                                            <span
+                                                class="unread-dot"
+                                                title="Unread notification"
+                                                aria-label="Unread"
+                                            ></span>
+                                        {% endif %}
+                                    </div>
+
+                                    <p class="notification-message">{{ notification['message'] or '' }}</p>
+
+                                    <div class="notification-footer">
+                                        <span class="notification-time">
+                                            {{ notification['created_at'] or '' }}
+                                        </span>
+
+                                        <div class="notification-actions">
+                                            {% if is_unread %}
+                                                <form
+                                                    method="POST"
+                                                    action="{{ url_for('customer.mark_notification_read', notification_id=notification['id']) }}"
+                                                    class="mark-read-form"
+                                                >
+                                                    <input
+                                                        type="hidden"
+                                                        name="csrf_token"
+                                                        value="{{ csrf_token() }}"
+                                                    >
+
+                                                    <button
+                                                        type="submit"
+                                                        class="notification-action"
+                                                    >Mark as read</button>
+                                                </form>
+                                            {% else %}
+                                                <span
+                                                    class="notification-time"
+                                                    aria-label="Read notification"
+                                                >✓ Read</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                        {% endfor %}
+                    {% endif %}
+
+                </div>
+
+                <div
+                    class="empty-state{% if not notifications %} visible{% endif %}"
+                    id="emptyState"
+                    role="status"
+                >
+                    <div class="empty-icon" aria-hidden="true">♧</div>
+
+                    <h3 id="emptyTitle">
+                        {% if notifications %}
+                            No matching notifications
+                        {% else %}
+                            You're all caught up
+                        {% endif %}
+                    </h3>
+
+                    <p id="emptyMessage">
+                        {% if notifications %}
+                            Try another filter to see your notifications.
+                        {% else %}
+                            New booking updates and account notifications
+                            will appear here when available.
+                        {% endif %}
+                    </p>
+
+                    <a
+                        href="{{ url_for('customer.settings') }}"
+                        class="empty-help"
+                        id="emptySettingsLink"
+                        {% if notifications %}hidden{% endif %}
+                    >Notification Preferences</a>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Customer navigation: exactly three tabs -->
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a
+            class="nav-item"
+            href="{{ url_for('customer.home') }}"
+        >
+            <span aria-hidden="true">⌂</span>
+            <small>Home</small>
+        </a>
+
+        <a
+            class="nav-item"
+            href="{{ url_for('customer.bookings') }}"
+        >
+            <span aria-hidden="true">▤</span>
+            <small>Bookings</small>
+        </a>
+
+        <a
+            class="nav-item active"
+            href="{{ url_for('customer.profile') }}"
+            aria-current="page"
+        >
+            <span aria-hidden="true">♙</span>
+            <small>Profile</small>
+        </a>
+    </nav>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const cards = Array.from(
+                document.querySelectorAll(".notification-card")
+            );
+
+            const filterButtons = Array.from(
+                document.querySelectorAll(".filter-button")
+            );
+
+            const emptyState = document.getElementById("emptyState");
+            const emptyTitle = document.getElementById("emptyTitle");
+            const emptyMessage = document.getElementById("emptyMessage");
+            const emptySettingsLink =
+                document.getElementById("emptySettingsLink");
+
+            const unreadCount = document.getElementById("unreadCount");
+            const markAllButton = document.getElementById("markAllButton");
+            const markAllForm = document.getElementById("markAllForm");
+
+            let activeFilter = "all";
+
+            function getUnreadCount() {
+                return cards.filter(function (card) {
+                    return card.dataset.unread === "true";
+                }).length;
+            }
+
+            function applyFilter() {
+                let visibleCount = 0;
+
+                cards.forEach(function (card) {
+                    const isUnread = card.dataset.unread === "true";
+
+                    let visible = true;
+
+                    if (activeFilter === "unread") {
+                        visible = isUnread;
+                    } else if (activeFilter === "read") {
+                        visible = !isUnread;
+                    }
+
+                    card.hidden = !visible;
+
+                    if (visible) {
+                        visibleCount += 1;
+                    }
+                });
+
+                emptyState.classList.toggle(
+                    "visible",
+                    visibleCount === 0
+                );
+
+                if (visibleCount === 0 && cards.length > 0) {
+                    emptyTitle.textContent = "No matching notifications";
+                    emptyMessage.textContent =
+                        "Try another filter to see your notifications.";
+
+                    emptySettingsLink.hidden = true;
+                } else if (cards.length === 0) {
+                    emptyTitle.textContent = "You're all caught up";
+                    emptyMessage.textContent =
+                        "New booking updates and account notifications will appear here when available.";
+
+                    emptySettingsLink.hidden = false;
+                }
+            }
+
+            function updateUnreadDisplay() {
+                const count = getUnreadCount();
+
+                unreadCount.textContent = String(count);
+
+                markAllButton.disabled = count === 0;
+
+                cards.forEach(function (card) {
+                    card.classList.toggle(
+                        "unread",
+                        card.dataset.unread === "true"
+                    );
+                });
+            }
+
+            filterButtons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    activeFilter = button.dataset.filter;
+
+                    filterButtons.forEach(function (otherButton) {
+                        const active = otherButton === button;
+
+                        otherButton.classList.toggle("active", active);
+
+                        otherButton.setAttribute(
+                            "aria-pressed",
+                            active ? "true" : "false"
+                        );
+                    });
+
+                    applyFilter();
+                });
+            });
+
+            /*
+             * Prevent duplicate submissions while the server handles
+             * the mark-as-read request.
+             */
+
+            document.querySelectorAll(".mark-read-form").forEach(
+                function (form) {
+                    form.addEventListener("submit", function () {
+                        const button = form.querySelector("button");
+
+                        if (button) {
+                            button.disabled = true;
+                            button.textContent = "Updating...";
+                        }
+                    });
+                }
+            );
+
+            if (markAllForm) {
+                markAllForm.addEventListener("submit", function (event) {
+                    if (getUnreadCount() === 0) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    markAllButton.disabled = true;
+                    markAllButton.textContent = "Updating...";
+                });
+            }
+
+            window.addEventListener("pageshow", function () {
+                document.querySelectorAll(".mark-read-form button").forEach(
+                    function (button) {
+                        button.disabled = false;
+                        button.textContent = "Mark as read";
+                    }
+                );
+
+                updateUnreadDisplay();
+                applyFilter();
+
+                markAllButton.textContent = "Mark all as read";
+            });
+
+            updateUnreadDisplay();
+            applyFilter();
+        })();
+    </script>
+</body>
+</html>

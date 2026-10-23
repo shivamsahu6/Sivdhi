@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>App Version | Sivdhi</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190, 130, 255, .20);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            min-height: 100dvh;
+            color: var(--text);
+            background:
+                radial-gradient(ellipse at top left,
+                    rgba(255, 67, 140, .10), transparent 42%),
+                var(--bg);
+            font-family: Inter, -apple-system, BlinkMacSystemFont,
+                "Segoe UI", Arial, sans-serif;
+        }
+
+        .header {
+            padding: 26px 20px 30px;
+            color: white;
+            background: linear-gradient(
+                125deg, #a42470, #7625b9, #3939a8
+            );
+            border-radius: 0 0 25px 25px;
+        }
+
+        .top-row {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+        }
+
+        .back {
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            width: 42px;
+            height: 42px;
+            border: 1px solid rgba(255,255,255,.25);
+            border-radius: 13px;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,.10);
+            font-size: 25px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .header p {
+            margin: 7px 0 0 55px;
+            color: rgba(255,255,255,.85);
+            font-size: 12px;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 24px 15px;
+        }
+
+        .card {
+            padding: 30px 22px;
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            background: var(--panel);
+            text-align: center;
+            box-shadow: 0 12px 35px rgba(0,0,0,.18);
+        }
+
+        .logo {
+            display: grid;
+            place-items: center;
+            width: 86px;
+            height: 86px;
+            margin: 0 auto 20px;
+            border-radius: 25px;
+            color: white;
+            background: linear-gradient(
+                135deg, var(--pink), var(--purple), var(--blue)
+            );
+            box-shadow: 0 9px 25px rgba(164,77,255,.20);
+            font-size: 39px;
+            font-weight: 900;
+        }
+
+        .app-name {
+            margin: 0;
+            font-size: 25px;
+            font-weight: 850;
+        }
+
+        .description {
+            margin: 9px 0 22px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .version-box {
+            padding: 19px 15px;
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            background: rgba(255,255,255,.025);
+        }
+
+        .version-label {
+            margin-bottom: 9px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .version-number {
+            color: #d7a5ff;
+            font-size: 25px;
+            font-weight: 850;
+            overflow-wrap: anywhere;
+        }
+
+        .copyright {
+            margin-top: 23px;
+            color: #857692;
+            font-size: 11px;
+        }
+
+        @media (max-width: 380px) {
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .card {
+                padding: 26px 17px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+    <header class="header">
+        <div class="top-row">
+            <a
+                class="back"
+                href="{{ url_for('customer.profile') }}"
+                aria-label="Back to profile"
+            >‹</a>
+            <h1>App Version</h1>
+        </div>
+        <p>Sivdhi Customer application</p>
+    </header>
+
+    <main class="page">
+        <section class="card">
+            <div class="logo" aria-hidden="true">S</div>
+
+            <h2 class="app-name">Sivdhi Customer</h2>
+
+            <p class="description">
+                Application version information.
+            </p>
+
+            <div class="version-box">
+                <div class="version-label">Current Version</div>
+                <div class="version-number">
+                    v{{ version }}
+                </div>
+            </div>
+
+            <div class="copyright">© 2026 Sivdhi</div>
+        </section>
+    </main>
+</body>
+</html>

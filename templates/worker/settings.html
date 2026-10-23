@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Settings | Sivdhi</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Poppins, Arial, sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            padding-bottom: 40px;
+            color: #111827;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            padding: 28px;
+            color: white;
+            border-radius: 0 0 25px 25px;
+        }
+
+        .header h2 {
+            font-size: 26px;
+        }
+
+        .header p {
+            margin-top: 5px;
+            font-size: 14px;
+            opacity: .9;
+        }
+
+        .menu {
+            margin: 20px;
+            background: white;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, .08);
+        }
+
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 18px;
+            text-decoration: none;
+            color: #111827;
+            border-bottom: 1px solid #eee;
+            transition: background .2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        .item:hover {
+            background: #f9fafb;
+        }
+
+        .left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .icon {
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .arrow {
+            font-size: 18px;
+            color: #9ca3af;
+        }
+
+        .version {
+            text-align: center;
+            margin-top: 25px;
+            font-size: 13px;
+            color: #777;
+        }
+
+        .item:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: -3px;
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 25px 18px;
+            }
+
+            .header h2 {
+                font-size: 23px;
+            }
+
+            .menu {
+                margin: 16px;
+            }
+
+            .item {
+                padding: 17px 15px;
+            }
+
+            .left {
+                font-size: 15px;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+    <header class="header">
+        <h2>⚙ Settings</h2>
+        <p>Manage your account preferences</p>
+    </header>
+
+    <main class="menu">
+
+        <!-- Notifications option intentionally removed.
+             Notification preferences are available from the
+             settings gear on the Notification Center page. -->
+
+        <a href="{{ url_for('worker.change_password') }}"
+           class="item">
+            <div class="left">
+                <span class="icon" aria-hidden="true">🔒</span>
+                <span>Change Password</span>
+            </div>
+            <span class="arrow" aria-hidden="true">›</span>
+        </a>
+
+        <a href="{{ url_for('worker.about') }}"
+           class="item">
+            <div class="left">
+                <span class="icon" aria-hidden="true">📄</span>
+                <span>About Sivdhi</span>
+            </div>
+            <span class="arrow" aria-hidden="true">›</span>
+        </a>
+
+        <a href="{{ url_for('worker.rate_app') }}"
+           class="item">
+            <div class="left">
+                <span class="icon" aria-hidden="true">⭐</span>
+                <span>Rate App</span>
+            </div>
+            <span class="arrow" aria-hidden="true">›</span>
+        </a>
+
+        <a href="{{ url_for('worker.check_update') }}"
+           class="item">
+            <div class="left">
+                <span class="icon" aria-hidden="true">🔄</span>
+                <span>Check for Updates</span>
+            </div>
+            <span class="arrow" aria-hidden="true">›</span>
+        </a>
+
+        <a href="{{ url_for('worker.app_version') }}"
+           class="item">
+            <div class="left">
+                <span class="icon" aria-hidden="true">📱</span>
+                <span>App Version</span>
+            </div>
+            <span class="arrow" aria-hidden="true">›</span>
+        </a>
+
+    </main>
+
+    <div class="version">
+        Sivdhi Worker v1.0.0
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications | Sivdhi Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Inter, Poppins, Arial, sans-serif
+        }
+
+        body {
+            background: #f6f8fc;
+            color: #111827
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            color: #fff;
+            padding: 25px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between
+        }
+
+        .header h1 {
+            font-size: 26px
+        }
+
+        .header p {
+            margin-top: 6px;
+            font-size: 14px;
+            opacity: .8
+        }
+
+        .back {
+            text-decoration: none;
+            color: #fff;
+            background: rgba(255, 255, 255, .15);
+            padding: 11px 18px;
+            border-radius: 10px
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px
+        }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px
+        }
+
+        .top h2 {
+            font-size: 22px
+        }
+
+        .count {
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 5px
+        }
+
+        .search-box {
+            background: #fff;
+            padding: 18px;
+            border-radius: 16px;
+            box-shadow: 0 5px 18px rgba(15, 23, 42, .06);
+            margin-bottom: 20px
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            outline: none;
+            font-size: 15px
+        }
+
+        .search-box input:focus {
+            border-color: #2563eb
+        }
+
+        .table-card {
+            background: #fff;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 7px 25px rgba(15, 23, 42, .07)
+        }
+
+        .table-wrapper {
+            overflow-x: auto
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px
+        }
+
+        thead {
+            background: #f8fafc
+        }
+
+        th {
+            text-align: left;
+            padding: 17px;
+            font-size: 13px;
+            color: #64748b;
+            text-transform: uppercase;
+            white-space: nowrap
+        }
+
+        td {
+            padding: 17px;
+            border-top: 1px solid #f1f5f9;
+            font-size: 14px;
+            vertical-align: top
+        }
+
+        tr:hover {
+            background: #f8fafc
+        }
+
+        .title {
+            font-weight: 600
+        }
+
+        .muted {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 4px
+        }
+
+        .message {
+            color: #475569;
+            max-width: 480px;
+            white-space: normal;
+            line-height: 1.5
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700
+        }
+
+        .unread {
+            background: #dbeafe;
+            color: #1d4ed8
+        }
+
+        .read {
+            background: #f1f5f9;
+            color: #64748b
+        }
+
+        .btn {
+            border: 0;
+            cursor: pointer;
+            padding: 8px 13px;
+            border-radius: 9px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600
+        }
+
+        .btn:hover {
+            background: #1d4ed8
+        }
+
+        .empty {
+            text-align: center;
+            padding: 55px 20px;
+            color: #64748b
+        }
+
+        .empty-icon {
+            font-size: 34px;
+            margin-bottom: 10px
+        }
+
+        @media(max-width:700px) {
+            .header {
+                padding: 20px
+            }
+
+            .header h1 {
+                font-size: 21px
+            }
+
+            .container {
+                margin: 20px auto
+            }
+
+            .top {
+                align-items: flex-start;
+                gap: 15px;
+                flex-direction: column
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+    <header class="header">
+        <div>
+            <h1>Notifications</h1>
+            <p>Manage Sivdhi platform notifications</p>
+        </div>
+        <a href="/admin/dashboard" class="back">← Dashboard</a>
+    </header>
+    <div class="container">
+        <div class="top">
+            <div>
+                <h2>All Notifications</h2>
+                <div class="count">{{ notifications|length }} notification{{ '' if notifications|length == 1 else 's' }}
+                </div>
+            </div>
+        </div>
+        <div class="search-box"><input id="notificationSearch" type="text" placeholder="Search notifications..."
+                oninput="searchNotifications()"></div>
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Recipient</th>
+                            <th>Notification</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for notification in notifications %}
+                        <tr class="notification-row">
+                            <td>#{{ notification['id'] }}</td>
+                            <td><strong>{{ notification['user_type'] or 'User' }}</strong>
+                                <div class="muted">{{ notification['user_id'] or '-' }}</div>
+                            </td>
+                            <td>
+                                <div class="title">{{ notification['title'] or 'Notification' }}</div>
+                                <div class="message">{{ notification['message'] or '-' }}</div>
+                            </td>
+                            <td>{% if notification['is_read'] %}<span class="badge read">Read</span>{% else %}<span
+                                    class="badge unread">Unread</span>{% endif %}</td>
+                            <td>{{ notification['created_at'] or '-' }}</td>
+                            <td>{% if not notification['is_read'] %}<form method="POST"
+                                    action="/admin/notifications/{{ notification['id'] }}/read">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn"
+                                        type="submit">Mark Read</button></form>{% else %}<span
+                                    class="muted">Completed</span>{% endif %}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty">
+                                    <div class="empty-icon">🔔</div><strong>No notifications found.</strong>
+                                    <p style="margin-top:6px">New platform notifications will appear here.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+        function searchNotifications() { const input = document.getElementById('notificationSearch').value.toLowerCase().trim(); document.querySelectorAll('.notification-row').forEach(row => row.style.display = row.innerText.toLowerCase().includes(input) ? '' : 'none'); }
+    </script>
+</body>
+
+</html>

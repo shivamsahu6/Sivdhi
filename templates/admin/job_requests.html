@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Requests | Sivdhi Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Inter, Poppins, Arial, sans-serif
+        }
+
+        :root {
+            --primary: #2563eb;
+            --dark: #0f172a;
+            --text: #111827;
+            --muted: #64748b;
+            --border: #e5e7eb;
+            --bg: #f6f8fc
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text)
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between
+        }
+
+        .header h1 {
+            font-size: 26px
+        }
+
+        .header p {
+            margin-top: 6px;
+            font-size: 13px;
+            opacity: .8
+        }
+
+        .back {
+            text-decoration: none;
+            color: white;
+            background: rgba(255, 255, 255, .15);
+            padding: 11px 18px;
+            border-radius: 10px;
+            font-size: 13px
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px
+        }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px
+        }
+
+        .top h2 {
+            font-size: 23px
+        }
+
+        .count {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 5px
+        }
+
+        .search-card {
+            background: white;
+            border: 1px solid #edf0f5;
+            border-radius: 17px;
+            padding: 18px;
+            margin-bottom: 18px;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, .04)
+        }
+
+        .search {
+            width: 100%;
+            height: 45px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0 15px;
+            outline: none;
+            font-size: 13px
+        }
+
+        .search:focus {
+            border-color: var(--primary)
+        }
+
+        .table-card {
+            background: white;
+            border: 1px solid #edf0f5;
+            border-radius: 17px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(15, 23, 42, .05)
+        }
+
+        .table-wrapper {
+            overflow-x: auto
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1050px
+        }
+
+        thead {
+            background: #f8fafc
+        }
+
+        th {
+            padding: 16px;
+            text-align: left;
+            color: #64748b;
+            font-size: 11px;
+            text-transform: uppercase;
+            white-space: nowrap
+        }
+
+        td {
+            padding: 16px;
+            border-top: 1px solid #f1f5f9;
+            font-size: 13px;
+            white-space: nowrap
+        }
+
+        tr:hover {
+            background: #f8fafc
+        }
+
+        .person {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold
+        }
+
+        .name {
+            font-weight: 600
+        }
+
+        .id {
+            color: #94a3b8;
+            font-size: 10px;
+            margin-top: 3px
+        }
+
+        .job {
+            font-weight: 600
+        }
+
+        .job-id {
+            color: #94a3b8;
+            font-size: 10px;
+            margin-top: 3px
+        }
+
+        .amount {
+            font-weight: bold;
+            color: #16a34a
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 11px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: bold
+        }
+
+        .pending {
+            background: #fef3c7;
+            color: #92400e
+        }
+
+        .accepted {
+            background: #dcfce7;
+            color: #166534
+        }
+
+        .rejected,
+        .cancelled {
+            background: #fee2e2;
+            color: #991b1b
+        }
+
+        .completed {
+            background: #dbeafe;
+            color: #1e40af
+        }
+
+        .assigned, .in-progress, .started {
+            background: #e0e7ff;
+            color: #3730a3
+        }
+
+        .booking {
+            background: #e0f2fe;
+            color: #075985
+        }
+
+        .empty {
+            text-align: center;
+            padding: 65px 20px;
+            color: #64748b
+        }
+
+        .empty-icon {
+            font-size: 40px;
+            margin-bottom: 10px
+        }
+
+        @media(max-width:700px) {
+            .header {
+                padding: 20px
+            }
+
+            .header h1 {
+                font-size: 21px
+            }
+
+            .header p {
+                font-size: 11px
+            }
+
+            .back {
+                padding: 9px 12px;
+                font-size: 11px
+            }
+
+            .container {
+                margin: 20px auto;
+                padding: 0 12px
+            }
+
+            .top {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 5px
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+    <div class="header">
+        <div>
+            <h1>📨 Job Requests</h1>
+            <p>Manage partner and worker job requests</p>
+        </div><a href="/admin/dashboard" class="back">← Dashboard</a>
+    </div>
+    <div class="container">
+        <div class="top">
+            <div>
+                <h2>Job Request Management</h2>
+                <div class="count">Total Requests: {{ requests|length }}</div>
+            </div>
+        </div>
+        <div class="search-card"><input class="search" id="search" type="text"
+                placeholder="🔎 Search by Job ID, service, partner or worker..." onkeyup="searchRequests()"></div>
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Partner</th>
+                            <th>Worker</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Source</th>
+                            <th>Requested</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestTable">
+                        {% for item in requests %}
+                        <tr class="request-row">
+                            <td>
+                                <div class="job">{{ item["job_service"] or "Job Request" }}</div>
+                                <div class="job-id">Job ID: {{ item["job_id"] }}</div>
+                            </td>
+                            <td>
+                                <div class="person">
+                                    <div class="avatar">{{ (item["partner_name"] or "P")[:1]|upper }}</div>
+                                    <div>
+                                        <div class="name">{{ item["partner_name"] or "Unknown Partner" }}</div>
+                                        <div class="id">{{ item["partner_id"] }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="person">
+                                    <div class="avatar">{{ (item["worker_name"] or "W")[:1]|upper }}</div>
+                                    <div>
+                                        <div class="name">{{ item["worker_name"] or "Unknown Worker" }}</div>
+                                        <div class="id">{{ item["worker_id"] }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="amount">₹{{ "%.2f"|format(item["job_amount"] or 0) }}</td>
+                            {% set status=(item["request_status"] or "Pending")|lower %}
+                            <td><span class="status {{ status|replace(' ','-')|replace('_','-') }}">{{ item["request_status"] or
+                                    "Pending" }}</span></td>
+                            <td><span class="status {{ 'booking' if item['source'] == 'booking' else 'pending' }}">{{ 'Live Booking' if item['source'] == 'booking' else 'Legacy Request' }}</span></td>
+                            <td>{{ item["created_at"] or "—" }}</td>
+                        </tr>
+                        {% else %}<tr>
+                            <td colspan="7">
+                                <div class="empty">
+                                    <div class="empty-icon">📭</div>No job requests found.
+                                </div>
+                            </td>
+                        </tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+        function searchRequests() {
+            const q = document.getElementById('search').value.trim().toLowerCase();
+            document.querySelectorAll('.request-row').forEach(r => {
+                const text = r.innerText.toLowerCase();
+                r.style.display = !q || text.includes(q) ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+
+</html>

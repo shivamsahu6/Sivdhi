@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sivdhi Admin Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Inter,Poppins,Arial,sans-serif}
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--dark:#0f172a;--text:#111827;--muted:#64748b;--border:#e5e7eb;--bg:#f6f8fc;--white:#ffffff;--green:#16a34a;--orange:#f59e0b;--red:#dc2626}
+body{background:var(--bg);color:var(--text)}
+.app{display:flex;min-height:100vh}
+.sidebar{width:255px;background:#0b1220;color:white;position:fixed;top:0;bottom:0;left:0;z-index:100;padding:22px 15px;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#334155 #0b1220}
+.sidebar::-webkit-scrollbar{width:5px}
+.sidebar::-webkit-scrollbar-track{background:#0b1220}
+.sidebar::-webkit-scrollbar-thumb{background:#334155;border-radius:10px}
+.sidebar::-webkit-scrollbar-thumb:hover{background:#475569}
+.brand{display:flex;align-items:center;gap:12px;padding:5px 10px 25px}
+.brand-logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;box-shadow:0 8px 20px rgba(37,99,235,.3)}
+.brand-text strong{display:block;font-size:17px}
+.brand-text span{color:#94a3b8;font-size:11px}
+.menu-title{color:#64748b;font-size:10px;font-weight:700;letter-spacing:1px;padding:15px 12px 8px;text-transform:uppercase}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav a{color:#94a3b8;text-decoration:none;display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;font-size:13px;font-weight:500;transition:.2s}
+.nav a:hover{background:#172033;color:white}
+.nav-logout-form{margin:0}
+.nav-logout-button{width:100%;color:#94a3b8;text-decoration:none;display:flex;align-items:center;gap:12px;padding:12px;border:0;border-radius:10px;background:transparent;font-size:13px;font-weight:500;cursor:pointer;text-align:left;font-family:inherit}
+.nav-logout-button:hover{background:#172033;color:white}
+.nav a.active{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;box-shadow:0 8px 18px rgba(37,99,235,.22)}
+.nav-icon{width:20px;text-align:center;font-size:16px}
+.sidebar-bottom{margin-top:auto}
+.admin-mini{display:flex;align-items:center;gap:10px;padding:12px;background:#111a2b;border-radius:12px;margin-bottom:10px}
+.admin-avatar{width:36px;height:36px;border-radius:10px;background:#2563eb;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.admin-info{min-width:0}
+.admin-info strong{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin-info span{color:#64748b;font-size:10px}
+.main{width:calc(100% - 255px);margin-left:255px;min-height:100vh}
+.topbar{height:72px;background:white;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 30px;position:sticky;top:0;z-index:50}
+.page-name{font-size:18px;font-weight:700}
+.page-name span{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:3px}
+.top-right{display:flex;align-items:center;gap:18px}
+.search{width:240px;height:38px;border:1px solid var(--border);border-radius:9px;display:flex;align-items:center;padding:0 12px;gap:8px;color:#94a3b8;background:#f8fafc}
+.search input{border:none;outline:none;background:transparent;width:100%;font-size:12px}
+.notification{width:38px;height:38px;border:1px solid var(--border);border-radius:9px;display:flex;align-items:center;justify-content:center;position:relative;background:white;color:inherit;text-decoration:none;cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.notification:hover{border-color:var(--primary);box-shadow:0 3px 10px rgba(37,99,235,.12)}
+.notification-count{position:absolute;top:-7px;right:-7px;min-width:17px;height:17px;padding:0 4px;display:flex;align-items:center;justify-content:center;border:2px solid white;border-radius:999px;background:#ef4444;color:white;font-size:9px;font-weight:800;line-height:1}
+.notification-count[hidden]{display:none}
+.content{padding:28px 30px 40px;max-width:1600px;margin:auto}
+.welcome{display:flex;align-items:center;justify-content:space-between;margin-bottom:25px}
+.welcome h1{font-size:25px;letter-spacing:-.5px}
+.welcome p{color:var(--muted);font-size:13px;margin-top:5px}
+.date-box{background:white;border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px}
+.kpi{background:white;border:1px solid #edf0f5;border-radius:16px;padding:20px;box-shadow:0 3px 12px rgba(15,23,42,.03)}
+.kpi-top{display:flex;align-items:center;justify-content:space-between}
+.kpi-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px}
+.blue{background:#eff6ff}
+.green{background:#f0fdf4}
+.orange{background:#fffbeb}
+.purple{background:#faf5ff}
+.red-box{background:#fef2f2}
+.kpi-menu{color:#94a3b8;font-size:18px}
+.kpi-label{color:var(--muted);font-size:12px;margin-top:17px}
+.kpi-number{font-size:26px;font-weight:750;margin-top:5px}
+.kpi-bottom{margin-top:10px;font-size:11px;display:flex;gap:5px;align-items:center}
+.up{color:var(--green);font-weight:700}
+.down{color:var(--red);font-weight:700}
+.kpi-bottom span:last-child{color:#94a3b8}
+.dashboard-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:18px}
+.panel{background:white;border:1px solid #edf0f5;border-radius:16px;box-shadow:0 3px 12px rgba(15,23,42,.03)}
+.panel-head{padding:19px 20px;border-bottom:1px solid #f0f2f5;display:flex;justify-content:space-between;align-items:center}
+.panel-head h3{font-size:14px}
+.panel-head p{color:var(--muted);font-size:11px;margin-top:3px}
+.view{color:var(--primary);font-size:11px;text-decoration:none;font-weight:600}
+.chart-area{height:260px;padding:20px;display:flex;align-items:flex-end;gap:12px}
+.chart-column{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:8px}
+.bar-wrap{height:210px;width:100%;display:flex;align-items:flex-end;justify-content:center}
+.bar{width:65%;max-width:38px;border-radius:7px 7px 3px 3px;background:linear-gradient(180deg,#3b82f6,#2563eb);min-height:20px}
+.chart-column small{font-size:10px;color:#94a3b8}
+.donut-area{padding:25px 20px;display:flex;align-items:center;justify-content:center;gap:25px}
+.donut{width:145px;height:145px;border-radius:50%;background:conic-gradient(#2563eb 0 52%,#22c55e 52% 77%,#f59e0b 77% 91%,#e5e7eb 91% 100%);display:flex;align-items:center;justify-content:center}
+.donut-inner{width:100px;height:100px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.donut-inner strong{font-size:21px}
+.donut-inner span{color:#94a3b8;font-size:9px}
+.legend{display:flex;flex-direction:column;gap:13px}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:#64748b}
+.legend-dot{width:9px;height:9px;border-radius:50%}
+.legend-value{color:#111827;font-weight:700;margin-left:auto}
+.activity-list{padding:5px 20px 15px}
+.activity{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid #f1f3f6}
+.activity:last-child{border:none}
+.activity-icon{min-width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#eff6ff}
+.activity-text{flex:1}
+.activity-text strong{font-size:11px;display:block}
+.activity-text p{color:#94a3b8;font-size:10px;margin-top:3px}
+.activity-time{color:#94a3b8;font-size:9px}
+.approval-list{padding:8px 20px 15px}
+.approval{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #f1f3f6}
+.approval:last-child{border:none}
+.approval-avatar{width:38px;height:38px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-weight:bold;color:var(--primary);font-size:12px}
+.approval-info{flex:1}
+.approval-info strong{font-size:11px;display:block}
+.approval-info span{color:#94a3b8;font-size:9px}
+.approve-btn{border:none;background:#eff6ff;color:var(--primary);border-radius:7px;padding:7px 9px;font-size:9px;font-weight:bold;cursor:pointer;text-decoration:none}
+.quick{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:18px}
+.quick a{background:white;border:1px solid #edf0f5;border-radius:14px;padding:18px;text-decoration:none;color:#111827;transition:.2s}
+.quick a:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(15,23,42,.06)}
+.quick-icon{font-size:22px;margin-bottom:10px}
+.quick strong{font-size:12px;display:block}
+.quick span{color:#94a3b8;font-size:9px;display:block;margin-top:4px}
+.mobile-menu{display:none;border:none;background:#eff6ff;color:#2563eb;width:38px;height:38px;border-radius:9px;font-size:18px}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.dashboard-grid{grid-template-columns:1fr}.quick{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:800px){
+.sidebar{transform:translateX(-100%);transition:.25s}
+.sidebar.open{transform:translateX(0)}
+.main{width:100%;margin-left:0}
+.mobile-menu{display:block}
+.topbar{padding:0 16px}
+.search{display:none}
+.content{padding:20px 15px 35px}
+.welcome{align-items:flex-start}
+.welcome h1{font-size:21px}
+.date-box{display:none}
+}
+@media(max-width:520px){
+.kpis{grid-template-columns:1fr 1fr;gap:10px}
+.kpi{padding:15px}
+.kpi-number{font-size:21px}
+.kpi-icon{width:36px;height:36px;font-size:16px}
+.dashboard-grid{gap:12px}
+.donut-area{flex-direction:column}
+.quick{grid-template-columns:1fr 1fr;gap:10px}
+.chart-area{gap:5px;padding:15px 10px}
+}
+.overlay{display:none}
+@media(max-width:800px){.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:90}.overlay.show{display:block}}
+.search-results{position:absolute;top:45px;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 12px 25px rgba(15,23,42,.12);display:none;z-index:200;overflow:hidden}
+.search-result{display:block;padding:10px 12px;text-decoration:none;color:#111827;border-bottom:1px solid #f1f5f9;font-size:12px}
+.search-result small{display:block;color:#64748b;margin-top:2px}
+.search-wrap{position:relative;width:240px}
+.search-wrap .search{width:100%}
+.dashboard-flash{padding:0 30px;margin-top:18px}
+.dashboard-flash .flash{padding:12px 15px;border-radius:10px;background:#dcfce7;color:#166534;font-size:12px}
+.dashboard-flash .danger{background:#fee2e2;color:#991b1b}
+</style>
+</head>
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+<div class="app">
+<aside class="sidebar" id="sidebar">
+    <div class="brand">
+        <div class="brand-logo">S</div>
+        <div class="brand-text">
+            <strong>Sivdhi</strong>
+            <span>ADMINISTRATION</span>
+        </div>
+    </div>
+    <div class="menu-title">Overview</div>
+    <nav class="nav">
+        <a href="/admin/dashboard" class="active"><span class="nav-icon">▦</span>Dashboard</a>
+        <a href="/admin/workers"><span class="nav-icon">👷</span>Workers</a>
+        <a href="/admin/partners"><span class="nav-icon">🤝</span>Partners</a>
+        <a href="/admin/customers"><span class="nav-icon">👥</span>Customers</a>
+        <a href="/admin/deleted-accounts"><span class="nav-icon">🗑️</span>Deleted Accounts</a>
+        <a href="/admin/jobs"><span class="nav-icon">💼</span>Jobs</a>
+        <a href="/admin/job-requests"><span class="nav-icon">📋</span>Job Requests</a>
+    </nav>
+    <div class="menu-title">Finance</div>
+    <nav class="nav">
+        <a href="/admin/wallet"><span class="nav-icon">💰</span>Wallet</a>
+        <a href="/admin/withdrawals"><span class="nav-icon">💸</span>Withdrawals</a>
+    </nav>
+    <div class="menu-title">Platform</div>
+    <nav class="nav">
+        <a href="/admin/notifications"><span class="nav-icon">🔔</span>Notifications</a>
+        <a href="/admin/ratings"><span class="nav-icon">⭐</span>Ratings &amp; Reviews</a>
+        <a href="/admin/settings"><span class="nav-icon">⚙️</span>Settings</a>
+    </nav>
+    <div class="sidebar-bottom">
+        <div class="admin-mini">
+            <div class="admin-avatar">A</div>
+            <div class="admin-info">
+                <strong>{{ session.get("admin_name","Administrator") }}</strong>
+                <span>Super Admin</span>
+            </div>
+        </div>
+        <nav class="nav">
+            <form method="post" action="/admin/logout" class="nav-logout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="nav-logout-button">
+                    <span class="nav-icon">↪</span>Logout
+                </button>
+            </form>
+        </nav>
+    </div>
+</aside>
+
+<div class="overlay" id="overlay"></div>
+
+<main class="main">
+<header class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+        <button class="mobile-menu" onclick="toggleMenu()">☰</button>
+        <div class="page-name">
+            Dashboard
+            <span>Sivdhi administration overview</span>
+        </div>
+    </div>
+    <div class="top-right">
+        <div class="search-wrap">
+            <div class="search">🔍<input id="adminGlobalSearch" type="text" placeholder="Search anything..." autocomplete="off"></div>
+            <div id="searchResults" class="search-results"></div>
+        </div>
+        <a href="{{ url_for('admin.admin_notifications') }}"
+           class="notification"
+           id="adminNotificationBell"
+           aria-label="Notifications{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}"
+           title="Notifications"
+           data-count-url="{{ url_for('admin.admin_unread_notification_count') }}">
+            🔔
+            <span class="notification-count" id="adminNotificationCount"
+                  {% if not unread_notifications %}hidden{% endif %}>{{ unread_notifications if unread_notifications < 100 else '99+' }}</span>
+        </a>
+    </div>
+</header>
+
+<section class="content">
+<div class="welcome">
+    <div>
+        <h1>{{ session.get("admin_name","Admin") }} 👋</h1>
+        <p>Here's what's happening across Sivdhi today.</p>
+    </div>
+    <div class="date-box">📅 Dashboard Overview</div>
+</div>
+
+<div class="kpis">
+    <div class="kpi">
+        <div class="kpi-top"><div class="kpi-icon blue">👷</div><div class="kpi-menu">⋮</div></div>
+        <div class="kpi-label">Total Workers</div>
+        <div class="kpi-number">{{ total_workers|default(0) }}</div>
+        <div class="kpi-bottom"><span class="up">↑ Active</span><span>registered workers</span></div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-top"><div class="kpi-icon green">🤝</div><div class="kpi-menu">⋮</div></div>
+        <div class="kpi-label">Total Partners</div>
+        <div class="kpi-number">{{ total_partners|default(0) }}</div>
+        <div class="kpi-bottom"><span class="up">↑ Active</span><span>platform partners</span></div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-top"><div class="kpi-icon purple">👤</div><div class="kpi-menu">⋮</div></div>
+        <div class="kpi-label">Total Customers</div>
+        <div class="kpi-number">{{ total_customers|default(0) }}</div>
+        <div class="kpi-bottom"><span class="up">Manage</span><a href="/admin/customers" style="color:inherit;text-decoration:none">customer accounts →</a></div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-top"><div class="kpi-icon orange">💼</div><div class="kpi-menu">⋮</div></div>
+        <div class="kpi-label">Total Jobs</div>
+        <div class="kpi-number">{{ total_jobs|default(0) }}</div>
+        <div class="kpi-bottom"><span class="up">Platform</span><span>jobs created</span></div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-top"><div class="kpi-icon purple">💸</div><div class="kpi-menu">⋮</div></div>
+        <div class="kpi-label">Withdrawal Requests</div>
+        <div class="kpi-number">{{ total_withdrawals|default(0) }}</div>
+        <div class="kpi-bottom"><span class="down">Review</span><span>pending requests</span></div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-top"><div class="kpi-icon red-box">🗑️</div><div class="kpi-menu">⋮</div></div>
+        <div class="kpi-label">Deleted Accounts</div>
+        <div class="kpi-number">{{ deleted_accounts|default(0) }}</div>
+        <div class="kpi-bottom"><span class="down">Manage</span><span>deleted customers, workers &amp; partners</span></div>
+    </div>
+</div>
+<div class="dashboard-grid">
+    <div class="panel">
+        <div class="panel-head">
+            <div><h3>Platform Activity</h3><p>Monthly overview</p></div>
+            <a href="/admin/jobs" class="view">View details →</a>
+        </div>
+        <div class="chart-area">
+            <div class="chart-column"><div class="bar-wrap"><div class="bar" style="height:35%;"></div></div><small>Jan</small></div>
+            <div class="chart-column"><div class="bar-wrap"><div class="bar" style="height:48%;"></div></div><small>Feb</small></div>
+            <div class="chart-column"><div class="bar-wrap"><div class="bar" style="height:42%;"></div></div><small>Mar</small></div>
+            <div class="chart-column"><div class="bar-wrap"><div class="bar" style="height:62%;"></div></div><small>Apr</small></div>
+            <div class="chart-column"><div class="bar-wrap"><div class="bar" style="height:57%;"></div></div><small>May</small></div>
+            <div class="chart-column"><div class="bar-wrap"><div class="bar" style="height:75%;"></div></div><small>Jun</small></div>
+            <div class="chart-column"><div class="bar-wrap"><div class="bar" style="height:88%;"></div></div><small>Jul</small></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-head"><div><h3>Platform Users</h3><p>User distribution</p></div></div>
+        <div class="donut-area">
+            <div class="donut">
+                <div class="donut-inner">
+                    <strong>{{ (total_workers|default(0)) + (total_partners|default(0)) }}</strong>
+                    <span>TOTAL USERS</span>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><span class="legend-dot" style="background:#2563eb;"></span>Workers<span class="legend-value">{{ total_workers|default(0) }}</span></div>
+                <div class="legend-item"><span class="legend-dot" style="background:#22c55e;"></span>Partners<span class="legend-value">{{ total_partners|default(0) }}</span></div>
+                <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span>Jobs<span class="legend-value">{{ total_jobs|default(0) }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="panel">
+        <div class="panel-head">
+            <div><h3>Recent Activity</h3><p>Latest platform events</p></div>
+            <a href="#" class="view">See all →</a>
+        </div>
+        <div class="activity-list">
+            <div class="activity">
+                <div class="activity-icon">👷</div>
+                <div class="activity-text"><strong>Worker activity</strong><p>Worker account activity will appear here.</p></div>
+                <div class="activity-time">Now</div>
+            </div>
+            <div class="activity">
+                <div class="activity-icon">🤝</div>
+                <div class="activity-text"><strong>Partner activity</strong><p>New partner activity will appear here.</p></div>
+                <div class="activity-time">Today</div>
+            </div>
+            <div class="activity">
+                <div class="activity-icon">💼</div>
+                <div class="activity-text"><strong>Job activity</strong><p>New job activity will appear here.</p></div>
+                <div class="activity-time">Today</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-head">
+            <div><h3>Pending Approvals</h3><p>Requires your attention</p></div>
+            <a href="/admin/withdrawals" class="view">View all →</a>
+        </div>
+        <div class="approval-list">
+            <div class="approval">
+                <div class="approval-avatar">💸</div>
+                <div class="approval-info"><strong>Withdraw Requests</strong><span>{{ total_withdrawals|default(0) }} pending</span></div>
+                <a href="/admin/withdrawals" class="approve-btn">Review</a>
+            </div>
+            <div class="approval">
+                <div class="approval-avatar">📋</div>
+                <div class="approval-info"><strong>Job Requests</strong><span>{{ total_job_requests|default(0) }} requests</span></div>
+                <a href="/admin/job-requests" class="approve-btn">Review</a>
+            </div>
+            <div class="approval">
+                <div class="approval-avatar">🗑️</div>
+                <div class="approval-info"><strong>Deleted Accounts</strong><span>{{ deleted_accounts|default(0) }} accounts</span></div>
+                <a href="/admin/deleted-accounts" class="approve-btn">Manage</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="quick">
+    <a href="/admin/workers"><div class="quick-icon">👷</div><strong>Manage Workers</strong><span>View all workers</span></a>
+    <a href="/admin/partners"><div class="quick-icon">🤝</div><strong>Manage Partners</strong><span>View all partners</span></a>
+    <a href="/admin/customers"><div class="quick-icon">👥</div><strong>Manage Customers</strong><span>View and manage customer accounts</span></a>
+    <a href="/admin/deleted-accounts"><div class="quick-icon">🗑️</div><strong>Deleted Accounts</strong><span>Restore or permanently delete</span></a>
+    <a href="/admin/jobs"><div class="quick-icon">💼</div><strong>Manage Jobs</strong><span>View platform jobs</span></a>
+    <a href="/admin/withdrawals"><div class="quick-icon">💸</div><strong>Withdrawals</strong><span>Review payments</span></a>
+</div>
+</section>
+</main>
+</div>
+<script>
+function toggleMenu(){
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("overlay");
+    sidebar.classList.toggle("open");
+    overlay.classList.toggle("show");
+}
+
+document.getElementById("overlay").addEventListener("click",function(){
+    document.getElementById("sidebar").classList.remove("open");
+    this.classList.remove("show");
+});
+
+document.querySelectorAll(".sidebar .nav a").forEach(function(link){
+    link.addEventListener("click",function(){
+        if(window.innerWidth <= 800){
+            document.getElementById("sidebar").classList.remove("open");
+            document.getElementById("overlay").classList.remove("show");
+        }
+    });
+});
+</script>
+
+<script>
+const searchInput=document.getElementById('adminGlobalSearch');
+const searchResults=document.getElementById('searchResults');
+let searchTimer;
+
+searchInput.addEventListener('input',function(){
+    clearTimeout(searchTimer);
+    const q=this.value.trim();
+
+    if(q.length<2){
+        searchResults.style.display='none';
+        searchResults.innerHTML='';
+        return;
+    }
+
+    searchTimer=setTimeout(()=>fetch('/admin/search?q='+encodeURIComponent(q),{credentials:'same-origin'})
+        .then(r=>{
+            if(!r.ok) throw new Error('Search unavailable');
+            return r.json();
+        })
+        .then(data=>{
+            searchResults.replaceChildren();
+
+            (data.results||[]).forEach(item=>{
+                const url=String(item.url||'');
+                if(!url.startsWith('/')||url.startsWith('//')||/[\r\n\\]/.test(url)) return;
+
+                const a=document.createElement('a');
+                a.className='search-result';
+                a.href=url;
+
+                const strong=document.createElement('strong');
+                strong.textContent=String(item.name||'');
+
+                const small=document.createElement('small');
+                small.textContent=String(item.type||'')+' · '+String(item.id||'');
+
+                a.append(strong,small);
+                searchResults.appendChild(a);
+            });
+
+            if(!searchResults.children.length){
+                const empty=document.createElement('div');
+                empty.className='search-result';
+                empty.textContent='No results found';
+                searchResults.appendChild(empty);
+            }
+
+            searchResults.style.display='block';
+        })
+        .catch(()=>{searchResults.style.display='none';}),250);
+});
+
+document.addEventListener('click',e=>{
+    if(!e.target.closest('.search-wrap')) searchResults.style.display='none';
+});
+
+/* सभी dashboard alerts को 2 सेकंड बाद हटाएँ */
+(function(){
+    const alertSelector='.dashboard-flash .flash, .alert, .alert-message, .flash-message, .toast, [role="alert"]';
+    const timers=new WeakSet();
+
+    function dismissAlert(el){
+        if(!(el instanceof Element)||timers.has(el)) return;
+        if(el.closest('#adminNotificationBell, .notification, .notification-count')) return;
+
+        timers.add(el);
+
+        window.setTimeout(function(){
+            if(!el.isConnected) return;
+
+            el.style.transition='opacity .25s ease, transform .25s ease';
+            el.style.opacity='0';
+            el.style.transform='translateY(-4px)';
+
+            window.setTimeout(function(){
+                if(el.isConnected) el.remove();
+            },280);
+        },2000);
+    }
+
+    function scanAlerts(root){
+        if(!root) return;
+        if(root instanceof Element&&root.matches(alertSelector)) dismissAlert(root);
+        if(root.querySelectorAll) root.querySelectorAll(alertSelector).forEach(dismissAlert);
+    }
+
+    if(document.readyState==='loading'){
+        document.addEventListener('DOMContentLoaded',function(){scanAlerts(document);},{once:true});
+    }else{
+        scanAlerts(document);
+    }
+
+    /* बाद में JavaScript से जोड़े गए alerts भी हटेंगे */
+    const observer=new MutationObserver(function(mutations){
+        mutations.forEach(function(mutation){
+            mutation.addedNodes.forEach(function(node){
+                if(node.nodeType===Node.ELEMENT_NODE) scanAlerts(node);
+            });
+        });
+    });
+
+    observer.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+
+<script>
+(function(){
+    "use strict";
+
+    const bell=document.getElementById("adminNotificationBell");
+    const badge=document.getElementById("adminNotificationCount");
+
+    if(!bell||!badge) return;
+
+    const countUrl=bell.dataset.countUrl;
+
+    function updateNotificationCount(){
+        fetch(countUrl,{
+            method:"GET",
+            credentials:"same-origin",
+            cache:"no-store",
+            headers:{"Accept":"application/json"}
+        })
+        .then(function(response){
+            if(!response.ok) throw new Error("Notification count unavailable");
+            return response.json();
+        })
+        .then(function(data){
+            const count=Math.max(0,Number.parseInt(data.count,10)||0);
+
+            badge.textContent=count>99?"99+":String(count);
+            badge.hidden=count===0;
+
+            const label=count>0
+                ?"Notifications, "+count+" unread"
+                :"Notifications";
+
+            bell.setAttribute("aria-label",label);
+        })
+        .catch(function(){
+            /* अस्थायी समस्या पर पिछली notification count बनी रहेगी */
+        });
+    }
+
+    updateNotificationCount();
+    window.setInterval(updateNotificationCount,15000);
+})();
+</script>
+</body>
+</html>

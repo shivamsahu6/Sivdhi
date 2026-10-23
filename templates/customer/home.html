@@ -1,0 +1,1237 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>Sivdhi | Home Services</title>
+
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190,130,255,.20);
+            --green: #78e5b0;
+        }
+
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+
+        html { min-height: 100%; background: var(--bg); }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            color: var(--text);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background:
+                radial-gradient(ellipse at 0 0, rgba(255,67,140,.08), transparent 38%),
+                radial-gradient(ellipse at 100% 50%, rgba(115,67,255,.08), transparent 42%),
+                var(--bg);
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        button, input { font: inherit; }
+        button, a { -webkit-tap-highlight-color: transparent; }
+
+        button:focus-visible, a:focus-visible, input:focus-visible {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 1120px;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 0 25px 125px;
+        }
+
+        .header {
+            min-height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            border-bottom: 1px solid rgba(255,255,255,.065);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 14px;
+            background: linear-gradient(135deg,var(--pink),var(--purple),var(--blue));
+            box-shadow: 0 7px 22px rgba(164,77,255,.18);
+            color: white;
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .brand-name {
+            font-size: 23px;
+            font-weight: 800;
+            letter-spacing: -.8px;
+        }
+
+        .brand-name span { color: #ff72b6; }
+
+        .brand-caption {
+            display: block;
+            margin-top: 3px;
+            color: #9788a6;
+            font-size: 8px;
+            letter-spacing: 1.4px;
+        }
+
+        /* Customer notification bell */
+        .notification-wrap {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .notification-button {
+            position: relative;
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: rgba(255,255,255,.025);
+            color: #e8d6fa;
+            cursor: pointer;
+        }
+
+        .notification-button svg {
+            width: 21px;
+            height: 21px;
+        }
+
+        .notification-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 18px;
+            height: 18px;
+            display: grid;
+            place-items: center;
+            padding: 0 4px;
+            border: 2px solid var(--bg);
+            border-radius: 999px;
+            background: var(--pink);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .notification-panel {
+            position: absolute;
+            z-index: 30;
+            top: calc(100% + 12px);
+            right: 0;
+            width: min(350px, calc(100vw - 32px));
+            max-height: min(430px, 70vh);
+            overflow: auto;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: #17121f;
+            box-shadow: 0 18px 55px rgba(0,0,0,.45);
+        }
+
+        .notification-heading {
+            margin: 0 0 10px;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .notification-item {
+            padding: 11px 0;
+            border-top: 1px solid rgba(255,255,255,.08);
+        }
+
+        .notification-item.unread {
+            border-left: 3px solid var(--pink);
+            padding-left: 9px;
+        }
+
+        .notification-item strong {
+            display: block;
+            font-size: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        .notification-item p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .notification-item time {
+            display: block;
+            margin-top: 6px;
+            color: #8f7d9e;
+            font-size: 10px;
+        }
+
+        .notification-empty,
+        .notification-status {
+            padding: 15px 4px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .intro { padding-top: 29px; }
+
+        .greeting {
+            margin: 0;
+            font-size: clamp(27px,4vw,36px);
+            line-height: 1.25;
+            font-weight: 750;
+            letter-spacing: -1.1px;
+            overflow-wrap: anywhere;
+        }
+
+        .greeting span { color: #f078ba; }
+
+        .intro-text {
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .location-line {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 13px;
+            padding: 8px 11px;
+            border: 1px solid rgba(120,229,176,.15);
+            border-radius: 12px;
+            background: rgba(120,229,176,.035);
+            color: #d8f4e5;
+            font-size: 11px;
+        }
+
+        .location-dot {
+            width: 7px;
+            height: 7px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 10px rgba(120,229,176,.4);
+        }
+
+        .search {
+            min-height: 53px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 20px;
+            padding: 0 15px;
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            background: rgba(255,255,255,.025);
+        }
+
+        .search:focus-within {
+            border-color: rgba(194,117,255,.6);
+        }
+
+        .search-icon {
+            color: #d5a0ff;
+            font-size: 23px;
+        }
+
+        .search input {
+            width: 100%;
+            min-width: 0;
+            padding: 15px 0;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: var(--text);
+            font-size: 12px;
+        }
+
+        .search input::placeholder { color: #9586a2; }
+
+        .mode-section { margin-top: 26px; }
+
+        .section-eyebrow {
+            margin-bottom: 10px;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .mode-switch {
+            display: grid;
+            grid-template-columns: repeat(2,minmax(0,1fr));
+            gap: 7px;
+            padding: 5px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: rgba(255,255,255,.024);
+        }
+
+        .mode-button {
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            padding: 10px;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            background: transparent;
+            color: #ab9cb9;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .mode-button.active {
+            border-color: rgba(214,134,255,.32);
+            background: linear-gradient(105deg,rgba(255,67,140,.16),rgba(164,77,255,.18));
+            color: #ffe8f7;
+        }
+
+        .mode-icon { font-size: 18px; }
+
+        .categories-section { margin-top: 31px; }
+
+        .section-heading {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 15px;
+        }
+
+        .section-heading h2 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: -.6px;
+        }
+
+        .section-heading p {
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .result-count {
+            flex-shrink: 0;
+            padding: 7px 9px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: #d9b4f8;
+            font-size: 10px;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(4,minmax(0,1fr));
+            gap: 12px;
+        }
+
+        .category-card {
+            position: relative;
+            min-width: 0;
+            min-height: 155px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background:
+                radial-gradient(ellipse at 100% 0,rgba(164,77,255,.11),transparent 56%),
+                linear-gradient(145deg,#1d1628,#110d18);
+            transition: transform .2s,border-color .2s;
+        }
+
+        .category-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(208,129,255,.48);
+        }
+
+        .category-icon {
+            width: 45px;
+            height: 45px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            margin-bottom: 13px;
+            border: 1px solid rgba(190,130,255,.17);
+            border-radius: 14px;
+            background: linear-gradient(135deg,rgba(255,67,140,.13),rgba(164,77,255,.16));
+            font-size: 23px;
+        }
+
+        .category-name {
+            width: 100%;
+            color: #faf4ff;
+            font-size: 12px;
+            line-height: 1.55;
+            font-weight: 750;
+            overflow-wrap: anywhere;
+        }
+
+        .category-caption {
+            display: block;
+            margin-top: 7px;
+            color: #aa9ab9;
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        .category-arrow {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            color: #d3a1ff;
+            font-size: 17px;
+        }
+
+        .state-card {
+            padding: 27px 18px;
+            border: 1px dashed rgba(190,130,255,.28);
+            border-radius: 18px;
+            background: rgba(255,255,255,.018);
+            text-align: center;
+        }
+
+        .state-icon {
+            width: 51px;
+            height: 51px;
+            display: grid;
+            place-items: center;
+            margin: 0 auto 13px;
+            border: 1px solid rgba(190,130,255,.18);
+            border-radius: 16px;
+            background: rgba(164,77,255,.09);
+            color: #e5bcff;
+            font-size: 24px;
+        }
+
+        .state-card h3 {
+            margin: 0;
+            font-size: 15px;
+        }
+
+        .state-card p {
+            max-width: 450px;
+            margin: 8px auto 0;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.8;
+            overflow-wrap: anywhere;
+        }
+
+        .state-button {
+            min-height: 43px;
+            margin-top: 16px;
+            padding: 0 17px;
+            border: 0;
+            border-radius: 12px;
+            background: linear-gradient(105deg,var(--pink),var(--purple),var(--blue));
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .state-button:disabled {
+            opacity: .65;
+            cursor: wait;
+        }
+
+        .state-status {
+            margin-top: 10px;
+            color: #d5b4f4;
+            font-size: 10px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .state-status.error { color: #ffabc1; }
+
+        .empty-search {
+            padding: 20px 12px;
+            color: var(--muted);
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            z-index: 5;
+            left: 50%;
+            bottom: max(9px,env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            width: min(490px,calc(100vw - 28px));
+            display: grid;
+            grid-template-columns: repeat(3,minmax(0,1fr));
+            gap: 4px;
+            padding: 7px;
+            border: 1px solid rgba(196,133,255,.22);
+            border-radius: 21px;
+            background: rgba(17,13,24,.96);
+            box-shadow: 0 15px 50px rgba(0,0,0,.45);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-item {
+            min-height: 47px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-radius: 13px;
+            color: #9d90aa;
+            font-size: 18px;
+        }
+
+        .nav-item small { font-size: 10px; }
+
+        .nav-item.active {
+            background: linear-gradient(135deg,rgba(255,65,139,.13),rgba(139,69,255,.15));
+            color: #ff89c1;
+        }
+
+        @media (max-width: 850px) {
+            .category-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+        }
+
+        @media (max-width: 560px) {
+            .app { padding: 0 15px 125px; }
+            .header { min-height: 68px; }
+            .brand-icon { width: 37px; height: 37px; border-radius: 12px; }
+            .brand-name { font-size: 20px; }
+            .brand-caption { font-size: 7px; }
+            .notification-button { width: 37px; height: 37px; border-radius: 12px; }
+            .intro { padding-top: 23px; }
+            .greeting { font-size: clamp(25px,6.5vw,31px); }
+            .intro-text { font-size: 11px; }
+            .search { min-height: 48px; margin-top: 16px; border-radius: 13px; }
+            .mode-section { margin-top: 22px; }
+            .mode-button { min-height: 43px; font-size: 11px; }
+            .categories-section { margin-top: 26px; }
+            .section-heading h2 { font-size: 20px; }
+            .section-heading p { font-size: 10px; }
+            .category-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+            .category-card { min-height: 121px; padding: 10px; border-radius: 15px; }
+            .category-icon { width: 36px; height: 36px; margin-bottom: 9px; border-radius: 11px; font-size: 19px; }
+            .category-name { font-size: 10px; }
+            .category-caption { margin-top: 5px; font-size: 8px; }
+            .category-arrow { top: 10px; right: 10px; font-size: 14px; }
+            .state-card { padding: 23px 13px; }
+        }
+
+        @media (max-width: 360px) {
+            .app { padding-right: 10px; padding-left: 10px; }
+            .brand { gap: 7px; }
+            .brand-caption { display: none; }
+            .category-grid { gap: 6px; }
+            .category-card { min-height: 112px; padding: 8px; }
+            .category-name { font-size: 9px; }
+            .category-caption { font-size: 8px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { transition: none !important; }
+        }
+    </style>
+</head>
+
+<body
+    data-location-allowed="{{ 'true' if location_allowed else 'false' }}"
+    data-booking-mode="{{ booking_mode|e }}"
+>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+    <div class="app">
+        <header class="header">
+            <a class="brand" href="{{ url_for('customer.home') }}" aria-label="Sivdhi Home">
+                <div class="brand-icon">S</div>
+                <div>
+                    <div class="brand-name">Sivdhi<span>.</span></div>
+                    <span class="brand-caption">HOME SERVICES</span>
+                </div>
+            </a>
+
+            <div class="notification-wrap">
+                <button
+                    class="notification-button"
+                    id="customerNotificationButton"
+                    type="button"
+                    aria-label="Notifications"
+                    aria-expanded="false"
+                    aria-controls="customerNotificationPanel"
+                    title="Notifications"
+                >
+                    <svg viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                        <path d="M10 21h4"></path>
+                    </svg>
+                    <span class="notification-count" id="customerNotificationCount" hidden>0</span>
+                </button>
+
+                <section
+                    class="notification-panel"
+                    id="customerNotificationPanel"
+                    aria-label="Your notifications"
+                    hidden
+                >
+                    <h2 class="notification-heading">Notifications</h2>
+                    <div id="customerNotificationList" aria-live="polite">
+                        <div class="notification-status">Loading notifications…</div>
+                    </div>
+                </section>
+            </div>
+        </header>
+
+        <main>
+            <section class="intro">
+                <h1 class="greeting">
+                    Hello, <span>{{ session.get('customer_name') or 'Customer' }}</span> 👋
+                </h1>
+
+                <p class="intro-text">
+                    What service do you need today?
+                </p>
+
+                <div class="location-line" id="locationLine" {% if not location_allowed %}hidden{% endif %}>
+                    <span class="location-dot"></span>
+                    <span id="locationLabel">📍 {{ location_name or 'Current location' }}</span>
+                </div>
+            </section>
+
+            <label class="search">
+                <span class="search-icon" aria-hidden="true">⌕</span>
+                <input
+                    id="categorySearch"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Search AC, electrician, plumbing..."
+                    aria-label="Search categories"
+                >
+            </label>
+
+            <section class="mode-section">
+                <div class="section-eyebrow">Choose service type</div>
+
+                <div class="mode-switch" role="group" aria-label="Booking type">
+                    <button
+                        type="button"
+                        class="mode-button {% if booking_mode != 'full-day' %}active{% endif %}"
+                        data-mode="normal"
+                        aria-pressed="{{ 'true' if booking_mode != 'full-day' else 'false' }}"
+                    >
+                        <span class="mode-icon" aria-hidden="true">◷</span>
+                        NORMAL
+                    </button>
+
+                    <button
+                        type="button"
+                        class="mode-button {% if booking_mode == 'full-day' %}active{% endif %}"
+                        data-mode="full-day"
+                        aria-pressed="{{ 'true' if booking_mode == 'full-day' else 'false' }}"
+                    >
+                        <span class="mode-icon" aria-hidden="true">☀</span>
+                        FULL-DAY
+                    </button>
+                </div>
+            </section>
+
+            <section class="categories-section">
+                <div class="section-heading">
+                    <div>
+                        <h2>Categories</h2>
+                        <p id="categoryDescription">
+                            {% if location_allowed %}
+                                Services available in your area
+                            {% else %}
+                                Checking your location to find available services
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <span class="result-count" id="resultCount">
+                        {{ categories|length if location_allowed else 0 }} available
+                    </span>
+                </div>
+
+                <div class="category-grid" id="categoryGrid"
+                    {% if not location_allowed or not categories %}hidden{% endif %}
+                >
+                    {% for category in categories %}
+                        <a
+                            class="category-card"
+                            href="{{ url_for('customer.category', category_id=category['id'], mode=booking_mode) }}"
+                            data-category-id="{{ category['id'] }}"
+                            data-category-name="{{ category['display_name']|default(category['name'])|e }}"
+                            data-category-description="{{ category['description']|default('', true)|e }}"
+                        >
+                            <span class="category-arrow" aria-hidden="true">↗</span>
+
+                            <span class="category-icon" aria-hidden="true">
+                                {{ category['display_icon']|default(category['icon']|default('✦')) }}
+                            </span>
+
+                            <span class="category-name">
+                                {{ category['display_name']|default(category['name']) }}
+                            </span>
+
+                            <span class="category-caption">
+                                {% if booking_mode == 'full-day' %}
+                                    View details
+                                {% else %}
+                                    View subcategories
+                                {% endif %}
+                            </span>
+                        </a>
+                    {% endfor %}
+                </div>
+
+                <div class="state-card" id="locationState" {% if location_allowed %}hidden{% endif %}>
+                    <div class="state-icon" aria-hidden="true">⌖</div>
+                    <h3>Find services near you</h3>
+                    <p>
+                        Sivdhi needs your location to check which categories
+                        have eligible workers in your area. You don't need
+                        to enter your address.
+                    </p>
+
+                    <button type="button" class="state-button" id="allowLocationButton">
+                        Allow Location
+                    </button>
+
+                    <div class="state-status" id="locationStatus" role="status" aria-live="polite"></div>
+                </div>
+
+                <div class="state-card" id="loadingState" hidden>
+                    <div class="state-icon" aria-hidden="true">…</div>
+                    <h3>Checking availability</h3>
+                    <p>Finding categories available at your location.</p>
+                </div>
+
+                <div class="state-card" id="noCategoriesState"
+                    {% if not location_allowed or categories %}hidden{% endif %}
+                >
+                    <div class="state-icon" aria-hidden="true">⌖</div>
+                    <h3>No categories available right now</h3>
+                    <p>
+                        No eligible category is currently available for this
+                        service type in your area. Try the other tab later.
+                    </p>
+                </div>
+
+                <div class="empty-search" id="emptySearch" hidden>
+                    No matching category found. Try another search.
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a class="nav-item active" href="{{ url_for('customer.home') }}" aria-current="page">
+            <span aria-hidden="true">⌂</span>
+            <small>Home</small>
+        </a>
+
+        <a class="nav-item" href="/customer/bookings">
+            <span aria-hidden="true">▤</span>
+            <small>Bookings</small>
+        </a>
+
+        <a class="nav-item" href="/customer/profile">
+            <span aria-hidden="true">♙</span>
+            <small>Profile</small>
+        </a>
+    </nav>
+
+    <script>
+        let currentMode =
+            document.body.dataset.bookingMode === "full-day"
+                ? "full-day"
+                : "normal";
+
+        let locationAllowed =
+            document.body.dataset.locationAllowed === "true";
+
+        let locationRequestStarted = false;
+
+        const categoryGrid = document.getElementById("categoryGrid");
+        const categorySearch = document.getElementById("categorySearch");
+        const locationState = document.getElementById("locationState");
+        const loadingState = document.getElementById("loadingState");
+        const noCategoriesState = document.getElementById("noCategoriesState");
+        const locationStatus = document.getElementById("locationStatus");
+        const allowLocationButton = document.getElementById("allowLocationButton");
+        const categoryDescription = document.getElementById("categoryDescription");
+        const resultCount = document.getElementById("resultCount");
+        const locationLine = document.getElementById("locationLine");
+        const emptySearch = document.getElementById("emptySearch");
+
+        function safeText(value) {
+            return String(value == null ? "" : value);
+        }
+
+        function setStatus(message, isError = false) {
+            locationStatus.textContent = message;
+            locationStatus.classList.toggle("error", isError);
+        }
+
+        function setLoading(value) {
+            loadingState.hidden = !value;
+
+            if (allowLocationButton) {
+                allowLocationButton.disabled = value;
+                allowLocationButton.textContent =
+                    value ? "Please wait…" : "Allow Location";
+            }
+        }
+
+        function updateModeButtons() {
+            document.querySelectorAll("[data-mode]").forEach(button => {
+                const active = button.dataset.mode === currentMode;
+                button.classList.toggle("active", active);
+                button.setAttribute("aria-pressed", String(active));
+            });
+
+            categoryDescription.textContent =
+                currentMode === "full-day"
+                    ? "Full-Day categories available in your area"
+                    : "Normal categories available in your area";
+        }
+
+        function renderCategories(categories) {
+            categoryGrid.innerHTML = "";
+
+            const query = categorySearch.value.trim().toLowerCase();
+
+            const filtered = categories.filter(category => {
+                const text = (
+                    safeText(category.name) + " " +
+                    safeText(category.display_name) + " " +
+                    safeText(category.description)
+                ).toLowerCase();
+
+                return !query || text.includes(query);
+            });
+
+            filtered.forEach(category => {
+                const card = document.createElement("a");
+                card.className = "category-card";
+                card.href = "/customer/category/" +
+                    encodeURIComponent(category.id) +
+                    "?mode=" + encodeURIComponent(currentMode);
+
+                const arrow = document.createElement("span");
+                arrow.className = "category-arrow";
+                arrow.textContent = "↗";
+
+                const icon = document.createElement("span");
+                icon.className = "category-icon";
+                icon.textContent = safeText(
+                    category.display_icon || category.icon || "✦"
+                );
+
+                const name = document.createElement("span");
+                name.className = "category-name";
+                name.textContent = safeText(
+                    category.display_name || category.name || "Service"
+                );
+
+                const caption = document.createElement("span");
+                caption.className = "category-caption";
+                caption.textContent =
+                    currentMode === "full-day"
+                        ? "View details"
+                        : "View subcategories";
+
+                card.append(arrow, icon, name, caption);
+                categoryGrid.appendChild(card);
+            });
+
+            categoryGrid.hidden = filtered.length === 0;
+            resultCount.textContent = filtered.length + " available";
+
+            emptySearch.hidden = !query || filtered.length > 0;
+
+            noCategoriesState.hidden =
+                !locationAllowed ||
+                categories.length > 0 ||
+                Boolean(query);
+
+            if (locationAllowed && categories.length === 0) {
+                categoryDescription.textContent =
+                    "No eligible category is currently available";
+            } else {
+                categoryDescription.textContent =
+                    currentMode === "full-day"
+                        ? "Full-Day categories available in your area"
+                        : "Normal categories available in your area";
+            }
+        }
+
+        async function loadCategories() {
+            if (!locationAllowed) return;
+
+            locationState.hidden = true;
+            noCategoriesState.hidden = true;
+            setLoading(true);
+
+            try {
+                const response = await fetch(
+                    "/customer/api/categories?mode=" +
+                        encodeURIComponent(currentMode),
+                    {
+                        credentials: "same-origin",
+                        headers: { "Accept": "application/json" }
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok || data.success !== true) {
+                    throw new Error(
+                        data.message || "Could not load categories."
+                    );
+                }
+
+                if (data.requires_location) {
+                    locationAllowed = false;
+                    locationState.hidden = false;
+                    categoryGrid.hidden = true;
+                    resultCount.textContent = "0 available";
+                    return;
+                }
+
+                renderCategories(
+                    Array.isArray(data.categories) ? data.categories : []
+                );
+
+            } catch (error) {
+                categoryGrid.hidden = true;
+                noCategoriesState.hidden = false;
+                noCategoriesState.querySelector("h3").textContent =
+                    "Could not load categories";
+                noCategoriesState.querySelector("p").textContent =
+                    error.message || "Please refresh and try again.";
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function requestLocation() {
+            if (locationRequestStarted) return;
+            locationRequestStarted = true;
+
+            if (!navigator.geolocation) {
+                setStatus(
+                    "This browser does not support location. Try another browser.",
+                    true
+                );
+                locationRequestStarted = false;
+                return;
+            }
+
+            if (!window.isSecureContext) {
+                setStatus(
+                    "Location requires HTTPS or localhost. Open the site securely.",
+                    true
+                );
+                locationRequestStarted = false;
+                return;
+            }
+
+            setStatus("Requesting location permission…");
+            setLoading(true);
+
+            navigator.geolocation.getCurrentPosition(
+                async position => {
+                    try {
+                        const response = await fetch(
+                            "/customer/api/location",
+                            {
+                                method: "POST",
+                                credentials: "same-origin",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Accept": "application/json",
+                                    "X-CSRFToken": document.querySelector('meta[name="csrf-token"]')?.content || ""
+                                },
+                                body: JSON.stringify({
+                                    latitude: position.coords.latitude,
+                                    longitude: position.coords.longitude,
+                                    mode: currentMode
+                                })
+                            }
+                        );
+
+                        const data = await response.json();
+
+                        if (!response.ok || data.success !== true) {
+                            throw new Error(
+                                data.message || "Could not save your location."
+                            );
+                        }
+
+                        locationAllowed = true;
+                        locationState.hidden = true;
+                        locationLine.hidden = false;
+                        document.getElementById("locationLabel").textContent =
+                            "📍 Current location";
+
+                        renderCategories(
+                            Array.isArray(data.categories)
+                                ? data.categories
+                                : []
+                        );
+
+                        if (!data.categories || !data.categories.length) {
+                            setStatus(
+                                data.message ||
+                                "Location saved, but no eligible category is available here."
+                            );
+                        }
+
+                    } catch (error) {
+                        locationAllowed = false;
+                        locationState.hidden = false;
+                        setStatus(
+                            error.message || "Could not save location.",
+                            true
+                        );
+                    } finally {
+                        setLoading(false);
+                        locationRequestStarted = false;
+                    }
+                },
+
+                error => {
+                    let message =
+                        "Could not get your location. Please try again.";
+
+                    if (error.code === error.PERMISSION_DENIED) {
+                        message =
+                            "Location permission was denied. Allow it in your browser settings and retry.";
+                    } else if (error.code === error.POSITION_UNAVAILABLE) {
+                        message =
+                            "Your device could not determine location. Turn on device location.";
+                    } else if (error.code === error.TIMEOUT) {
+                        message =
+                            "The location request timed out. Please retry.";
+                    }
+
+                    setStatus(message, true);
+                    setLoading(false);
+                    locationRequestStarted = false;
+                },
+
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 60000
+                }
+            );
+        }
+
+        document.querySelectorAll("[data-mode]").forEach(button => {
+            button.addEventListener("click", () => {
+                const mode = button.dataset.mode;
+
+                if (mode !== "normal" && mode !== "full-day") return;
+                if (mode === currentMode) return;
+
+                currentMode = mode;
+
+                window.location.href =
+                    "/customer/home?mode=" + encodeURIComponent(currentMode);
+            });
+        });
+
+        categorySearch.addEventListener("input", () => {
+            const cards = Array.from(
+                categoryGrid.querySelectorAll(".category-card")
+            );
+
+            const query = categorySearch.value.trim().toLowerCase();
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const text = (
+                    safeText(card.dataset.categoryName) + " " +
+                    safeText(card.dataset.categoryDescription)
+                ).toLowerCase();
+
+                const visible = !query || text.includes(query);
+                card.hidden = !visible;
+                if (visible) visibleCount += 1;
+            });
+
+            if (cards.length) {
+                categoryGrid.hidden = visibleCount === 0;
+                resultCount.textContent = visibleCount + " available";
+            }
+
+            emptySearch.hidden = !query || visibleCount > 0;
+        });
+
+        allowLocationButton.addEventListener("click", requestLocation);
+
+        updateModeButtons();
+
+        if (locationAllowed) {
+            locationState.hidden = true;
+            locationLine.hidden = false;
+            loadCategories();
+        } else {
+            categoryGrid.hidden = true;
+            locationState.hidden = false;
+
+            // Ask for browser location immediately when Home opens.
+            // If denied, the customer can retry using the visible button.
+            requestLocation();
+        }
+    </script>
+
+    <script>
+        (() => {
+            const button = document.getElementById("customerNotificationButton");
+            const panel = document.getElementById("customerNotificationPanel");
+            const list = document.getElementById("customerNotificationList");
+            const count = document.getElementById("customerNotificationCount");
+
+            if (!button || !panel || !list || !count) return;
+
+            let loading = false;
+
+            function escapeHtml(value) {
+                return String(value == null ? "" : value).replace(/[&<>"']/g, character => ({
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    "\"": "&quot;",
+                    "'": "&#39;"
+                }[character]));
+            }
+
+            function renderNotifications(items) {
+                if (!items.length) {
+                    list.innerHTML =
+                        '<div class="notification-empty">You’re all caught up. New booking updates will appear here.</div>';
+                    return;
+                }
+
+                list.innerHTML = items.map(item => `
+                    <article class="notification-item ${item.is_read ? "" : "unread"}">
+                        <strong>${escapeHtml(item.title || "Sivdhi update")}</strong>
+                        <p>${escapeHtml(item.message || "")}</p>
+                        ${item.created_at ? `<time>${escapeHtml(item.created_at)}</time>` : ""}
+                    </article>
+                `).join("");
+            }
+
+            async function refreshNotifications() {
+                if (loading || document.hidden) return;
+                loading = true;
+
+                try {
+                    const response = await fetch("/customer/api/notifications", {
+                        method: "GET",
+                        credentials: "same-origin",
+                        headers: { "Accept": "application/json" },
+                        cache: "no-store"
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("Notifications could not be loaded.");
+                    }
+
+                    const data = await response.json();
+
+                    if (!data.success) {
+                        throw new Error(data.message || "Unable to load notifications.");
+                    }
+
+                    const unread = Number(data.unread_count || 0);
+                    count.textContent = unread > 99 ? "99+" : String(unread);
+                    count.hidden = unread < 1;
+
+                    renderNotifications(
+                        Array.isArray(data.notifications) ? data.notifications : []
+                    );
+
+                } catch (error) {
+                    if (!list.children.length ||
+                        list.textContent.includes("Loading notifications")) {
+                        list.innerHTML =
+                            '<div class="notification-status">Notifications are temporarily unavailable. Please try again.</div>';
+                    }
+                } finally {
+                    loading = false;
+                }
+            }
+
+            button.addEventListener("click", () => {
+                const opening = panel.hidden;
+
+                panel.hidden = !opening;
+                button.setAttribute("aria-expanded", String(opening));
+
+                if (opening) refreshNotifications();
+            });
+
+            document.addEventListener("click", event => {
+                if (!panel.hidden && !event.target.closest(".notification-wrap")) {
+                    panel.hidden = true;
+                    button.setAttribute("aria-expanded", "false");
+                }
+            });
+
+            document.addEventListener("visibilitychange", () => {
+                if (!document.hidden) refreshNotifications();
+            });
+
+            refreshNotifications();
+            window.setInterval(refreshNotifications, 15000);
+        })();
+    </script>
+</body>
+</html>

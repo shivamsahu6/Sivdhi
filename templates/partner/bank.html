@@ -1,0 +1,409 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Details | Sivdhi</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Poppins, sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            padding: 20px;
+            padding-bottom: 90px;
+        }
+
+        .header {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            color: white;
+            padding: 25px;
+            border-radius: 22px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, .18);
+            margin-bottom: 25px;
+        }
+
+        .bank {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 28px;
+            overflow-wrap: anywhere;
+        }
+
+        .number {
+            font-size: 24px;
+            letter-spacing: 3px;
+            margin-bottom: 25px;
+            overflow-wrap: anywhere;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 15px;
+            margin-top: 18px;
+        }
+
+        .row > div {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .label {
+            font-size: 13px;
+            opacity: .8;
+        }
+
+        .value {
+            font-size: 17px;
+            font-weight: bold;
+            margin-top: 5px;
+            overflow-wrap: anywhere;
+        }
+
+        form {
+            background: white;
+            padding: 22px;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, .08);
+        }
+
+        input,
+        select {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            font-size: 15px;
+            outline: none;
+            transition: .3s;
+            background: #fff;
+            color: #17213c;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 8px rgba(37, 99, 235, .15);
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            background: #2563eb;
+            color: white;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: .3s;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .change {
+            margin-top: 18px;
+            background: #16a34a;
+        }
+
+        .change:hover {
+            background: #15803d;
+        }
+
+        .flash {
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 18px;
+        }
+
+        .success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .danger {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 14px;
+                padding-bottom: 90px;
+            }
+
+            .header {
+                font-size: 25px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .bank {
+                font-size: 21px;
+            }
+
+            .number {
+                font-size: 21px;
+                letter-spacing: 2px;
+            }
+
+            form {
+                padding: 17px;
+            }
+
+            .row {
+                gap: 10px;
+            }
+
+            .value {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    <div class="header">🏦 Bank Details</div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if partner["bank_name"] %}
+
+        <div class="card">
+            <div class="bank">
+                {{ partner["bank_name"] }}
+            </div>
+
+            <div class="number">
+                **** **** {{ partner["account_number"][-4:] }}
+            </div>
+
+            <div class="row">
+                <div>
+                    <div class="label">Account Holder</div>
+                    <div class="value">
+                        {{ partner["account_holder"] }}
+                    </div>
+                </div>
+
+                <div>
+                    <div class="label">IFSC Code</div>
+                    <div class="value">
+                        {{ partner["ifsc"] }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" action="/partner/change-bank">
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token() }}"
+            >
+
+            <button
+                type="button"
+                class="change"
+                id="changeButton"
+                onclick="showForm()"
+            >
+                Change Bank Account
+            </button>
+
+            <div id="bankForm" style="display:none; margin-top:22px;">
+
+                <select name="bank_name" required>
+                    <option value="">Select Bank</option>
+
+                    {% if partner["bank_name"] and partner["bank_name"] not in indian_banks %}
+                        <option value="{{ partner['bank_name'] }}" selected>
+                            {{ partner["bank_name"] }}
+                        </option>
+                    {% endif %}
+
+                    {% for bank in indian_banks %}
+                        <option
+                            value="{{ bank }}"
+                            {% if partner["bank_name"] == bank %}selected{% endif %}
+                        >
+                            {{ bank }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <input
+                    type="text"
+                    name="account_holder"
+                    value="{{ partner['account_holder'] or '' }}"
+                    placeholder="Account Holder Name"
+                    maxlength="100"
+                    autocomplete="name"
+                    required
+                >
+
+                <input
+                    type="text"
+                    name="account_number"
+                    inputmode="numeric"
+                    pattern="[0-9]{9,18}"
+                    maxlength="18"
+                    value="{{ partner['account_number'] or '' }}"
+                    placeholder="Account Number"
+                    autocomplete="off"
+                    required
+                >
+
+                <input
+                    type="text"
+                    name="ifsc"
+                    maxlength="11"
+                    pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}"
+                    autocapitalize="characters"
+                    oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,11);"
+                    value="{{ partner['ifsc'] or '' }}"
+                    placeholder="IFSC Code"
+                    autocomplete="off"
+                    required
+                >
+
+                <button type="submit">Continue</button>
+            </div>
+        </form>
+
+    {% else %}
+
+        <form method="POST" action="/partner/change-bank">
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token() }}"
+            >
+
+            <select name="bank_name" required>
+                <option value="">Select Bank</option>
+
+                {% for bank in indian_banks %}
+                    <option value="{{ bank }}">{{ bank }}</option>
+                {% endfor %}
+            </select>
+
+            <input
+                type="text"
+                name="account_holder"
+                placeholder="Account Holder Name"
+                maxlength="100"
+                autocomplete="name"
+                required
+            >
+
+            <input
+                type="text"
+                name="account_number"
+                inputmode="numeric"
+                pattern="[0-9]{9,18}"
+                maxlength="18"
+                placeholder="Account Number"
+                autocomplete="off"
+                required
+            >
+
+            <input
+                type="text"
+                name="ifsc"
+                maxlength="11"
+                pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}"
+                autocapitalize="characters"
+                oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,11);"
+                placeholder="IFSC Code"
+                autocomplete="off"
+                required
+            >
+
+            <button type="submit">Continue</button>
+        </form>
+
+    {% endif %}
+
+    <script>
+        function showForm() {
+            const bankForm = document.getElementById("bankForm");
+            const changeButton = document.getElementById("changeButton");
+
+            if (bankForm) {
+                bankForm.style.display = "block";
+            }
+
+            if (changeButton) {
+                changeButton.style.display = "none";
+            }
+
+            if (bankForm) {
+                bankForm.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+            }
+        }
+
+        document.querySelectorAll('input[name="account_number"]').forEach(function (input) {
+            input.addEventListener("input", function () {
+                this.value = this.value.replace(/\D/g, "").slice(0, 18);
+            });
+        });
+
+        setTimeout(function () {
+            document.querySelectorAll(".flash").forEach(function (alert) {
+                alert.style.transition = ".5s";
+                alert.style.opacity = "0";
+                alert.style.transform = "translateY(-20px)";
+
+                setTimeout(function () {
+                    alert.remove();
+                }, 500);
+            });
+        }, 3000);
+    </script>
+</body>
+</html>

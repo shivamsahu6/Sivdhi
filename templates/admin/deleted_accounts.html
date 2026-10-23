@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Deleted Accounts | Sivdhi Admin</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Inter,Poppins,Arial,sans-serif;
+}
+
+body{
+    background:#f6f8fc;
+    color:#111827;
+}
+
+/* HEADER */
+
+.header{
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+    padding:22px 30px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.header h1{
+    font-size:23px;
+}
+
+.header p{
+    margin-top:4px;
+    font-size:12px;
+    opacity:.8;
+}
+
+.back{
+    text-decoration:none;
+    color:white;
+    background:rgba(255,255,255,.14);
+    padding:9px 14px;
+    border-radius:9px;
+    font-size:12px;
+}
+
+/* CONTAINER */
+
+.container{
+    max-width:1400px;
+    margin:25px auto;
+    padding:0 20px;
+}
+
+/* TOP */
+
+.top{
+    background:white;
+    border:1px solid #edf0f5;
+    border-radius:14px;
+    padding:15px 18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:15px;
+    margin-bottom:15px;
+}
+
+.top h2{
+    font-size:15px;
+}
+
+.top p{
+    color:#94a3b8;
+    font-size:11px;
+    margin-top:3px;
+}
+
+.search{
+    width:250px;
+    height:36px;
+    border:1px solid #e5e7eb;
+    border-radius:8px;
+    padding:0 11px;
+    outline:none;
+    font-size:12px;
+    background:#f8fafc;
+}
+
+/* TABLE */
+
+.table-card{
+    background:white;
+    border:1px solid #edf0f5;
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 3px 12px rgba(15,23,42,.03);
+}
+
+.table-wrap{
+    width:100%;
+    overflow-x:auto;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:850px;
+}
+
+thead{
+    background:#f8fafc;
+}
+
+th{
+    text-align:left;
+    padding:12px 15px;
+    color:#64748b;
+    font-size:10px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    border-bottom:1px solid #edf0f5;
+}
+
+td{
+    padding:11px 15px;
+    border-bottom:1px solid #f1f3f6;
+    font-size:11px;
+    vertical-align:middle;
+}
+
+tbody tr:hover{
+    background:#fafcff;
+}
+
+tbody tr:last-child td{
+    border-bottom:none;
+}
+
+/* USER */
+
+.user{
+    display:flex;
+    align-items:center;
+    gap:9px;
+}
+
+.avatar{
+    width:32px;
+    height:32px;
+    border-radius:9px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#eff6ff;
+    color:#2563eb;
+    font-weight:700;
+    font-size:11px;
+    flex-shrink:0;
+}
+
+.user strong{
+    display:block;
+    font-size:11px;
+}
+
+.user span{
+    display:block;
+    color:#94a3b8;
+    font-size:9px;
+    margin-top:2px;
+}
+
+/* TYPE */
+
+.type{
+    display:inline-block;
+    padding:5px 8px;
+    border-radius:6px;
+    font-size:9px;
+    font-weight:700;
+}
+
+.worker{
+    background:#eff6ff;
+    color:#2563eb;
+}
+
+.partner{
+    background:#f0fdf4;
+    color:#16a34a;
+}
+.customer-type{
+    background:#f5f3ff;
+    color:#6d28d9;
+}
+
+/* ID */
+
+.id{
+    color:#64748b;
+    font-family:monospace;
+}
+
+/* ACTIONS */
+
+.actions{
+    display:flex;
+    gap:6px;
+}
+
+.btn{
+    border:none;
+    border-radius:6px;
+    padding:6px 9px;
+    font-size:9px;
+    font-weight:700;
+    cursor:pointer;
+    text-decoration:none;
+    display:inline-block;
+}
+
+.restore{
+    background:#eff6ff;
+    color:#2563eb;
+}
+
+.permanent{
+    background:#fee2e2;
+    color:#dc2626;
+}
+
+.btn:hover{
+    opacity:.85;
+}
+
+/* EMPTY */
+
+.empty{
+    padding:50px 20px;
+    text-align:center;
+    color:#94a3b8;
+}
+
+.empty-icon{
+    font-size:35px;
+    margin-bottom:10px;
+}
+
+.empty strong{
+    display:block;
+    color:#475569;
+    font-size:14px;
+    margin-bottom:4px;
+}
+
+.empty span{
+    font-size:11px;
+}
+
+/* MOBILE */
+
+@media(max-width:700px){
+
+    .header{
+        padding:18px 15px;
+    }
+
+    .header h1{
+        font-size:19px;
+    }
+
+    .back{
+        padding:8px 10px;
+    }
+
+    .container{
+        padding:0 10px;
+        margin:18px auto;
+    }
+
+    .top{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .search{
+        width:100%;
+    }
+
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+<!-- HEADER -->
+
+<div class="header">
+
+    <div>
+
+        <h1>🗑️ Deleted Accounts</h1>
+
+        <p>Manage deleted customers, workers and partners</p>
+
+    </div>
+
+    <a href="/admin/dashboard" class="back">
+        ← Dashboard
+    </a>
+
+</div>
+
+
+<div class="container">
+
+
+<!-- TOP -->
+
+<div class="top">
+
+    <div>
+
+        <h2>Deleted Users</h2>
+
+        <p>
+            Restore accounts or permanently remove them
+        </p>
+
+    </div>
+
+    <input
+        type="text"
+        id="search"
+        class="search"
+        placeholder="🔍 Search name, ID, mobile..."
+        onkeyup="searchUsers()"
+    >
+
+</div>
+
+
+<!-- TABLE -->
+
+<div class="table-card">
+
+<div class="table-wrap">
+
+<table id="usersTable">
+
+<thead>
+
+<tr>
+
+    <th>User</th>
+
+    <th>Type</th>
+
+    <th>ID</th>
+
+    <th>Mobile</th>
+
+    <th>Deleted At</th>
+
+    <th>Actions</th>
+
+</tr>
+
+</thead>
+
+
+<tbody>
+
+
+{% for worker in deleted_workers %}
+
+<tr>
+
+    <td>
+
+        <div class="user">
+
+            <div class="avatar">
+                {{ worker["fullname"][0]|upper }}
+            </div>
+
+            <div>
+
+                <strong>
+                    {{ worker["fullname"] }}
+                </strong>
+
+                <span>
+                    Worker
+                </span>
+
+            </div>
+
+        </div>
+
+    </td>
+
+
+    <td>
+
+        <span class="type worker">
+            👷 Worker
+        </span>
+
+    </td>
+
+
+    <td class="id">
+        {{ worker["worker_id"] }}
+    </td>
+
+
+    <td>
+        {{ worker["mobile"] or "-" }}
+    </td>
+
+
+    <td>
+        {{ worker["created_at"] or "-" }}
+    </td>
+
+
+    <td>
+
+        <div class="actions">
+
+            <form
+                method="POST"
+                action="/admin/worker/{{ worker['id'] }}/restore"
+                onsubmit="return confirm('Restore this worker account?')"
+            >
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <button class="btn restore">
+                    ↩ Restore
+                </button>
+
+            </form>
+
+
+            <form
+                method="POST"
+                action="/admin/worker/{{ worker['id'] }}/permanent-delete"
+                onsubmit="return confirm('This will permanently delete this worker. Continue?')"
+            >
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <button class="btn permanent">
+                    🗑 Delete
+                </button>
+
+            </form>
+
+        </div>
+
+    </td>
+
+</tr>
+
+{% endfor %}
+
+
+
+{% for partner in deleted_partners %}
+
+<tr>
+
+    <td>
+
+        <div class="user">
+
+            <div class="avatar">
+                {{ partner["fullname"][0]|upper }}
+            </div>
+
+            <div>
+
+                <strong>
+                    {{ partner["fullname"] }}
+                </strong>
+
+                <span>
+                    Partner
+                </span>
+
+            </div>
+
+        </div>
+
+    </td>
+
+
+    <td>
+
+        <span class="type partner">
+            🤝 Partner
+        </span>
+
+    </td>
+
+
+    <td class="id">
+        {{ partner["partner_id"] }}
+    </td>
+
+
+    <td>
+        {{ partner["mobile"] or "-" }}
+    </td>
+
+
+    <td>
+        {{ partner["created_at"] or "-" }}
+    </td>
+
+
+    <td>
+
+        <div class="actions">
+
+            <form
+                method="POST"
+                action="/admin/partner/{{ partner['id'] }}/restore"
+                onsubmit="return confirm('Restore this partner account?')"
+            >
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <button class="btn restore">
+                    ↩ Restore
+                </button>
+
+            </form>
+
+
+            <form
+                method="POST"
+                action="/admin/partner/{{ partner['id'] }}/permanent-delete"
+                onsubmit="return confirm('This will permanently delete this partner. Continue?')"
+            >
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <button class="btn permanent">
+                    🗑 Delete
+                </button>
+
+            </form>
+
+        </div>
+
+    </td>
+
+</tr>
+
+{% endfor %}
+
+
+
+{% for customer in deleted_customers %}
+<tr>
+  <td><div class="user"><div class="avatar">{{ (customer["fullname"] or "C")[0]|upper }}</div><div><strong>{{ customer["fullname"] or "Customer" }}</strong><span>Customer</span></div></div></td>
+  <td><span class="type customer-type">👤 Customer</span></td>
+  <td class="id">{{ customer["customer_id"] or customer["id"] }}</td>
+  <td>{{ customer["mobile"] or "-" }}</td>
+  <td>{{ customer["created_at"] or "-" }}</td>
+  <td><div class="actions">
+    <form method="POST" action="/admin/customer/{{ customer['id'] }}/restore" onsubmit="return confirm('Restore this customer account?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn restore">↩ Restore</button></form>
+    <form method="POST" action="/admin/customer/{{ customer['id'] }}/permanent-delete" onsubmit="return confirm('Permanently delete this customer? This cannot be undone.')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn permanent">🗑 Delete</button></form>
+  </div></td>
+</tr>
+{% endfor %}
+
+{% if not deleted_workers and not deleted_partners and not deleted_customers %}
+
+<tr>
+
+<td colspan="6">
+
+    <div class="empty">
+
+        <div class="empty-icon">
+            🗑️
+        </div>
+
+        <strong>
+            No deleted accounts
+        </strong>
+
+        <span>
+            Deleted customers, workers and partners will appear here.
+        </span>
+
+    </div>
+
+</td>
+
+</tr>
+
+{% endif %}
+
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+
+</div>
+
+
+<script>
+
+function searchUsers(){
+
+    const input =
+        document.getElementById("search");
+
+    const filter =
+        input.value.toLowerCase();
+
+    const rows =
+        document.querySelectorAll("#usersTable tbody tr");
+
+    rows.forEach(function(row){
+
+        const text =
+            row.innerText.toLowerCase();
+
+        if(text.includes(filter)){
+            row.style.display = "";
+        }
+        else{
+            row.style.display = "none";
+        }
+
+    });
+
+}
+
+</script>
+
+
+</body>
+
+</html>

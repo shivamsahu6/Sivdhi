@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Worker Profile</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:40px;
+}
+
+.header{
+
+background:linear-gradient(135deg,#2563eb,#0f172a);
+
+padding:35px 20px;
+
+text-align:center;
+
+color:white;
+
+border-radius:0 0 25px 25px;
+
+}
+
+.photo{
+
+width:110px;
+height:110px;
+
+margin:auto;
+
+border-radius:50%;
+
+background:white;
+
+display:flex;
+justify-content:center;
+align-items:center;
+
+font-size:45px;
+
+color:#2563eb;
+
+margin-bottom:15px;
+
+}
+
+.card{
+
+margin:20px;
+
+background:white;
+
+padding:20px;
+
+border-radius:18px;
+
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+
+}
+
+.row{
+
+padding:14px 0;
+
+border-bottom:1px solid #eee;
+
+}
+
+.row:last-child{
+
+border:none;
+
+}
+
+.label{
+
+font-size:13px;
+
+color:#777;
+
+}
+
+.value{
+
+font-size:17px;
+
+font-weight:bold;
+
+margin-top:4px;
+
+}
+
+.buttons{
+
+margin:20px;
+
+display:flex;
+
+flex-direction:column;
+
+gap:12px;
+
+}
+
+button{
+
+width:100%;
+
+padding:15px;
+
+border:none;
+
+border-radius:12px;
+
+font-size:16px;
+
+cursor:pointer;
+
+}
+
+.call{
+
+background:#2563eb;
+
+color:white;
+
+}
+
+
+
+.back{
+
+background:#6b7280;
+
+color:white;
+
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<div class="photo">
+
+👷
+
+</div>
+
+<h2>
+
+{{ worker["fullname"]|default('Worker', true)|e }}
+
+</h2>
+
+<p>
+
+{{ worker["worker_id"]|default('—', true)|e }}
+
+</p>
+
+</div>
+
+<div class="card">
+
+<div class="row">
+
+<div class="label">
+
+Worker ID
+
+</div>
+
+<div class="value">
+
+{{ worker["worker_id"]|default('—', true)|e }}
+
+</div>
+
+</div>
+
+<div class="row">
+
+<div class="label">
+
+Mobile
+
+</div>
+
+<div class="value">
+
+{{ worker["mobile"]|default('', true)|e }}
+
+</div>
+
+</div>
+
+<div class="row">
+
+<div class="label">
+
+Referral Code
+
+</div>
+
+<div class="value">
+
+{{ worker["referral_code"]|default('—', true)|e }}
+
+</div>
+
+</div>
+
+<div class="row">
+
+<div class="label">
+
+Status
+
+</div>
+
+<div class="value">
+
+{{ worker["status"]|default('—', true)|e }}
+
+</div>
+
+</div>
+
+<div class="row">
+
+<div class="label">
+
+Joined On
+
+</div>
+
+<div class="value">
+
+{{ worker["created_at"]|default('—', true)|e }}
+
+</div>
+
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="row">
+<div class="label">Skills</div>
+<div class="value">{{ worker["skills"]|default('Not provided', true)|e }}</div>
+</div>
+
+<div class="row">
+<div class="label">Experience</div>
+<div class="value">{{ worker["experience"]|default('Not provided', true)|e }}</div>
+</div>
+
+<div class="row">
+<div class="label">Location</div>
+<div class="value">{{ worker["city"]|default('Not provided', true)|e }}{% if worker["state"]|default('', true) %}, {{ worker["state"]|e }}{% endif %}</div>
+</div>
+
+</div>
+
+<div class="buttons">
+
+<a href="tel:{{ worker['mobile'] }}">
+
+<button class="call">
+
+📞 Call Worker
+
+</button>
+
+</a>
+
+
+
+<a href="/partner/workers">
+
+<button class="back">
+
+⬅ Back
+
+</button>
+
+</a>
+
+</div>
+
+</body>
+
+</html>

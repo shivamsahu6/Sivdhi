@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>Payment | Sivdhi</title>
+
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190, 130, 255, .20);
+            --green: #78e5b0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            min-height: 100%;
+            background: var(--bg);
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            color: var(--text);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background:
+                radial-gradient(ellipse at 0 0, rgba(255, 67, 140, .08), transparent 38%),
+                radial-gradient(ellipse at 100% 55%, rgba(115, 67, 255, .08), transparent 42%),
+                var(--bg);
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        button,
+        a,
+        input {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 1000px;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 0 24px 130px;
+        }
+
+        .header {
+            min-height: 75px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, .065);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 41px;
+            height: 41px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 13px;
+            background: linear-gradient(135deg, var(--pink), var(--purple), var(--blue));
+            color: white;
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .brand-name {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -.7px;
+        }
+
+        .brand-name span {
+            color: #ff72b6;
+        }
+
+        .brand-caption {
+            display: block;
+            margin-top: 3px;
+            color: #9788a6;
+            font-size: 8px;
+            letter-spacing: 1.2px;
+        }
+
+        .back-link {
+            min-height: 39px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 0 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .025);
+            color: #e2cdf6;
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .intro {
+            padding: 27px 0 20px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: #e0acff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .eyebrow-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+        }
+
+        h1 {
+            margin: 10px 0 0;
+            font-size: clamp(27px, 4vw, 35px);
+            line-height: 1.23;
+            letter-spacing: -1px;
+        }
+
+        .intro-text {
+            margin: 9px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .payment-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, .75fr);
+            align-items: start;
+            gap: 20px;
+        }
+
+        .main-column {
+            min-width: 0;
+        }
+
+        .card {
+            margin-bottom: 16px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 19px;
+            background: linear-gradient(145deg, rgba(29, 21, 40, .93), rgba(17, 13, 24, .96));
+        }
+
+        .card-heading {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .heading-icon {
+            width: 37px;
+            height: 37px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(190, 130, 255, .18);
+            border-radius: 11px;
+            background: rgba(164, 77, 255, .09);
+            font-size: 17px;
+        }
+
+        .card-heading h2 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .card-heading p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .service-summary {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 14px;
+            border: 1px solid rgba(190, 130, 255, .16);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, .018);
+        }
+
+        .service-icon {
+            width: 47px;
+            height: 47px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: rgba(164, 77, 255, .10);
+            font-size: 23px;
+        }
+
+        .service-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .service-info strong {
+            display: block;
+            font-size: 12px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .service-info p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .mode-tag {
+            flex-shrink: 0;
+            padding: 7px 9px;
+            border: 1px solid rgba(190, 130, 255, .2);
+            border-radius: 10px;
+            background: rgba(164, 77, 255, .08);
+            color: #e7bbff;
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+        .payment-method {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 10px;
+            padding: 14px;
+            border: 1px solid rgba(190, 130, 255, .17);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, .018);
+            cursor: pointer;
+            transition: border-color .2s, background .2s;
+        }
+
+        .payment-method:hover {
+            border-color: rgba(190, 130, 255, .42);
+        }
+
+        .payment-method.selected {
+            border-color: rgba(202, 123, 255, .65);
+            background: linear-gradient(110deg, rgba(255, 67, 140, .06), rgba(164, 77, 255, .10));
+        }
+
+        .payment-method input {
+            width: 17px;
+            height: 17px;
+            flex-shrink: 0;
+            margin: 0;
+            accent-color: #b86aff;
+        }
+
+        .method-icon {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(190, 130, 255, .16);
+            border-radius: 12px;
+            background: rgba(164, 77, 255, .08);
+            font-size: 20px;
+        }
+
+        .method-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .method-copy strong {
+            display: block;
+            font-size: 12px;
+        }
+
+        .method-copy small {
+            display: block;
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.6;
+        }
+
+        .method-check {
+            color: #d9a6ff;
+            font-size: 17px;
+        }
+
+        .notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 14px;
+            padding: 13px;
+            border: 1px solid rgba(120, 229, 176, .16);
+            border-radius: 13px;
+            background: rgba(120, 229, 176, .035);
+        }
+
+        .notice-icon {
+            flex-shrink: 0;
+            font-size: 17px;
+        }
+
+        .notice strong {
+            display: block;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .notice p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .summary-card {
+            position: sticky;
+            top: 18px;
+            padding: 20px;
+            border: 1px solid rgba(190, 130, 255, .24);
+            border-radius: 19px;
+            background:
+                radial-gradient(ellipse at 100% 0, rgba(164, 77, 255, .12), transparent 58%),
+                #15101e;
+        }
+
+        .summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .summary-header h2 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .summary-tag {
+            color: var(--green);
+            font-size: 9px;
+            font-weight: 750;
+        }
+
+        .summary-service {
+            margin-top: 16px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .summary-service strong {
+            display: block;
+            font-size: 12px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .summary-service p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .line {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .line strong {
+            flex-shrink: 0;
+            max-width: 55%;
+            color: #eee3f8;
+            font-size: 11px;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+
+        .summary-divider {
+            height: 1px;
+            margin: 16px 0;
+            background: rgba(255, 255, 255, .09);
+        }
+
+        .total-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .total-row span {
+            color: #e1d0ef;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .total-row strong {
+            color: #ff9ccd;
+            font-size: 27px;
+            font-weight: 800;
+            letter-spacing: -.6px;
+            overflow-wrap: anywhere;
+        }
+
+        .summary-note {
+            margin: 10px 0 0;
+            color: #9f90ac;
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .pay-button {
+            width: 100%;
+            min-height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            margin-top: 19px;
+            padding: 13px;
+            border: 0;
+            border-radius: 14px;
+            background: linear-gradient(105deg, var(--pink), var(--purple) 60%, var(--blue));
+            box-shadow: 0 8px 24px rgba(164, 77, 255, .2);
+            color: white;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: filter .2s, transform .2s;
+        }
+
+        .pay-button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.07);
+        }
+
+        .pay-button:disabled {
+            opacity: .6;
+            cursor: wait;
+            transform: none;
+        }
+
+        .error-message {
+            margin-top: 12px;
+            padding: 11px;
+            border: 1px solid rgba(255, 139, 168, .23);
+            border-radius: 12px;
+            background: rgba(255, 67, 140, .06);
+            color: #ffb5c8;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .security-note {
+            margin-top: 13px;
+            color: #9f91ac;
+            font-size: 10px;
+            line-height: 1.8;
+            text-align: center;
+        }
+
+        .flash-messages {
+            display: grid;
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .flash {
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(164, 77, 255, .07);
+            color: #e7d5f7;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .flash.success {
+            border-color: rgba(120, 229, 176, .25);
+            color: #a8f2ce;
+        }
+
+        .flash.danger,
+        .flash.warning {
+            border-color: rgba(255, 139, 168, .25);
+            color: #ffb5c8;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            z-index: 5;
+            left: 50%;
+            bottom: max(9px, env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            width: min(490px, calc(100vw - 28px));
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 4px;
+            padding: 7px;
+            border: 1px solid rgba(196, 133, 255, .22);
+            border-radius: 21px;
+            background: rgba(17, 13, 24, .96);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, .45);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-item {
+            min-height: 47px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-radius: 13px;
+            color: #9d90aa;
+            font-size: 18px;
+        }
+
+        .nav-item small {
+            font-size: 10px;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(255, 65, 139, .13), rgba(139, 69, 255, .15));
+            color: #ff89c1;
+        }
+
+        @media (max-width: 760px) {
+            .app {
+                padding: 0 15px 140px;
+            }
+
+            .payment-layout {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 0;
+            }
+
+            .summary-column {
+                order: -1;
+            }
+
+            .summary-card {
+                position: static;
+                margin-bottom: 16px;
+            }
+        }
+
+        @media (max-width: 430px) {
+            .header {
+                min-height: 67px;
+            }
+
+            .brand-icon {
+                width: 37px;
+                height: 37px;
+                border-radius: 12px;
+            }
+
+            .brand-name {
+                font-size: 20px;
+            }
+
+            .brand-caption {
+                font-size: 7px;
+            }
+
+            .back-link {
+                min-height: 36px;
+                padding: 0 10px;
+                font-size: 10px;
+            }
+
+            .intro {
+                padding-top: 22px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .summary-card {
+                padding: 16px;
+            }
+
+            .service-summary {
+                gap: 10px;
+                padding: 11px;
+            }
+
+            .service-icon {
+                width: 41px;
+                height: 41px;
+                font-size: 20px;
+            }
+
+            .service-info strong {
+                font-size: 11px;
+            }
+
+            .mode-tag {
+                padding: 6px;
+                font-size: 8px;
+            }
+
+            .total-row strong {
+                font-size: 24px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    {% set mode = booking_mode|default('normal') %}
+    {% set service_name = service.get('display_name', service.get('name', 'Selected service')) %}
+    {% set service_icon = service.get('display_icon', service.get('icon', '✦')) %}
+    {% set category_name = category.get('name', service.get('display_category', service.get('category', 'Service'))) %}
+    {% set service_charge_value = service_charge|default(0) %}
+    {% set visit_fee_value = visit_fee|default(0) %}
+    {% set total_value = total_amount|default(0) %}
+    {% set advance_value = advance_amount|default([50, total_value|float]|min) %}
+    {% set balance_value = balance_due|default([total_value|float - advance_value|float, 0]|max) %}
+
+    <div class="app">
+        <header class="header">
+            <a class="brand" href="{{ url_for('customer.home') }}" aria-label="Sivdhi Home">
+                <div class="brand-icon">S</div>
+                <div>
+                    <div class="brand-name">Sivdhi<span>.</span></div>
+                    <span class="brand-caption">HOME SERVICES</span>
+                </div>
+            </a>
+
+            <a class="back-link" href="{{ url_for('customer.service_details') }}">
+                <span aria-hidden="true">←</span>
+                Details
+            </a>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages" aria-live="polite">
+            {% for category_type, message in messages %}
+            <div class="flash {{ category_type|e }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <main>
+            <section class="intro">
+                <div class="eyebrow">
+                    <span class="eyebrow-dot"></span>
+                    Secure checkout
+                </div>
+
+                <h1>Payment</h1>
+
+                <p class="intro-text">
+                    Pay a ₹50 booking advance now. The remaining amount is due when your assigned worker arrives.
+                </p>
+            </section>
+
+            <div class="payment-layout">
+                <div class="main-column">
+                    <section class="card">
+                        <div class="card-heading">
+                            <div class="heading-icon" aria-hidden="true">▤</div>
+                            <div>
+                                <h2>Booking Summary</h2>
+                                <p>Review the service and charges for your booking.</p>
+                            </div>
+                        </div>
+
+                        <div class="service-summary">
+                            <div class="service-icon" aria-hidden="true">
+                                {{ service_icon }}
+                            </div>
+
+                            <div class="service-info">
+                                <strong>{{ service_name }}</strong>
+                                <p>{{ category_name }}</p>
+                            </div>
+
+                            <span class="mode-tag">
+                                {% if mode == 'full-day' %}
+                                FULL-DAY
+                                {% else %}
+                                NORMAL
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        {% if mode == 'normal' and problems %}
+                        <div style="margin-top:18px">
+                            <div class="section-heading" style="margin-bottom:12px">
+                                <div>
+                                    <h2 style="font-size:13px;margin:0">Selected problems</h2>
+                                </div>
+                            </div>
+
+                            {% for problem in problems %}
+                            <div class="line">
+                                <span>{{ problem.get('name', 'Selected problem') }}</span>
+                                <strong>₹{{ "%.2f"|format(problem.get('price', 0)|float) }}</strong>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </section>
+
+                    <section class="card">
+                        <div class="card-heading">
+                            <div class="heading-icon" aria-hidden="true">₹</div>
+                            <div>
+                                <h2>Booking advance</h2>
+                                <p>Only the advance is recorded at booking. Remaining balance is collected when the
+                                    worker arrives.</p>
+                            </div>
+                        </div>
+
+                        {% if payment_mode == 'demo' %}
+                        <form method="POST" action="{{ url_for('customer.payment') }}" id="paymentForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="payment_method" value="demo">
+
+                            <div class="notice">
+                                <div class="notice-icon" aria-hidden="true">🧪</div>
+                                <div>
+                                    <strong>Demo payment mode</strong>
+                                    <p>This is simulated money for testing. No real money will be charged and no bank or
+                                        UPI transaction will occur.</p>
+                                </div>
+                            </div>
+
+                            <div class="error-message" id="paymentMessage" hidden></div>
+
+                            <button class="pay-button" id="payButton" type="submit">
+                                Record ₹{{ '%.2f'|format(advance_value|float) }} demo advance
+                                <span aria-hidden="true">→</span>
+                            </button>
+                        </form>
+                        {% else %}
+                        <div class="notice">
+                            <div class="notice-icon" aria-hidden="true">ⓘ</div>
+                            <div>
+                                <strong>Live gateway not configured</strong>
+                                <p>No payment has been taken. Sivdhi will enable this step after a payment provider is
+                                    configured and verified.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </section>
+                </div>
+
+                <aside class="summary-column">
+                    <section class="summary-card">
+                        <div class="summary-header">
+                            <h2>Amount Payable</h2>
+                            <span class="summary-tag">TOTAL</span>
+                        </div>
+
+                        <div class="summary-service">
+                            <strong>{{ service_name }}</strong>
+                            <p>
+                                {% if mode == 'full-day' %}
+                                Full-Day service · 9 AM–5 PM
+                                {% else %}
+                                Selected service problems
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        <div class="line">
+                            <span>
+                                {% if mode == 'full-day' %}Full-Day service{% else %}Selected problems{% endif %}
+                            </span>
+                            <strong>₹{{ "%.2f"|format(service_charge_value|float) }}</strong>
+                        </div>
+
+                        {% if visit_fee_value|float > 0 %}
+                        <div class="line">
+                            <span>Visit / inspection charge</span>
+                            <strong>₹{{ "%.2f"|format(visit_fee_value|float) }}</strong>
+                        </div>
+                        {% endif %}
+
+                        <div class="summary-divider"></div>
+
+                        <div class="line">
+                            <span>Total service amount</span>
+                            <strong>₹{{ "%.2f"|format(total_value|float) }}</strong>
+                        </div>
+
+                        <div class="line">
+                            <span>Advance due now</span>
+                            <strong>₹{{ "%.2f"|format(advance_value|float) }}</strong>
+                        </div>
+
+                        <div class="total-row">
+                            <span>Balance at worker arrival</span>
+                            <strong>₹{{ "%.2f"|format(balance_value|float) }}</strong>
+                        </div>
+
+                        <p class="summary-note">
+                            The listed price is the total for the selected service. Any extra work must be approved by
+                            you separately.
+                        </p>
+
+                        <div class="security-note">
+                            🔒 Never share your payment PIN or OTP with anyone.
+                        </div>
+                    </section>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a class="nav-item" href="{{ url_for('customer.home') }}">
+            <span aria-hidden="true">⌂</span>
+            <small>Home</small>
+        </a>
+
+        <a class="nav-item" href="/customer/bookings">
+            <span aria-hidden="true">▤</span>
+            <small>Bookings</small>
+        </a>
+
+        <a class="nav-item" href="/customer/profile">
+            <span aria-hidden="true">♙</span>
+            <small>Profile</small>
+        </a>
+    </nav>
+
+    <script>
+        const paymentForm = document.getElementById("paymentForm");
+        const paymentMessage = document.getElementById("paymentMessage");
+        const payButton = document.getElementById("payButton");
+        const methods = Array.from(
+            document.querySelectorAll(".payment-method")
+        );
+
+        methods.forEach(label => {
+            const radio = label.querySelector('input[type="radio"]');
+            const check = label.querySelector(".method-check");
+
+            // This page can be rendered without radio-method elements.
+            if (!radio || !check) {
+                return;
+            }
+
+            radio.addEventListener("change", () => {
+                methods.forEach(item => {
+                    item.classList.remove("selected");
+
+                    const itemRadio = item.querySelector('input[type="radio"]');
+                    const itemCheck = item.querySelector(".method-check");
+
+                    if (itemRadio && itemCheck) {
+                        itemCheck.hidden = !itemRadio.checked;
+                    }
+                });
+
+                label.classList.add("selected");
+                check.hidden = false;
+            });
+        });
+
+        // Demo checkout uses a hidden payment_method field, not a radio button.
+        // Accept either input type so the demo Pay button can submit.
+        // In live mode, the form remains unavailable until a verified gateway
+        // integration has been configured.
+        if (paymentForm) {
+            paymentForm.addEventListener("submit", event => {
+                const selected = paymentForm.querySelector(
+                    'input[name="payment_method"]:checked'
+                ) || paymentForm.querySelector(
+                    'input[type="hidden"][name="payment_method"]'
+                );
+
+                if (!selected) {
+                    event.preventDefault();
+
+                    if (paymentMessage) {
+                        paymentMessage.textContent =
+                            "Please choose a payment method.";
+                        paymentMessage.hidden = false;
+                    }
+
+                    return;
+                }
+
+                if (payButton) {
+                    payButton.disabled = true;
+                    payButton.textContent = "Please wait…";
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

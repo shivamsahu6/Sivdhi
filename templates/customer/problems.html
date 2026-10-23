@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>Choose Problems | Sivdhi</title>
+
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190,130,255,.20);
+            --green: #78e5b0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            min-height: 100%;
+            background: var(--bg);
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            color: var(--text);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background:
+                radial-gradient(ellipse at 0 0, rgba(255,67,140,.08), transparent 38%),
+                radial-gradient(ellipse at 100% 55%, rgba(115,67,255,.08), transparent 42%),
+                var(--bg);
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button {
+            font: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 1000px;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 0 24px 155px;
+        }
+
+        .header {
+            min-height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            border-bottom: 1px solid rgba(255,255,255,.065);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 41px;
+            height: 41px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 13px;
+            background: linear-gradient(135deg,var(--pink),var(--purple),var(--blue));
+            color: white;
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .brand-name {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -.7px;
+        }
+
+        .brand-name span {
+            color: #ff72b6;
+        }
+
+        .brand-caption {
+            display: block;
+            margin-top: 3px;
+            color: #9788a6;
+            font-size: 8px;
+            letter-spacing: 1.2px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255,255,255,.025);
+            color: #e2cdf6;
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .intro {
+            padding: 27px 0 20px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: #e0acff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .eyebrow-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+        }
+
+        h1 {
+            margin: 11px 0 0;
+            font-size: clamp(27px,4vw,35px);
+            line-height: 1.22;
+            letter-spacing: -1px;
+            overflow-wrap: anywhere;
+        }
+
+        .intro-text {
+            margin: 9px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .service-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background:
+                radial-gradient(ellipse at 100% 0,rgba(164,77,255,.15),transparent 60%),
+                linear-gradient(145deg,#1d1628,#110d18);
+        }
+
+        .service-icon {
+            width: 53px;
+            height: 53px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(190,130,255,.2);
+            border-radius: 15px;
+            background: rgba(164,77,255,.1);
+            font-size: 26px;
+        }
+
+        .service-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .service-info strong {
+            display: block;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .service-info p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .service-tag {
+            flex-shrink: 0;
+            padding: 7px 9px;
+            border: 1px solid rgba(190,130,255,.22);
+            border-radius: 10px;
+            background: rgba(164,77,255,.08);
+            color: #e7bbff;
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+        .content-layout {
+            display: grid;
+            grid-template-columns: minmax(0,1.25fr) minmax(260px,.75fr);
+            align-items: start;
+            gap: 20px;
+            margin-top: 22px;
+        }
+
+        .problem-section {
+            min-width: 0;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 19px;
+            background: linear-gradient(145deg,rgba(29,21,40,.93),rgba(17,13,24,.96));
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .section-heading h2 {
+            margin: 0;
+            font-size: 17px;
+            letter-spacing: -.3px;
+        }
+
+        .section-heading p {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .step-number {
+            width: 30px;
+            height: 30px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: rgba(164,77,255,.1);
+            color: #e5b1ff;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .problem-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .problem-option {
+            min-width: 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 11px;
+            padding: 14px 12px;
+            border: 1px solid rgba(190,130,255,.16);
+            border-radius: 14px;
+            background: rgba(255,255,255,.018);
+            cursor: pointer;
+            transition: border-color .18s, background .18s;
+        }
+
+        .problem-option:hover {
+            border-color: rgba(190,130,255,.42);
+        }
+
+        .problem-option.selected {
+            border-color: rgba(202,123,255,.65);
+            background: linear-gradient(110deg,rgba(255,67,140,.07),rgba(164,77,255,.11));
+        }
+
+        .problem-option input {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            margin: 2px 0 0;
+            accent-color: #b86aff;
+            cursor: pointer;
+        }
+
+        .problem-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .problem-name {
+            display: block;
+            color: #faf4ff;
+            font-size: 12px;
+            font-weight: 750;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .problem-description {
+            display: block;
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .problem-price {
+            flex-shrink: 0;
+            color: #f3a5d0;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .price-note {
+            margin: 15px 0 0;
+            color: #a99ab7;
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .empty-state {
+            padding: 23px 15px;
+            border: 1px dashed rgba(190,130,255,.26);
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .empty-state strong {
+            display: block;
+            font-size: 13px;
+        }
+
+        .empty-state p {
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .summary-card {
+            position: sticky;
+            top: 18px;
+            padding: 20px;
+            border: 1px solid rgba(190,130,255,.24);
+            border-radius: 20px;
+            background:
+                radial-gradient(ellipse at 100% 0,rgba(164,77,255,.12),transparent 58%),
+                #15101e;
+        }
+
+        .summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .summary-header h2 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .live-tag {
+            color: var(--green);
+            font-size: 9px;
+            font-weight: 750;
+        }
+
+        .summary-service {
+            margin-top: 16px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+
+        .summary-service strong {
+            display: block;
+            font-size: 12px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .summary-service p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .selected-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .selected-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            color: #d0c0df;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .selected-row span:first-child {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .selected-row span:last-child {
+            flex-shrink: 0;
+            color: #f1dfff;
+            font-weight: 700;
+        }
+
+        .summary-divider {
+            height: 1px;
+            margin: 16px 0;
+            background: rgba(255,255,255,.09);
+        }
+
+        .total-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .total-row span {
+            color: #e1d0ef;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .total-row strong {
+            color: #ff9ccd;
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -.7px;
+            overflow-wrap: anywhere;
+        }
+
+        .summary-footnote {
+            margin: 10px 0 0;
+            color: #9f90ac;
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .continue-button {
+            width: 100%;
+            min-height: 51px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 19px;
+            padding: 13px;
+            border: 0;
+            border-radius: 14px;
+            background: linear-gradient(105deg,var(--pink),var(--purple) 60%,var(--blue));
+            box-shadow: 0 8px 24px rgba(164,77,255,.2);
+            color: white;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: filter .2s, transform .2s;
+        }
+
+        .continue-button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .continue-button:disabled {
+            opacity: .45;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .form-error {
+            margin-top: 12px;
+            padding: 11px;
+            border: 1px solid rgba(255,139,168,.23);
+            border-radius: 12px;
+            background: rgba(255,67,140,.06);
+            color: #ffb5c8;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            z-index: 5;
+            left: 50%;
+            bottom: max(9px,env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            width: min(490px,calc(100vw - 28px));
+            display: grid;
+            grid-template-columns: repeat(3,minmax(0,1fr));
+            gap: 4px;
+            padding: 7px;
+            border: 1px solid rgba(196,133,255,.22);
+            border-radius: 21px;
+            background: rgba(17,13,24,.96);
+            box-shadow: 0 15px 50px rgba(0,0,0,.45);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-item {
+            min-height: 47px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-radius: 13px;
+            color: #9d90aa;
+            font-size: 18px;
+        }
+
+        .nav-item small {
+            font-size: 10px;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg,rgba(255,65,139,.13),rgba(139,69,255,.15));
+            color: #ff89c1;
+        }
+
+        @media (max-width: 760px) {
+            .app {
+                padding: 0 15px 145px;
+            }
+
+            .content-layout {
+                grid-template-columns: minmax(0,1fr);
+                gap: 15px;
+            }
+
+            .summary-column {
+                order: -1;
+            }
+
+            .summary-card {
+                position: static;
+                padding: 16px;
+            }
+
+            .problem-section {
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 430px) {
+            .header {
+                min-height: 67px;
+            }
+
+            .brand-icon {
+                width: 37px;
+                height: 37px;
+                border-radius: 12px;
+            }
+
+            .brand-name {
+                font-size: 20px;
+            }
+
+            .brand-caption {
+                font-size: 7px;
+            }
+
+            .back-link {
+                padding: 9px 10px;
+                font-size: 10px;
+            }
+
+            .intro {
+                padding-top: 22px;
+            }
+
+            .service-card {
+                gap: 10px;
+                padding: 12px;
+            }
+
+            .service-icon {
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                font-size: 22px;
+            }
+
+            .service-info strong {
+                font-size: 12px;
+            }
+
+            .service-tag {
+                padding: 6px;
+                font-size: 8px;
+            }
+
+            .problem-section {
+                padding: 13px;
+            }
+
+            .problem-option {
+                gap: 9px;
+                padding: 12px 9px;
+            }
+
+            .problem-name {
+                font-size: 11px;
+            }
+
+            .problem-price {
+                font-size: 11px;
+            }
+
+            .summary-card {
+                padding: 15px;
+            }
+
+            .total-row strong {
+                font-size: 23px;
+            }
+        }
+
+        @media (max-width: 340px) {
+            .app {
+                padding-right: 10px;
+                padding-left: 10px;
+            }
+
+            .brand-caption {
+                display: none;
+            }
+
+            .problem-option {
+                flex-wrap: wrap;
+            }
+
+            .problem-price {
+                margin-left: 27px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+    <div class="app">
+        <header class="header">
+            <a class="brand" href="{{ url_for('customer.home') }}" aria-label="Sivdhi Home">
+                <div class="brand-icon">S</div>
+                <div>
+                    <div class="brand-name">Sivdhi<span>.</span></div>
+                    <span class="brand-caption">HOME SERVICES</span>
+                </div>
+            </a>
+
+            <a
+                class="back-link"
+                href="{{ url_for('customer.category', category_id=category_id|default(0), mode='normal') if category_id|default(0) else url_for('customer.home', mode='normal') }}"
+            >
+                <span aria-hidden="true">←</span>
+                Back
+            </a>
+        </header>
+
+        <main>
+            <section class="intro">
+                <div class="eyebrow">
+                    <span class="eyebrow-dot"></span>
+                    Normal service
+                </div>
+
+                <h1>Which problems do you have?</h1>
+
+                <p class="intro-text">
+                    Select all the problems you want us to solve.
+                    Each problem has its own price, and the total updates automatically.
+                </p>
+            </section>
+
+            <section class="service-card">
+                <div class="service-icon" aria-hidden="true">
+                    {{ service['display_icon']|default(service['icon']|default('✦')) }}
+                </div>
+
+                <div class="service-info">
+                    <strong>
+                        {{ service['display_name']|default(service['name']|default('Selected service')) }}
+                    </strong>
+
+                    <p>
+                        {{ service['display_category']|default(service['category']|default('Normal service')) }}
+                    </p>
+                </div>
+
+                <span class="service-tag">NORMAL</span>
+            </section>
+
+            <form
+                id="problemsForm"
+                method="POST"
+                action="{{ url_for('customer.problems', service_id=service['id']) }}"
+            >
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="content-layout">
+                    <section class="problem-section">
+                        <div class="section-heading">
+                            <div>
+                                <h2>Select problems</h2>
+                                <p>Tick every problem you need help with.</p>
+                            </div>
+
+                            <span class="step-number">01</span>
+                        </div>
+
+                        {% if problems %}
+                            <div class="problem-list" id="problemList">
+                                {% for problem in problems %}
+                                    <label class="problem-option">
+                                        <input
+                                            type="checkbox"
+                                            name="problem_ids"
+                                            value="{{ problem['id'] }}"
+                                            data-problem-price="{{ problem['price'] }}"
+                                            data-problem-name="{{ problem['name'] }}"
+                                        >
+
+                                        <span class="problem-copy">
+                                            <span class="problem-name">
+                                                {{ problem['name'] }}
+                                            </span>
+
+                                            {% if problem['description'] %}
+                                                <span class="problem-description">
+                                                    {{ problem['description'] }}
+                                                </span>
+                                            {% endif %}
+                                        </span>
+
+                                        <span class="problem-price">
+                                            ₹{{ "%.2f"|format(problem['price']|float) }}
+                                        </span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+
+                            <p class="price-note">
+                                The amount shown is the combined price of the
+                                problems you select. Visit and inspection charges,
+                                where applicable, will be explained on the next page.
+                            </p>
+                        {% else %}
+                            <div class="empty-state">
+                                <strong>No problems configured yet</strong>
+                                <p>
+                                    No selectable problems have been added for this
+                                    service yet. Please go back and choose another service.
+                                </p>
+                            </div>
+                        {% endif %}
+                    </section>
+
+                    <aside class="summary-column">
+                        <section class="summary-card">
+                            <div class="summary-header">
+                                <h2>Selected problems</h2>
+                                <span class="live-tag">LIVE TOTAL</span>
+                            </div>
+
+                            <div class="summary-service">
+                                <strong>
+                                    {{ service['display_name']|default(service['name']|default('Selected service')) }}
+                                </strong>
+                                <p id="selectedCount">No problems selected</p>
+                            </div>
+
+                            <div class="selected-list" id="selectedList">
+                                <div class="selected-row">
+                                    <span>Select a problem to begin</span>
+                                    <span>₹0.00</span>
+                                </div>
+                            </div>
+
+                            <div class="summary-divider"></div>
+
+                            <div class="total-row">
+                                <span>Problem total</span>
+                                <strong id="problemTotal">₹0.00</strong>
+                            </div>
+
+                            <p class="summary-footnote">
+                                Your selected problem prices are added together.
+                                The next page explains included work and applicable charges.
+                            </p>
+
+                            <div class="form-error" id="formError" role="alert" hidden></div>
+
+                            {% if problems %}
+                                <button
+                                    class="continue-button"
+                                    id="continueButton"
+                                    type="submit"
+                                    disabled
+                                >
+                                    Continue to Details
+                                    <span aria-hidden="true">→</span>
+                                </button>
+                            {% else %}
+                                <button
+                                    class="continue-button"
+                                    type="button"
+                                    disabled
+                                >
+                                    No Problems Available
+                                </button>
+                            {% endif %}
+                        </section>
+                    </aside>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a class="nav-item" href="{{ url_for('customer.home') }}">
+            <span aria-hidden="true">⌂</span>
+            <small>Home</small>
+        </a>
+
+        <a class="nav-item" href="/customer/bookings">
+            <span aria-hidden="true">▤</span>
+            <small>Bookings</small>
+        </a>
+
+        <a class="nav-item" href="/customer/profile">
+            <span aria-hidden="true">♙</span>
+            <small>Profile</small>
+        </a>
+    </nav>
+
+    <script>
+        const form = document.getElementById("problemsForm");
+        const checkboxes = Array.from(
+            document.querySelectorAll('input[name="problem_ids"]')
+        );
+
+        const selectedList = document.getElementById("selectedList");
+        const selectedCount = document.getElementById("selectedCount");
+        const problemTotal = document.getElementById("problemTotal");
+        const continueButton = document.getElementById("continueButton");
+        const formError = document.getElementById("formError");
+
+        function formatMoney(value) {
+            const amount = Number(value) || 0;
+
+            return "₹" + amount.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function updateSummary() {
+            selectedList.innerHTML = "";
+
+            const selected = checkboxes.filter(box => box.checked);
+
+            let total = 0;
+
+            if (selected.length === 0) {
+                const row = document.createElement("div");
+                row.className = "selected-row";
+
+                const name = document.createElement("span");
+                name.textContent = "Select a problem to begin";
+
+                const amount = document.createElement("span");
+                amount.textContent = formatMoney(0);
+
+                row.append(name, amount);
+                selectedList.appendChild(row);
+            } else {
+                selected.forEach(box => {
+                    const price = Math.max(
+                        0,
+                        Number(box.dataset.problemPrice || 0)
+                    );
+
+                    total += price;
+
+                    const row = document.createElement("div");
+                    row.className = "selected-row";
+
+                    const name = document.createElement("span");
+                    name.textContent = box.dataset.problemName || "Problem";
+
+                    const amount = document.createElement("span");
+                    amount.textContent = formatMoney(price);
+
+                    row.append(name, amount);
+                    selectedList.appendChild(row);
+                });
+            }
+
+            problemTotal.textContent = formatMoney(total);
+
+            selectedCount.textContent =
+                selected.length === 0
+                    ? "No problems selected"
+                    : selected.length + (
+                        selected.length === 1
+                            ? " problem selected"
+                            : " problems selected"
+                    );
+
+            checkboxes.forEach(box => {
+                const label = box.closest(".problem-option");
+
+                if (label) {
+                    label.classList.toggle("selected", box.checked);
+                }
+            });
+
+            if (continueButton) {
+                continueButton.disabled = selected.length === 0;
+            }
+
+            formError.hidden = true;
+            formError.textContent = "";
+        }
+
+        checkboxes.forEach(box => {
+            box.addEventListener("change", updateSummary);
+        });
+
+        if (form) {
+            form.addEventListener("submit", event => {
+                const selected = checkboxes.filter(box => box.checked);
+
+                if (selected.length === 0) {
+                    event.preventDefault();
+                    formError.textContent =
+                        "Please select at least one problem to continue.";
+                    formError.hidden = false;
+                    return;
+                }
+
+                if (continueButton) {
+                    continueButton.disabled = true;
+                    continueButton.textContent = "Please wait…";
+                }
+            });
+        }
+
+        updateSummary();
+    </script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+>
+
+<title>App Version</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:28px;
+color:white;
+text-align:center;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+font-size:26px;
+}
+
+.container{
+padding:20px;
+}
+
+.card{
+background:white;
+border-radius:18px;
+padding:30px 20px;
+box-shadow:0 5px 15px rgba(0,0,0,.08);
+text-align:center;
+}
+
+.logo{
+width:90px;
+height:90px;
+margin:0 auto 20px;
+border-radius:50%;
+background:#2563eb;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:38px;
+font-weight:bold;
+color:white;
+}
+
+.title{
+font-size:24px;
+font-weight:bold;
+color:#111827;
+margin-bottom:8px;
+}
+
+.version{
+font-size:34px;
+font-weight:bold;
+color:#16a34a;
+margin:20px 0;
+}
+
+.info{
+font-size:15px;
+color:#666;
+line-height:28px;
+}
+
+.footer{
+margin-top:30px;
+font-size:13px;
+color:#9ca3af;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+<div class="header">
+
+<h2>📱 App Version</h2>
+
+</div>
+
+
+<div class="container">
+
+<div class="card">
+
+
+<div class="logo">
+S
+</div>
+
+
+<div class="title">
+
+Sivdhi Worker
+
+</div>
+
+
+<div class="version">
+
+v{{ version }}
+
+</div>
+
+
+<div class="info">
+
+You are using the latest stable version
+of the Sivdhi Worker application.
+
+Thank you for staying updated.
+
+</div>
+
+
+<div class="footer">
+
+© 2026 Sivdhi. All Rights Reserved.
+
+</div>
+
+
+</div>
+
+</div>
+
+
+</body>
+
+</html>

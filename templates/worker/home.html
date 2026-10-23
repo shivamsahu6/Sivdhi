@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>Worker Dashboard | Sivdhi</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Poppins, Arial, sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            color: #1e293b;
+            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            padding: 30px 20px;
+            color: white;
+            border-radius: 0 0 25px 25px;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .header-copy {
+            min-width: 0;
+        }
+
+        .header h2 {
+            margin-bottom: 8px;
+            font-size: 23px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.85);
+            overflow-wrap: anywhere;
+        }
+
+        .notification-bell {
+            position: relative;
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: white;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 14px;
+            font-size: 22px;
+        }
+
+        .notification-bell:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .notification-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 19px;
+            height: 19px;
+            padding: 0 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ef4444;
+            color: white;
+            border: 2px solid #1e3a8a;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .wallet {
+            margin: 20px;
+            background: white;
+            padding: 25px;
+            border-radius: 18px;
+            text-align: center;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .wallet h3 {
+            color: #555;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .wallet h2 {
+            color: #16a34a;
+            font-size: 35px;
+            margin-top: 10px;
+            overflow-wrap: anywhere;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .card {
+            min-width: 0;
+            background: white;
+            padding: 22px;
+            border-radius: 18px;
+            text-align: center;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #555;
+        }
+
+        .card p {
+            font-size: 30px;
+            font-weight: bold;
+            color: #2563eb;
+            overflow-wrap: anywhere;
+        }
+
+        /* Same footer layout on all worker pages */
+        .bottom {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: calc(70px + env(safe-area-inset-bottom, 0px));
+            box-sizing: border-box;
+            padding: 5px 4px env(safe-area-inset-bottom, 0px);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            background: #ffffff;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+        }
+
+        .bottom a {
+            flex: 1 1 25%;
+            min-width: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            padding: 5px 2px;
+            box-sizing: border-box;
+            text-decoration: none;
+            color: #555555;
+            font-size: 12px;
+            line-height: 1.2;
+            text-align: center;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .bottom a > span:first-child {
+            display: block;
+            font-size: 20px;
+            line-height: 1.1;
+        }
+
+        .bottom a .nav-label {
+            display: block;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .bottom a.active {
+            color: #2563eb;
+            font-weight: 700;
+        }
+
+        .bottom a:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: -3px;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 380px) {
+            .bottom a,
+            .bottom a .nav-label {
+                font-size: 11px;
+            }
+
+            .bottom a > span:first-child {
+                font-size: 19px;
+            }
+        }
+
+        #flash-container {
+            padding: 0 18px;
+            margin-top: 18px;
+        }
+
+        .flash {
+            padding: 12px 15px;
+            border-radius: 12px;
+            background: #dcfce7;
+            color: #166534;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .flash.danger,
+        .flash.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .flash.info,
+        .flash.warning {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        @media (max-width: 380px) {
+            .header {
+                padding: 25px 16px;
+            }
+
+            .header h2 {
+                font-size: 20px;
+            }
+
+            .grid {
+                gap: 10px;
+                padding: 14px;
+            }
+
+            .card {
+                padding: 18px 10px;
+            }
+
+            .card h3 {
+                font-size: 13px;
+            }
+
+            .card p {
+                font-size: 26px;
+            }
+
+            .wallet {
+                margin: 16px;
+                padding: 22px 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <header class="header">
+        <div class="header-top">
+            <div class="header-copy">
+                <h2>Welcome Worker 👋</h2>
+                <p>
+                    {% if worker %}
+                        {% if worker['fullname'] is defined and worker['fullname'] %}
+                            {{ worker['fullname'] }}
+                        {% elif worker['name'] is defined and worker['name'] %}
+                            {{ worker['name'] }}
+                        {% else %}
+                            Worker
+                        {% endif %}
+                    {% else %}
+                        Worker ID: {{ session.get('user_id', '') }}
+                    {% endif %}
+                </p>
+            </div>
+
+            <a
+                class="notification-bell"
+                href="{{ url_for('worker.worker_notification_center') }}"
+                aria-label="Open notifications"
+                title="Notifications"
+            >
+                <span aria-hidden="true">🔔</span>
+
+                {% if notification_count|default(0)|int > 0 %}
+                    <span class="notification-count">
+                        {{ '9+' if notification_count|int > 9
+                           else notification_count }}
+                    </span>
+                {% endif %}
+            </a>
+        </div>
+    </header>
+
+    <section class="wallet" aria-label="Worker today earnings">
+        <h3>Today Earnings</h3>
+        <h2>
+            ₹ {{ "%.2f"|format(today_earning|default(0)|float) }}
+        </h2>
+    </section>
+
+    <section class="grid" aria-label="Worker dashboard statistics">
+
+        <div class="card">
+            <h3>Total Jobs</h3>
+            <p>{{ total_jobs|default(0) }}</p>
+        </div>
+
+        <div class="card">
+            <h3>Pending Jobs</h3>
+            <p>{{ pending_jobs|default(0) }}</p>
+        </div>
+
+        <div class="card">
+            <h3>Active Jobs</h3>
+            <p>{{ active_jobs|default(0) }}</p>
+        </div>
+
+        <div class="card">
+            <h3>Completed Jobs</h3>
+            <p>{{ completed_jobs|default(0) }}</p>
+        </div>
+
+        <div class="card">
+            <h3>Notifications</h3>
+            <p>{{ notification_count|default(0) }}</p>
+        </div>
+
+    </section>
+
+    <nav class="bottom" aria-label="Worker navigation">
+        <a class="active"
+           href="{{ url_for('worker.worker_home') }}"
+           aria-current="page">
+            <span aria-hidden="true">🏠</span>
+            <span class="nav-label">Home</span>
+        </a>
+
+        <a href="{{ url_for('worker.worker_jobs') }}">
+            <span aria-hidden="true">💼</span>
+            <span class="nav-label">Jobs</span>
+        </a>
+
+        <a href="{{ url_for('worker.wallet') }}">
+            <span aria-hidden="true">💰</span>
+            <span class="nav-label">Wallet</span>
+        </a>
+
+        <a href="{{ url_for('worker.profile') }}">
+            <span aria-hidden="true">👤</span>
+            <span class="nav-label">Profile</span>
+        </a>
+    </nav>
+
+    <script>
+        (function () {
+            const flashMessages =
+                document.querySelectorAll('#flash-container .flash');
+
+            window.setTimeout(function () {
+                flashMessages.forEach(function (element) {
+                    element.style.transition =
+                        'opacity 0.4s ease, transform 0.4s ease';
+
+                    element.style.opacity = '0';
+                    element.style.transform = 'translateY(-5px)';
+
+                    window.setTimeout(function () {
+                        element.remove();
+                    }, 300);
+                });
+            }, 2000);
+        })();
+    </script>
+
+    <script>
+        (function () {
+            const csrfElement =
+                document.querySelector('meta[name="csrf-token"]');
+
+            function pingWorker() {
+                fetch('/worker/ping', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfElement
+                            ? csrfElement.content
+                            : ''
+                    }
+                }).catch(function () {
+                    // Heartbeat failure should not break the dashboard.
+                });
+            }
+
+            pingWorker();
+
+            window.setInterval(pingWorker, 60000);
+
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden) {
+                    pingWorker();
+                }
+            });
+        })();
+    </script>
+
+</body>
+</html>

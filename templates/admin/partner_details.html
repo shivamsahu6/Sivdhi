@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Partner Details | Sivdhi Admin</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        /* HEADER */
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-size: 26px;
+        }
+
+        .header p {
+            margin-top: 6px;
+            font-size: 14px;
+            opacity: .8;
+        }
+
+        .back {
+            text-decoration: none;
+            color: white;
+            background: rgba(255, 255, 255, .15);
+            padding: 11px 18px;
+            border-radius: 10px;
+        }
+
+        /* CONTAINER */
+
+        .container {
+            max-width: 1250px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        /* PROFILE */
+
+        .profile-card {
+            background: white;
+            border-radius: 22px;
+            padding: 30px;
+            box-shadow: 0 8px 25px rgba(15, 23, 42, .08);
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .profile-photo {
+            width: 115px;
+            height: 115px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #eff6ff;
+        }
+
+        .profile-placeholder {
+            width: 115px;
+            height: 115px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+            font-weight: bold;
+        }
+
+        .profile-info h2 {
+            font-size: 28px;
+        }
+
+        .partner-id {
+            color: #64748b;
+            margin-top: 7px;
+            font-size: 14px;
+        }
+
+        .company {
+            color: #475569;
+            margin-top: 5px;
+        }
+
+        .status {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 7px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-suspended {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* GRID */
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, .07);
+        }
+
+        .card h3 {
+            font-size: 18px;
+            margin-bottom: 18px;
+            padding-bottom: 13px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 13px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .value {
+            font-weight: 600;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        .wallet {
+            color: #16a34a;
+            font-size: 21px;
+        }
+
+        .rating {
+            color: #f59e0b;
+            font-weight: bold;
+        }
+
+        /* REFERRAL */
+
+        .referral {
+            background: #eff6ff;
+            color: #2563eb;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        /* ACTIONS */
+
+        .actions {
+            background: white;
+            margin-top: 25px;
+            padding: 22px;
+            border-radius: 20px;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, .07);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border: none;
+            padding: 13px 20px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+
+        .suspend {
+            background: #f59e0b;
+        }
+
+        .delete {
+            background: #dc2626;
+        }
+
+        .btn:hover {
+            opacity: .9;
+        }
+
+        /* MOBILE */
+
+        @media(max-width:700px) {
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 21px;
+            }
+
+            .back {
+                padding: 9px 12px;
+                font-size: 13px;
+            }
+
+            .container {
+                margin: 20px auto;
+                padding: 0 12px;
+            }
+
+            .profile-card {
+                flex-direction: column;
+                text-align: center;
+                padding: 25px 15px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .info-row {
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .value {
+                text-align: left;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+
+        }
+    </style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+    <!-- HEADER -->
+
+    <div class="header">
+
+        <div>
+
+            <h1>👤 Partner Details</h1>
+
+            <p>Partner Management • Admin Panel</p>
+
+        </div>
+
+        <a href="/admin/partners" class="back">
+            ← Partners
+        </a>
+
+    </div>
+
+
+    <div class="container">
+
+
+        <!-- PROFILE CARD -->
+
+        <div class="profile-card">
+
+
+            {% if partner["profile_photo"] %}
+
+            <img src="{{ url_for(
+                'static',
+                filename='uploads/' + partner['profile_photo']
+            ) }}" class="profile-photo">
+
+            {% else %}
+
+            <div class="profile-placeholder">
+
+                {{ partner["fullname"][0]|upper }}
+
+            </div>
+
+            {% endif %}
+
+
+            <div class="profile-info">
+
+                <h2>
+                    {{ partner["fullname"] }}
+                </h2>
+
+                <div class="partner-id">
+
+                    Partner ID:
+                    {{ partner["partner_id"] }}
+
+                </div>
+
+
+                {% if partner["company_name"] %}
+
+                <div class="company">
+
+                    🏢 {{ partner["company_name"] }}
+
+                </div>
+
+                {% endif %}
+
+
+                {% if partner["status"] == "suspended" %}
+
+                <span class="status status-suspended">
+                    SUSPENDED
+                </span>
+
+                {% else %}
+
+                <span class="status status-active">
+                    ACTIVE
+                </span>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+
+        <div class="grid">
+
+
+            <!-- PERSONAL INFORMATION -->
+
+            <div class="card">
+
+                <h3>
+                    👤 Personal Information
+                </h3>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Full Name
+                    </span>
+
+                    <span class="value">
+                        {{ partner["fullname"] }}
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Partner ID
+                    </span>
+
+                    <span class="value">
+                        {{ partner["partner_id"] }}
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Company
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["company_name"] or "Not Added" }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Email
+                    </span>
+
+                    <span class="value">
+                        {{ partner["email"] }}
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Mobile
+                    </span>
+
+                    <span class="value">
+                        {{ partner["mobile"] }}
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Referral Code
+                    </span>
+
+                    <span class="value">
+
+                        <span class="referral">
+
+                            {{ partner["referral_code"] or "None" }}
+
+                        </span>
+
+                    </span>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ACCOUNT INFORMATION -->
+
+            <div class="card">
+
+                <h3>
+                    💼 Account Information
+                </h3>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Wallet Balance
+                    </span>
+
+                    <span class="value wallet">
+
+                        ₹{{ partner["wallet"] or 0 }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Rating
+                    </span>
+
+                    <span class="value rating">
+
+                        ⭐ {{ partner["rating"] or 0 }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Account Status
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["status"] or "active" }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Language
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["language"] or "Default" }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Joined
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["created_at"] }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ADDRESS -->
+
+            <div class="card">
+
+                <h3>
+                    📍 Address Information
+                </h3>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Address
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["address"] or "Not Added" }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        City
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["city"] or "Not Added" }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        State
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["state"] or "Not Added" }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Pincode
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["pincode"] or "Not Added" }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- BANK -->
+
+            <div class="card">
+
+                <h3>
+                    🏦 Bank Details
+                </h3>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Bank Name
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["bank_name"] or "Not Added" }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Account Holder
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["account_holder"] or "Not Added" }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        Account Number
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["account_number"] or "Not Added" }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="label">
+                        IFSC
+                    </span>
+
+                    <span class="value">
+
+                        {{ partner["ifsc"] or "Not Added" }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+        <!-- ACTIONS -->
+
+        <div class="actions">
+
+
+
+
+            {% if partner["status"]=="suspended" %}
+
+            <form method="POST" action="{{ url_for('admin.activate_partner', id=partner['id']) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn edit">✅ Activate Account</button>
+            </form>
+
+            {% else %}
+
+            <form method="POST" action="{{ url_for('admin.suspend_partner', id=partner['id']) }}" style="display:inline;" onsubmit="return confirm('Suspend this Partner?')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn suspend">🚫 Suspend Account</button>
+            </form>
+
+            {% endif %}
+
+<form
+    method="POST"
+    action="{{ url_for('admin.delete_partner', partner_id=partner['partner_id']) }}"
+    style="display:inline;"
+    onsubmit="
+        return confirm(
+            'Are you sure you want to move this partner to Deleted Accounts?'
+        );
+    "
+>
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <button
+        type="submit"
+        class="btn delete"
+    >
+        🗑️ Delete Partner
+    </button>
+
+</form>
+
+        </div>
+
+
+    </div>
+
+</body>
+
+</html>

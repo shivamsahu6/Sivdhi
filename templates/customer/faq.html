@@ -1,0 +1,917 @@
+<!-- templates/customer/faq.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6d28d9">
+
+    <title>FAQs | Sivdhi</title>
+
+    <style>
+        :root {
+            --primary: #6d28d9;
+            --primary-light: #8b5cf6;
+            --background: #f7f7fb;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding-bottom: 84px;
+            color: var(--text);
+            background: var(--background);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         Roboto, Arial, sans-serif;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.97);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .back-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            color: var(--text);
+            background: #fff;
+            text-decoration: none;
+            font-size: 24px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 19px;
+            font-weight: 750;
+        }
+
+        .topbar p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 22px 15px;
+        }
+
+        .hero {
+            padding: 25px 22px;
+            margin-bottom: 23px;
+            color: #fff;
+            background: linear-gradient(135deg, #5b21b6, #8b5cf6);
+            border-radius: 23px;
+        }
+
+        .hero-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            margin-bottom: 17px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.17);
+            font-size: 25px;
+        }
+
+        .hero h2 {
+            margin: 0 0 9px;
+            font-size: 25px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero p {
+            max-width: 470px;
+            margin: 0;
+            color: #f3e8ff;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 22px;
+        }
+
+        .search-icon {
+            position: absolute;
+            top: 50%;
+            left: 16px;
+            color: #9ca3af;
+            font-size: 19px;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        .search-box input {
+            width: 100%;
+            min-height: 51px;
+            padding: 13px 15px 13px 45px;
+            border: 1px solid #e4e1ed;
+            border-radius: 15px;
+            outline: none;
+            background: #fff;
+            color: var(--text);
+            font-size: 14px;
+            box-shadow: 0 4px 16px rgba(31, 41, 55, 0.025);
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .search-box input::placeholder {
+            color: #9ca3af;
+        }
+
+        .category-list {
+            display: flex;
+            gap: 9px;
+            margin: 0 0 24px;
+            padding: 2px 1px 8px;
+            overflow-x: auto;
+            scrollbar-width: thin;
+        }
+
+        .category-button {
+            min-height: 39px;
+            padding: 9px 14px;
+            flex-shrink: 0;
+            color: #6b7280;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 650;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .category-button:hover {
+            border-color: #c4b5fd;
+        }
+
+        .category-button.active {
+            color: #fff;
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 0 3px 13px;
+        }
+
+        .section-heading h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 750;
+        }
+
+        .result-count {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .faq-list {
+            display: grid;
+            gap: 11px;
+        }
+
+        .faq-item {
+            overflow: hidden;
+            background: var(--card);
+            border: 1px solid #eeedf3;
+            border-radius: 17px;
+            box-shadow: 0 4px 16px rgba(31, 41, 55, 0.02);
+        }
+
+        .faq-item[hidden] {
+            display: none;
+        }
+
+        .faq-item summary {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            min-height: 65px;
+            padding: 16px;
+            cursor: pointer;
+            list-style: none;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.5;
+        }
+
+        .faq-item summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .question-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            flex-shrink: 0;
+            border-radius: 11px;
+            color: var(--primary);
+            background: #f0ebff;
+            font-size: 16px;
+        }
+
+        .question-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .expand-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 27px;
+            height: 27px;
+            flex-shrink: 0;
+            color: var(--primary);
+            background: #f5f3ff;
+            border-radius: 9px;
+            font-size: 18px;
+            transition: transform 0.2s;
+        }
+
+        .faq-item[open] .expand-icon {
+            transform: rotate(45deg);
+        }
+
+        .answer {
+            padding: 0 17px 18px 64px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .answer p {
+            margin: 0 0 9px;
+        }
+
+        .answer p:last-child {
+            margin-bottom: 0;
+        }
+
+        .answer a {
+            color: var(--primary);
+            font-weight: 650;
+            text-decoration: none;
+        }
+
+        .answer a:hover {
+            text-decoration: underline;
+        }
+
+        .empty-state {
+            display: none;
+            padding: 35px 20px;
+            text-align: center;
+            background: #fff;
+            border: 1px solid #eeedf3;
+            border-radius: 18px;
+        }
+
+        .empty-state.visible {
+            display: block;
+        }
+
+        .empty-icon {
+            margin-bottom: 12px;
+            font-size: 33px;
+        }
+
+        .empty-state h3 {
+            margin: 0 0 7px;
+            font-size: 16px;
+        }
+
+        .empty-state p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .support-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 19px;
+            margin-top: 25px;
+            background: #fff;
+            border: 1px solid #e8e1fb;
+            border-radius: 19px;
+        }
+
+        .support-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 47px;
+            height: 47px;
+            flex-shrink: 0;
+            border-radius: 15px;
+            color: var(--primary);
+            background: #f0ebff;
+            font-size: 24px;
+        }
+
+        .support-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .support-content h3 {
+            margin: 0 0 5px;
+            font-size: 14px;
+        }
+
+        .support-content p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .support-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 39px;
+            padding: 10px 13px;
+            flex-shrink: 0;
+            border-radius: 11px;
+            color: #fff;
+            background: var(--primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .support-button:hover {
+            background: #5b21b6;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 20;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+            background: rgba(255, 255, 255, 0.97);
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 48px;
+            color: #9ca3af;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+            line-height: 1.2;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        @media (max-width: 520px) {
+            .topbar {
+                padding: 13px 14px;
+            }
+
+            .page {
+                padding: 18px 12px;
+            }
+
+            .hero {
+                padding: 22px 18px;
+                border-radius: 20px;
+            }
+
+            .hero h2 {
+                font-size: 23px;
+            }
+
+            .faq-item summary {
+                gap: 10px;
+                padding: 14px 12px;
+                font-size: 13px;
+            }
+
+            .answer {
+                padding: 0 13px 16px 57px;
+                font-size: 12px;
+            }
+
+            .support-card {
+                flex-wrap: wrap;
+                padding: 15px;
+            }
+
+            .support-content {
+                flex-basis: calc(100% - 65px);
+            }
+
+            .support-button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+    <header class="topbar">
+        <a href="{{ url_for('customer.help') }}"
+           class="back-button"
+           aria-label="Back to Help and Support">‹</a>
+
+        <div>
+            <h1>FAQs</h1>
+            <p>Find answers quickly</p>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="hero">
+            <div class="hero-icon" aria-hidden="true">💡</div>
+            <h2>Frequently asked questions</h2>
+            <p>
+                Have a question about Sivdhi? Browse the topics below or search
+                for an answer.
+            </p>
+        </section>
+
+        <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input
+                type="search"
+                id="faqSearch"
+                placeholder="Search questions..."
+                aria-label="Search frequently asked questions">
+        </div>
+
+        <div class="category-list" aria-label="FAQ categories">
+            <button type="button"
+                    class="category-button active"
+                    data-category="all"
+                    aria-pressed="true">All questions</button>
+
+            <button type="button"
+                    class="category-button"
+                    data-category="booking"
+                    aria-pressed="false">Bookings</button>
+
+            <button type="button"
+                    class="category-button"
+                    data-category="worker"
+                    aria-pressed="false">Worker assignment</button>
+
+            <button type="button"
+                    class="category-button"
+                    data-category="payment"
+                    aria-pressed="false">Payments</button>
+
+            <button type="button"
+                    class="category-button"
+                    data-category="account"
+                    aria-pressed="false">Account</button>
+        </div>
+
+        <section aria-labelledby="faqHeading">
+            <div class="section-heading">
+                <h2 id="faqHeading">Popular questions</h2>
+                <span class="result-count" id="resultCount">10 questions</span>
+            </div>
+
+            <div class="faq-list" id="faqList">
+                <details class="faq-item"
+                         data-category="booking"
+                         data-search="how book service category service address location continue booking">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">📋</span>
+                        <span class="question-text">
+                            How do I book a service?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            Open Home, choose a service category and subcategory,
+                            review the displayed price, enter your service
+                            location and select the required quantity.
+                        </p>
+                        <p>
+                            Review the booking details and follow the available
+                            checkout steps to submit your booking.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="booking"
+                         data-search="where see booking status history bookings page">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">🗓️</span>
+                        <span class="question-text">
+                            Where can I see my booking status?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            Open the Bookings tab to review your bookings and
+                            their available status information.
+                        </p>
+                        <p>
+                            Status updates depend on the booking information
+                            recorded by the Sivdhi system.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="worker"
+                         data-search="worker assigned not found nearby worker availability">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">👷</span>
+                        <span class="question-text">
+                            What if no worker has been assigned?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            Worker assignment depends on availability and the
+                            matching rules configured for the service.
+                        </p>
+                        <p>
+                            Check your booking status again later. If the issue
+                            continues, contact support and include your booking
+                            reference.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="worker"
+                         data-search="worker name assignment customer privacy phone number contact">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">🛡️</span>
+                        <span class="question-text">
+                            What worker information will I see?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            Your booking page should display the assignment
+                            status and the permitted worker information
+                            available for your booking.
+                        </p>
+                        <p>
+                            Personal phone numbers should remain private and
+                            should not be exposed on the customer booking page.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="payment"
+                         data-search="service price total amount quantity calculate price">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">₹</span>
+                        <span class="question-text">
+                            How is the booking amount calculated?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            The displayed amount should be based on the
+                            configured service price and the selected quantity.
+                        </p>
+                        <p>
+                            Review the final amount on the booking or checkout
+                            page before submitting your booking.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="payment"
+                         data-search="payment failed charged twice payment status receipt">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">💳</span>
+                        <span class="question-text">
+                            What should I do if a payment fails?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            Check your booking status and your payment
+                            confirmation before trying again. Avoid repeating a
+                            payment while its status is uncertain.
+                        </p>
+                        <p>
+                            If an amount was deducted but the payment status
+                            remains unclear, contact support with the booking
+                            reference and payment information. Never send an
+                            OTP, PIN or password.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="booking"
+                         data-search="cancel booking cancellation refund rules">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">↩</span>
+                        <span class="question-text">
+                            How can I cancel a booking?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            Open Bookings and select the relevant booking.
+                            Use the cancellation option if it is available
+                            for its current status.
+                        </p>
+                        <p>
+                            Cancellation eligibility and any refund depend on
+                            the rules implemented for the service and payment.
+                            Contact support if no cancellation option is shown.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="account"
+                         data-search="edit profile update name email address profile information">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">👤</span>
+                        <span class="question-text">
+                            How do I update my profile?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            Open Profile and select Edit Profile. Update the
+                            permitted information and save your changes.
+                        </p>
+                        <p>
+                            Some account fields may require additional
+                            verification, depending on the system rules.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="account"
+                         data-search="change notification settings alerts language preferences">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">🔔</span>
+                        <span class="question-text">
+                            How do I change notification settings?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            Open Profile, go to Settings and review the
+                            available notification preferences.
+                        </p>
+                        <p>
+                            Notification delivery depends on the permissions
+                            and notification services configured for the site.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="account"
+                         data-search="contact customer support help issue complaint assistance">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">💬</span>
+                        <span class="question-text">
+                            How do I contact Sivdhi support?
+                        </span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>
+                            Open Help &amp; Support from your Profile page and
+                            submit a description of your issue.
+                        </p>
+                        <p>
+                            Include the booking reference when it is relevant,
+                            but do not include your password, OTP, PIN or
+                            complete bank account details.
+                        </p>
+                        <p>
+                            <a href="{{ url_for('customer.help') }}">
+                                Go to Help &amp; Support →
+                            </a>
+                        </p>
+                    </div>
+                </details>
+            </div>
+
+            <div class="empty-state" id="emptyState" role="status">
+                <div class="empty-icon" aria-hidden="true">🔎</div>
+                <h3>No matching questions</h3>
+                <p>
+                    Try another search term or choose a different category.
+                </p>
+            </div>
+        </section>
+
+        <section class="support-card">
+            <div class="support-icon" aria-hidden="true">🎧</div>
+
+            <div class="support-content">
+                <h3>Still need help?</h3>
+                <p>Send your question to the support team.</p>
+            </div>
+
+            <a href="{{ url_for('customer.help') }}#contact-support"
+               class="support-button">
+                Contact us
+            </a>
+        </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a href="{{ url_for('customer.home') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>Home</span>
+        </a>
+
+        <a href="{{ url_for('customer.bookings') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">▣</span>
+            <span>Bookings</span>
+        </a>
+
+        <a href="{{ url_for('customer.profile') }}"
+           class="nav-item active"
+           aria-current="page">
+            <span class="nav-icon" aria-hidden="true">♙</span>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const searchInput = document.getElementById("faqSearch");
+            const categoryButtons = Array.from(
+                document.querySelectorAll(".category-button")
+            );
+            const faqItems = Array.from(
+                document.querySelectorAll(".faq-item")
+            );
+            const resultCount = document.getElementById("resultCount");
+            const emptyState = document.getElementById("emptyState");
+
+            let activeCategory = "all";
+
+            function filterFAQs() {
+                const query = searchInput.value
+                    .trim()
+                    .toLowerCase();
+
+                let visibleCount = 0;
+
+                faqItems.forEach(function (item) {
+                    const category = item.dataset.category || "";
+                    const searchText = (
+                        item.dataset.search + " " + item.textContent
+                    ).toLowerCase();
+
+                    const matchesCategory =
+                        activeCategory === "all" ||
+                        category === activeCategory;
+
+                    const matchesSearch =
+                        query === "" || searchText.includes(query);
+
+                    const visible = matchesCategory && matchesSearch;
+
+                    item.hidden = !visible;
+
+                    if (!visible) {
+                        item.open = false;
+                    } else {
+                        visibleCount += 1;
+                    }
+                });
+
+                resultCount.textContent =
+                    visibleCount + (
+                        visibleCount === 1 ? " question" : " questions"
+                    );
+
+                emptyState.classList.toggle(
+                    "visible",
+                    visibleCount === 0
+                );
+            }
+
+            searchInput.addEventListener("input", filterFAQs);
+
+            categoryButtons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    activeCategory = button.dataset.category;
+
+                    categoryButtons.forEach(function (otherButton) {
+                        const active = otherButton === button;
+
+                        otherButton.classList.toggle("active", active);
+                        otherButton.setAttribute(
+                            "aria-pressed",
+                            active ? "true" : "false"
+                        );
+                    });
+
+                    filterFAQs();
+                });
+            });
+
+            faqItems.forEach(function (item) {
+                item.addEventListener("toggle", function () {
+                    if (!item.open) {
+                        return;
+                    }
+
+                    faqItems.forEach(function (otherItem) {
+                        if (otherItem !== item) {
+                            otherItem.open = false;
+                        }
+                    });
+                });
+            });
+
+            filterFAQs();
+        })();
+    </script>
+</body>
+</html>

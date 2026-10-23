@@ -1,0 +1,9 @@
+{# Legacy route name dispatches to a role-specific password-reset OTP form. #}
+{% set _role = (session.get('reset_role') or request.values.get('role') or request.args.get('role') or 'customer')|lower %}
+{% if _role == 'worker' %}
+  {% include 'worker/verify_forgot_password_otp.html' %}
+{% elif _role == 'partner' %}
+  {% include 'partner/verify_forgot_password_otp.html' %}
+{% else %}
+  {% include 'customer/verify_password_otp.html' %}
+{% endif %}

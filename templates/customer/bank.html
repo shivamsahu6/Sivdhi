@@ -1,0 +1,1505 @@
+<!-- templates/customer/bank.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>Bank Details | Sivdhi</title>
+
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --panel-light: #1d1628;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190,130,255,.20);
+            --green: #78e5b0;
+            --danger: #ff8aab;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            min-height: 100%;
+            background: var(--bg);
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding-bottom: 110px;
+            color: var(--text);
+            background:
+                radial-gradient(
+                    ellipse at 0 0,
+                    rgba(255,67,140,.08),
+                    transparent 38%
+                ),
+                radial-gradient(
+                    ellipse at 100% 48%,
+                    rgba(115,67,255,.08),
+                    transparent 42%
+                ),
+                var(--bg);
+            font-family: Inter, -apple-system, BlinkMacSystemFont,
+                         "Segoe UI", Arial, sans-serif;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible,
+        select:focus-visible {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 1000px;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 0 24px 30px;
+        }
+
+        /* Customer header */
+
+        .header {
+            min-height: 75px;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            border-bottom: 1px solid rgba(255,255,255,.065);
+        }
+
+        .back-button {
+            width: 41px;
+            height: 41px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            color: #ead8fa;
+            background: rgba(255,255,255,.025);
+            font-size: 23px;
+            transition: background .15s;
+        }
+
+        .back-button:hover {
+            background: rgba(164,77,255,.12);
+        }
+
+        .brand {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 41px;
+            height: 41px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 14px;
+            background: linear-gradient(
+                135deg,
+                var(--pink),
+                var(--purple),
+                var(--blue)
+            );
+            box-shadow: 0 7px 22px rgba(164,77,255,.18);
+            color: #fff;
+            font-size: 22px;
+            font-weight: 850;
+        }
+
+        .brand-name {
+            font-size: 22px;
+            font-weight: 850;
+            letter-spacing: -.7px;
+        }
+
+        .brand-name span {
+            color: #ff72b6;
+        }
+
+        .brand-caption {
+            display: block;
+            margin-top: 3px;
+            color: #9788a6;
+            font-size: 8px;
+            letter-spacing: 1.3px;
+        }
+
+        /* Page intro */
+
+        .intro {
+            padding: 29px 0 21px;
+        }
+
+        .eyebrow {
+            margin-bottom: 10px;
+            color: #d7a5ff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .intro h1 {
+            font-size: clamp(27px, 4vw, 35px);
+            font-weight: 850;
+            letter-spacing: -1px;
+            line-height: 1.25;
+        }
+
+        .intro h1 span {
+            color: #ff72b6;
+        }
+
+        .intro p {
+            max-width: 540px;
+            margin-top: 9px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        /* Flash messages */
+
+        .flash-wrap {
+            margin-bottom: 17px;
+        }
+
+        .flash {
+            padding: 12px 14px;
+            margin-bottom: 9px;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            font-size: 12px;
+            line-height: 1.65;
+        }
+
+        .flash.success {
+            color: #baf4d7;
+            background: rgba(120,229,176,.08);
+            border-color: rgba(120,229,176,.20);
+        }
+
+        .flash.danger,
+        .flash.error {
+            color: #ffb1c6;
+            background: rgba(255,67,140,.08);
+            border-color: rgba(255,67,140,.22);
+        }
+
+        .flash.warning {
+            color: #ffdda0;
+            background: rgba(245,158,11,.08);
+            border-color: rgba(245,158,11,.20);
+        }
+
+        .flash.info {
+            color: #c9c5ff;
+            background: rgba(86,109,255,.08);
+            border-color: rgba(86,109,255,.22);
+        }
+
+        /* Security notice */
+
+        .security-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(194,117,255,.20);
+            border-radius: 17px;
+            background:
+                linear-gradient(
+                    105deg,
+                    rgba(255,67,140,.045),
+                    rgba(164,77,255,.07)
+                );
+        }
+
+        .security-icon {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(194,117,255,.20);
+            border-radius: 13px;
+            color: #e1bdff;
+            background: rgba(164,77,255,.10);
+            font-size: 20px;
+        }
+
+        .security-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .security-copy strong {
+            display: block;
+            margin: 2px 0 6px;
+            color: #f6eaff;
+            font-size: 12px;
+        }
+
+        .security-copy p {
+            color: #ad9dbb;
+            font-size: 11px;
+            line-height: 1.75;
+        }
+
+        /* Existing account summary */
+
+        .bank-card {
+            position: relative;
+            overflow: hidden;
+            padding: 23px;
+            margin-bottom: 19px;
+            border: 1px solid rgba(194,117,255,.25);
+            border-radius: 22px;
+            background:
+                radial-gradient(
+                    ellipse at 100% 0,
+                    rgba(164,77,255,.20),
+                    transparent 48%
+                ),
+                linear-gradient(130deg, #21152f, #151020 70%);
+            box-shadow: 0 15px 40px rgba(0,0,0,.22);
+        }
+
+        .bank-card::after {
+            position: absolute;
+            width: 155px;
+            height: 155px;
+            right: -70px;
+            bottom: -100px;
+            border: 22px solid rgba(255,255,255,.035);
+            border-radius: 50%;
+            content: "";
+            pointer-events: none;
+        }
+
+        .bank-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .bank-heading {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .bank-symbol {
+            width: 49px;
+            height: 49px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(194,117,255,.25);
+            border-radius: 15px;
+            color: #f4dfff;
+            background: rgba(164,77,255,.13);
+            font-size: 24px;
+        }
+
+        .bank-heading-copy {
+            min-width: 0;
+        }
+
+        .bank-heading-copy small {
+            display: block;
+            margin-bottom: 5px;
+            color: #bda3d9;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+        }
+
+        .bank-heading-copy h2 {
+            overflow-wrap: anywhere;
+            color: #fff;
+            font-size: clamp(17px, 3vw, 22px);
+            font-weight: 850;
+            line-height: 1.4;
+        }
+
+        .verified-badge,
+        .pending-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            padding: 7px 9px;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+        .verified-badge {
+            color: #baf4d7;
+            border: 1px solid rgba(120,229,176,.20);
+            background: rgba(120,229,176,.07);
+        }
+
+        .pending-badge {
+            color: #ffdda0;
+            border: 1px solid rgba(245,158,11,.20);
+            background: rgba(245,158,11,.07);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .account-number-label {
+            margin-top: 26px;
+            color: #ac9cbb;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .account-number {
+            margin-top: 9px;
+            color: #fff;
+            font-size: clamp(21px, 4vw, 27px);
+            font-weight: 800;
+            letter-spacing: 3px;
+            overflow-wrap: anywhere;
+        }
+
+        .bank-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 20px;
+            padding-top: 22px;
+            margin-top: 23px;
+            border-top: 1px solid rgba(255,255,255,.10);
+        }
+
+        .summary-label {
+            margin-bottom: 7px;
+            color: #ac9cbb;
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        .summary-value {
+            color: #f7edff;
+            font-size: 12px;
+            font-weight: 750;
+            line-height: 1.65;
+            overflow-wrap: anywhere;
+        }
+
+        .bank-card-actions {
+            margin-top: 21px;
+        }
+
+        .change-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            width: 100%;
+            min-height: 47px;
+            padding: 12px 17px;
+            border: 1px solid rgba(194,117,255,.32);
+            border-radius: 13px;
+            color: #f3e2ff;
+            background: rgba(164,77,255,.11);
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: background .15s, border-color .15s;
+        }
+
+        .change-button:hover {
+            border-color: rgba(194,117,255,.55);
+            background: rgba(164,77,255,.19);
+        }
+
+        /* Bank form */
+
+        .form-card {
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: 21px;
+            background: rgba(23,18,31,.94);
+            box-shadow: 0 15px 40px rgba(0,0,0,.16);
+            scroll-margin-top: 20px;
+        }
+
+        .form-heading {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding-bottom: 19px;
+            margin-bottom: 21px;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+        }
+
+        .form-heading-icon {
+            width: 45px;
+            height: 45px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(194,117,255,.22);
+            border-radius: 14px;
+            color: #e5c3ff;
+            background: rgba(164,77,255,.10);
+            font-size: 22px;
+        }
+
+        .form-heading-copy {
+            min-width: 0;
+        }
+
+        .form-heading h2 {
+            margin: 2px 0 6px;
+            color: #faf6ff;
+            font-size: 16px;
+            font-weight: 850;
+        }
+
+        .form-heading p {
+            color: #aa9ab9;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 19px 15px;
+        }
+
+        .field {
+            min-width: 0;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e8ddf3;
+            font-size: 11px;
+            font-weight: 750;
+            line-height: 1.5;
+        }
+
+        .required {
+            color: #ff72b6;
+        }
+
+        .field input,
+        .field select {
+            width: 100%;
+            min-height: 48px;
+            display: block;
+            padding: 12px 13px;
+            border: 1px solid rgba(190,130,255,.20);
+            border-radius: 12px;
+            outline: none;
+            color: #faf6ff;
+            background: #100c17;
+            font-size: 12px;
+            transition: border-color .18s, box-shadow .18s;
+        }
+
+        .field input:focus,
+        .field select:focus {
+            border-color: rgba(194,117,255,.75);
+            box-shadow: 0 0 0 3px rgba(164,77,255,.10);
+        }
+
+        .field input::placeholder {
+            color: #81728e;
+        }
+
+        .field select {
+            cursor: pointer;
+        }
+
+        .field select option {
+            color: #faf6ff;
+            background: #17121f;
+        }
+
+        .field-help {
+            display: block;
+            margin-top: 7px;
+            color: #9788a6;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .password-wrap {
+            position: relative;
+        }
+
+        .password-wrap input {
+            padding-right: 62px;
+        }
+
+        .toggle-number {
+            position: absolute;
+            top: 50%;
+            right: 9px;
+            transform: translateY(-50%);
+            padding: 6px;
+            border: 0;
+            border-radius: 7px;
+            color: #d9b5ff;
+            background: transparent;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .toggle-number:hover {
+            background: rgba(164,77,255,.10);
+        }
+
+        .confirmation-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 13px;
+            margin-top: 22px;
+            border: 1px solid rgba(190,130,255,.14);
+            border-radius: 12px;
+            background: rgba(255,255,255,.018);
+            color: #bcaecb;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .confirmation-row input {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            accent-color: var(--purple);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 11px;
+            margin-top: 22px;
+        }
+
+        .submit-button,
+        .cancel-button {
+            min-height: 49px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 13px 17px;
+            border: 1px solid transparent;
+            border-radius: 13px;
+            font-size: 12px;
+            font-weight: 850;
+            cursor: pointer;
+            transition: opacity .15s, transform .15s, background .15s;
+        }
+
+        .submit-button {
+            flex: 1;
+            color: #fff;
+            background: linear-gradient(
+                110deg, var(--pink), var(--purple), var(--blue)
+            );
+            box-shadow: 0 8px 22px rgba(164,77,255,.18);
+        }
+
+        .submit-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .cancel-button {
+            color: #d6c6e5;
+            background: rgba(255,255,255,.025);
+            border-color: var(--border);
+        }
+
+        .cancel-button:hover {
+            background: rgba(164,77,255,.09);
+        }
+
+        .submit-button:disabled,
+        .cancel-button:disabled {
+            opacity: .65;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .security-footer {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 14px 4px 5px;
+            color: #9788a6;
+            font-size: 10px;
+            line-height: 1.75;
+        }
+
+        .security-footer span:first-child {
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+
+        /* Three customer navigation tabs */
+
+        .bottom-nav {
+            position: fixed;
+            z-index: 20;
+            left: 50%;
+            bottom: max(9px, env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            width: min(490px, calc(100vw - 28px));
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 4px;
+            padding: 7px;
+            border: 1px solid rgba(196,133,255,.22);
+            border-radius: 21px;
+            background: rgba(17,13,24,.96);
+            box-shadow: 0 15px 50px rgba(0,0,0,.45);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-item {
+            min-height: 47px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-radius: 13px;
+            color: #9d90aa;
+            font-size: 19px;
+        }
+
+        .nav-item small {
+            font-size: 10px;
+        }
+
+        .nav-item.active {
+            color: #ff89c1;
+            background: linear-gradient(
+                135deg,
+                rgba(255,65,139,.13),
+                rgba(139,69,255,.15)
+            );
+        }
+
+        @media (max-width: 600px) {
+            .app {
+                padding: 0 14px 25px;
+            }
+
+            .header {
+                min-height: 67px;
+            }
+
+            .brand-name {
+                font-size: 20px;
+            }
+
+            .intro {
+                padding-top: 24px;
+            }
+
+            .security-notice {
+                padding: 13px;
+            }
+
+            .bank-card {
+                padding: 18px 15px;
+                border-radius: 19px;
+            }
+
+            .bank-card-top {
+                flex-direction: column;
+            }
+
+            .verified-badge,
+            .pending-badge {
+                margin-left: 61px;
+            }
+
+            .account-number {
+                letter-spacing: 2px;
+            }
+
+            .bank-summary-grid {
+                gap: 15px;
+            }
+
+            .form-card {
+                padding: 18px 14px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .field.full {
+                grid-column: auto;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .form-actions .submit-button,
+            .form-actions .cancel-button {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 350px) {
+            .brand-name {
+                font-size: 18px;
+            }
+
+            .bank-summary-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .verified-badge,
+            .pending-badge {
+                margin-left: 0;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: .01ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    {% set saved_bank = customer.get('bank_name', '') if customer else '' %}
+    {% set saved_account_holder = customer.get('account_holder', '') if customer else '' %}
+    {% set saved_account_number = customer.get('account_number', '') if customer else '' %}
+    {% set saved_ifsc = customer.get('ifsc', '') if customer else '' %}
+    {% set saved_branch = customer.get('branch_name', '') if customer else '' %}
+    {% set saved_account_type = customer.get('account_type', '') if customer else '' %}
+    {% set bank_verified = customer.get('bank_verified', 0) if customer else 0 %}
+    {% set masked_number = customer.get('masked_account_number', '') if customer else '' %}
+
+    <div class="app">
+
+        <header class="header">
+            <a href="{{ url_for('customer.profile') }}"
+               class="back-button"
+               aria-label="Back to profile">‹</a>
+
+            <a href="{{ url_for('customer.home') }}"
+               class="brand"
+               aria-label="Sivdhi customer home">
+                <span class="brand-icon" aria-hidden="true">S</span>
+
+                <span>
+                    <span class="brand-name">Siv<span>dh</span>i</span>
+                    <span class="brand-caption">CUSTOMER ACCOUNT</span>
+                </span>
+            </a>
+        </header>
+
+        <main>
+            <section class="intro">
+                <p class="eyebrow">ACCOUNT SETTINGS</p>
+
+                <h1>Bank <span style="color:#ff72b6;">Details</span></h1>
+
+                <p>
+                    Manage your bank account information securely.
+                    Bank detail changes require OTP verification.
+                </p>
+            </section>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-wrap" aria-live="polite">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category|e }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <aside class="security-notice">
+                <div class="security-icon" aria-hidden="true">🔒</div>
+
+                <div class="security-copy">
+                    <strong>Keep your bank details private</strong>
+
+                    <p>
+                        Your account number is masked on this page.
+                        Sivdhi sends a verification OTP to your registered
+                        email before saving bank changes. Never share your
+                        OTP, UPI PIN or banking password.
+                    </p>
+                </div>
+            </aside>
+
+            {% if saved_bank %}
+
+                <!-- Existing bank account summary -->
+
+                <section class="bank-card">
+                    <div class="bank-card-top">
+                        <div class="bank-heading">
+                            <div class="bank-symbol" aria-hidden="true">🏦</div>
+
+                            <div class="bank-heading-copy">
+                                <small>Linked bank account</small>
+                                <h2>{{ saved_bank }}</h2>
+                            </div>
+                        </div>
+
+                        {% if bank_verified %}
+                            <span class="verified-badge">
+                                <span class="status-dot" aria-hidden="true"></span>
+                                Verified
+                            </span>
+                        {% else %}
+                            <span class="pending-badge">
+                                <span class="status-dot" aria-hidden="true"></span>
+                                Verification status unavailable
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <p class="account-number-label">Account number</p>
+
+                    <p class="account-number">
+                        {% if masked_number %}
+                            {{ masked_number }}
+                        {% elif saved_account_number %}
+                            •••• •••• {{ saved_account_number[-4:] }}
+                        {% else %}
+                            Not available
+                        {% endif %}
+                    </p>
+
+                    <div class="bank-summary-grid">
+                        <div>
+                            <p class="summary-label">Account Holder</p>
+
+                            <p class="summary-value">
+                                {{ saved_account_holder or 'Not available' }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="summary-label">IFSC Code</p>
+
+                            <p class="summary-value">
+                                {{ saved_ifsc or 'Not available' }}
+                            </p>
+                        </div>
+
+                        {% if saved_branch %}
+                            <div>
+                                <p class="summary-label">Branch</p>
+                                <p class="summary-value">{{ saved_branch }}</p>
+                            </div>
+                        {% endif %}
+
+                        {% if saved_account_type %}
+                            <div>
+                                <p class="summary-label">Account Type</p>
+                                <p class="summary-value">{{ saved_account_type }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="bank-card-actions">
+                        <button
+                            type="button"
+                            class="change-button"
+                            id="changeBankButton"
+                            aria-controls="bankFormCard"
+                            aria-expanded="false"
+                        >
+                            <span aria-hidden="true">✎</span>
+                            <span>Change Bank Account</span>
+                        </button>
+                    </div>
+                </section>
+
+            {% endif %}
+
+            <!-- Add or change bank account.
+                 POST uses the existing customer.bank route. -->
+
+            <section
+                class="form-card"
+                id="bankFormCard"
+                {% if saved_bank %}hidden{% endif %}
+            >
+                <div class="form-heading">
+                    <div class="form-heading-icon" aria-hidden="true">🏦</div>
+
+                    <div class="form-heading-copy">
+                        <h2>
+                            {% if saved_bank %}
+                                Update Bank Information
+                            {% else %}
+                                Add Bank Account
+                            {% endif %}
+                        </h2>
+
+                        <p>
+                            Enter your details as recorded by your bank.
+                            An OTP is required before changes are saved.
+                        </p>
+                    </div>
+                </div>
+
+                <form
+                    method="POST"
+                    action="{{ url_for('customer.bank') }}"
+                    id="bankDetailsForm"
+                    autocomplete="on"
+                >
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    >
+
+                    <div class="form-grid">
+                        <div class="field full">
+                            <label for="bank_name">
+                                Bank Name <span class="required">*</span>
+                            </label>
+
+                            <select
+                                id="bank_name"
+                                name="bank_name"
+                                required
+                            >
+                                <option value="">Select your bank</option>
+
+                                {% if saved_bank and saved_bank not in indian_banks %}
+                                    <option value="{{ saved_bank }}" selected>
+                                        {{ saved_bank }}
+                                    </option>
+                                {% endif %}
+
+                                {% for bank in indian_banks %}
+                                    <option
+                                        value="{{ bank }}"
+                                        {% if saved_bank == bank %}selected{% endif %}
+                                    >
+                                        {{ bank }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+
+                            <small class="field-help">
+                                Select your bank from the available list.
+                            </small>
+                        </div>
+
+                        <div class="field full">
+                            <label for="account_holder">
+                                Account Holder Name <span class="required">*</span>
+                            </label>
+
+                            <input
+                                id="account_holder"
+                                name="account_holder"
+                                type="text"
+                                maxlength="100"
+                                autocomplete="name"
+                                value="{{ saved_account_holder }}"
+                                placeholder="Name as registered with your bank"
+                                required
+                            >
+                        </div>
+
+                        <div class="field">
+                            <label for="account_number">
+                                Account Number <span class="required">*</span>
+                            </label>
+
+                            <div class="password-wrap">
+                                <input
+                                    id="account_number"
+                                    name="account_number"
+                                    type="password"
+                                    inputmode="numeric"
+                                    pattern="[0-9]{9,18}"
+                                    minlength="9"
+                                    maxlength="18"
+                                    autocomplete="off"
+                                    placeholder="9–18 digits"
+                                    aria-describedby="accountNumberHelp"
+                                    required
+                                >
+
+                                <button
+                                    type="button"
+                                    class="toggle-number"
+                                    data-target="account_number"
+                                    aria-pressed="false"
+                                >Show</button>
+                            </div>
+
+                            <small class="field-help" id="accountNumberHelp">
+                                Enter 9 to 18 digits. The existing number
+                                is not pre-filled for your security.
+                            </small>
+                        </div>
+
+                        <div class="field">
+                            <label for="confirm_account_number">
+                                Confirm Account Number
+                                <span class="required">*</span>
+                            </label>
+
+                            <div class="password-wrap">
+                                <input
+                                    id="confirm_account_number"
+                                    name="confirm_account_number"
+                                    type="password"
+                                    inputmode="numeric"
+                                    pattern="[0-9]{9,18}"
+                                    minlength="9"
+                                    maxlength="18"
+                                    autocomplete="off"
+                                    placeholder="Enter account number again"
+                                    required
+                                >
+
+                                <button
+                                    type="button"
+                                    class="toggle-number"
+                                    data-target="confirm_account_number"
+                                    aria-pressed="false"
+                                >Show</button>
+                            </div>
+
+                            <small class="field-help">
+                                Both account numbers must match.
+                            </small>
+                        </div>
+
+                        <div class="field">
+                            <label for="ifsc">
+                                IFSC Code <span class="required">*</span>
+                            </label>
+
+                            <input
+                                id="ifsc"
+                                name="ifsc"
+                                type="text"
+                                maxlength="11"
+                                pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}"
+                                autocapitalize="characters"
+                                autocomplete="off"
+                                value="{{ saved_ifsc }}"
+                                placeholder="e.g. SBIN0001234"
+                                title="Enter a valid 11-character IFSC code"
+                                required
+                            >
+
+                            <small class="field-help">
+                                Enter the IFSC of your bank branch.
+                            </small>
+                        </div>
+
+                        <div class="field">
+                            <label for="branch_name">Branch Name</label>
+
+                            <input
+                                id="branch_name"
+                                name="branch_name"
+                                type="text"
+                                maxlength="100"
+                                value="{{ saved_branch }}"
+                                placeholder="Enter branch name"
+                                autocomplete="off"
+                            >
+
+                            <small class="field-help">
+                                Optional.
+                            </small>
+                        </div>
+
+                        <div class="field full">
+                            <label for="account_type">Account Type</label>
+
+                            <select id="account_type" name="account_type">
+                                <option
+                                    value=""
+                                    {% if not saved_account_type %}selected{% endif %}
+                                >
+                                    Select account type
+                                </option>
+
+                                <option
+                                    value="Savings"
+                                    {% if saved_account_type == 'Savings' %}selected{% endif %}
+                                >
+                                    Savings Account
+                                </option>
+
+                                <option
+                                    value="Current"
+                                    {% if saved_account_type == 'Current' %}selected{% endif %}
+                                >
+                                    Current Account
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label class="confirmation-row" for="bank_consent">
+                        <input
+                            type="checkbox"
+                            id="bank_consent"
+                            name="bank_consent"
+                            value="yes"
+                            required
+                        >
+
+                        <span>
+                            I confirm that the account details provided are
+                            correct and that I am authorized to use this
+                            bank account.
+                        </span>
+                    </label>
+
+                    <div class="form-actions">
+                        <button
+                            type="submit"
+                            class="submit-button"
+                            id="saveBankButton"
+                        >
+                            <span aria-hidden="true">✓</span>
+                            <span>Continue to Verification</span>
+                        </button>
+
+                        {% if saved_bank %}
+                            <button
+                                type="button"
+                                class="cancel-button"
+                                id="cancelBankButton"
+                            >
+                                Cancel
+                            </button>
+                        {% endif %}
+                    </div>
+                </form>
+            </section>
+
+            <div class="security-footer">
+                <span aria-hidden="true">🔐</span>
+                <span>
+                    Bank updates are not saved until the verification process
+                    succeeds. Do not share your OTP or banking PIN with anyone.
+                </span>
+            </div>
+        </main>
+    </div>
+
+    <!-- Customer navigation: exactly three tabs -->
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a class="nav-item" href="{{ url_for('customer.home') }}">
+            <span aria-hidden="true">⌂</span>
+            <small>Home</small>
+        </a>
+
+        <a class="nav-item" href="{{ url_for('customer.bookings') }}">
+            <span aria-hidden="true">▤</span>
+            <small>Bookings</small>
+        </a>
+
+        <a class="nav-item active"
+           href="{{ url_for('customer.profile') }}"
+           aria-current="page">
+            <span aria-hidden="true">♙</span>
+            <small>Profile</small>
+        </a>
+    </nav>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const bankFormCard = document.getElementById("bankFormCard");
+            const changeButton = document.getElementById("changeBankButton");
+            const cancelButton = document.getElementById("cancelBankButton");
+            const form = document.getElementById("bankDetailsForm");
+            const saveButton = document.getElementById("saveBankButton");
+
+            const accountNumber = document.getElementById("account_number");
+            const confirmAccountNumber =
+                document.getElementById("confirm_account_number");
+            const ifscInput = document.getElementById("ifsc");
+
+            function showBankForm() {
+                if (!bankFormCard) {
+                    return;
+                }
+
+                bankFormCard.hidden = false;
+
+                if (changeButton) {
+                    changeButton.setAttribute("aria-expanded", "true");
+                    changeButton.innerHTML =
+                        '<span aria-hidden="true">×</span>' +
+                        '<span>Bank Account Form Opened</span>';
+                }
+
+                bankFormCard.scrollIntoView({
+                    behavior: window.matchMedia(
+                        "(prefers-reduced-motion: reduce)"
+                    ).matches ? "auto" : "smooth",
+                    block: "start"
+                });
+            }
+
+            function hideBankForm() {
+                if (!bankFormCard) {
+                    return;
+                }
+
+                bankFormCard.hidden = true;
+
+                if (changeButton) {
+                    changeButton.setAttribute("aria-expanded", "false");
+                    changeButton.innerHTML =
+                        '<span aria-hidden="true">✎</span>' +
+                        '<span>Change Bank Account</span>';
+
+                    changeButton.focus();
+                }
+
+                if (form) {
+                    form.reset();
+                    clearValidation();
+                }
+            }
+
+            function clearValidation() {
+                if (accountNumber) {
+                    accountNumber.setCustomValidity("");
+                }
+
+                if (confirmAccountNumber) {
+                    confirmAccountNumber.setCustomValidity("");
+                }
+
+                if (ifscInput) {
+                    ifscInput.setCustomValidity("");
+                }
+            }
+
+            if (changeButton) {
+                changeButton.addEventListener("click", function () {
+                    showBankForm();
+                });
+            }
+
+            if (cancelButton) {
+                cancelButton.addEventListener("click", function () {
+                    hideBankForm();
+                });
+            }
+
+            /*
+             * Show/hide entered account numbers.
+             * No stored account number is placed in these fields.
+             */
+            document.querySelectorAll(".toggle-number").forEach(
+                function (button) {
+                    button.addEventListener("click", function () {
+                        const input = document.getElementById(
+                            this.dataset.target
+                        );
+
+                        if (!input) {
+                            return;
+                        }
+
+                        const showNumber = input.type === "password";
+
+                        input.type = showNumber ? "text" : "password";
+                        this.textContent = showNumber ? "Hide" : "Show";
+                        this.setAttribute(
+                            "aria-pressed",
+                            String(showNumber)
+                        );
+                    });
+                }
+            );
+
+            function onlyDigits(input, maxLength) {
+                input.value = input.value
+                    .replace(/\D/g, "")
+                    .slice(0, maxLength);
+            }
+
+            [accountNumber, confirmAccountNumber].forEach(
+                function (input) {
+                    if (!input) {
+                        return;
+                    }
+
+                    input.addEventListener("input", function () {
+                        onlyDigits(this, 18);
+                        this.setCustomValidity("");
+
+                        if (confirmAccountNumber) {
+                            confirmAccountNumber.setCustomValidity("");
+                        }
+                    });
+                }
+            );
+
+            if (ifscInput) {
+                ifscInput.addEventListener("input", function () {
+                    this.value = this.value
+                        .toUpperCase()
+                        .replace(/[^A-Z0-9]/g, "")
+                        .slice(0, 11);
+
+                    this.setCustomValidity("");
+                });
+            }
+
+            if (form && accountNumber && confirmAccountNumber && ifscInput) {
+                form.addEventListener("submit", function (event) {
+                    const first = accountNumber.value.trim();
+                    const second = confirmAccountNumber.value.trim();
+                    const ifsc = ifscInput.value.trim().toUpperCase();
+
+                    clearValidation();
+
+                    if (!/^[0-9]{9,18}$/.test(first)) {
+                        event.preventDefault();
+
+                        accountNumber.setCustomValidity(
+                            "Account number must contain 9 to 18 digits."
+                        );
+
+                        accountNumber.reportValidity();
+                        accountNumber.focus();
+                        return;
+                    }
+
+                    if (first !== second) {
+                        event.preventDefault();
+
+                        confirmAccountNumber.setCustomValidity(
+                            "Account numbers do not match."
+                        );
+
+                        confirmAccountNumber.reportValidity();
+                        confirmAccountNumber.focus();
+                        return;
+                    }
+
+                    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+                        event.preventDefault();
+
+                        ifscInput.setCustomValidity(
+                            "Enter a valid 11-character IFSC code."
+                        );
+
+                        ifscInput.reportValidity();
+                        ifscInput.focus();
+                        return;
+                    }
+
+                    ifscInput.setCustomValidity("");
+
+                    if (saveButton) {
+                        saveButton.disabled = true;
+                        saveButton.innerHTML =
+                            "<span>Sending verification OTP...</span>";
+                    }
+                });
+            }
+
+            window.addEventListener("pageshow", function () {
+                if (saveButton) {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML =
+                        '<span aria-hidden="true">✓</span>' +
+                        '<span>Continue to Verification</span>';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

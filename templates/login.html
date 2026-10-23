@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Login | Sivdhi</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+
+height:100vh;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+background:linear-gradient(135deg,#2563eb,#0f172a);
+
+padding:20px;
+
+}
+
+.login-box{
+
+width:100%;
+max-width:420px;
+
+padding:35px;
+
+background:rgba(255,255,255,.10);
+
+backdrop-filter:blur(20px);
+
+border-radius:25px;
+
+box-shadow:0 15px 40px rgba(0,0,0,.35);
+
+color:white;
+
+}
+
+.logo{
+
+width:90px;
+height:90px;
+
+margin:auto;
+
+background:white;
+
+border-radius:50%;
+
+display:flex;
+
+justify-content:center;
+align-items:center;
+
+font-size:40px;
+
+font-weight:bold;
+
+color:#2563eb;
+
+margin-bottom:20px;
+
+}
+
+h2{
+
+text-align:center;
+
+margin-bottom:10px;
+
+}
+
+p{
+
+text-align:center;
+
+color:#dbeafe;
+
+margin-bottom:25px;
+
+}
+
+.input{
+
+width:100%;
+
+padding:15px;
+
+margin-bottom:15px;
+
+border:none;
+
+outline:none;
+
+border-radius:12px;
+
+font-size:15px;
+
+}
+
+.btn{
+
+width:100%;
+
+padding:15px;
+
+border:none;
+
+border-radius:12px;
+
+background:white;
+
+color:#2563eb;
+
+font-size:16px;
+
+font-weight:bold;
+
+cursor:pointer;
+
+transition:.3s;
+
+}
+
+.btn:hover{
+
+background:#eff6ff;
+
+}
+
+.links{
+
+display:flex;
+
+justify-content:space-between;
+
+margin-top:20px;
+
+}
+
+.links a{
+
+color:white;
+
+text-decoration:none;
+
+font-size:14px;
+
+}
+
+.flash{
+background:#22c55e;
+padding:12px;
+border-radius:10px;
+margin-bottom:15px;
+text-align:center;
+animation:fadeIn .3s;
+}
+
+@keyframes fadeIn{
+from{opacity:0;transform:translateY(-10px);}
+to{opacity:1;transform:translateY(0);}
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="login-box">
+
+<div class="logo">
+
+S
+
+</div>
+
+<h2>
+
+{% if role=="worker" %}
+
+Worker Login
+
+{% else %}
+
+Referral Partner Login
+
+{% endif %}
+
+</h2>
+
+<p>
+
+Welcome Back
+
+</p>
+
+{% with messages=get_flashed_messages() %}
+{% if messages %}
+
+<div class="flash">
+
+{{ messages[0] }}
+
+</div>
+
+{% endif %}
+{% endwith %}
+
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<input
+type="text"
+name="user_id"
+class="input"
+placeholder="{% if role=='worker' %}Worker ID{% else %}Partner ID{% endif %}"
+value="{{ saved_user_id }}"
+required>
+
+<input
+type="password"
+name="password"
+class="input"
+placeholder="Password"
+required>
+
+<button
+class="btn"
+type="submit">
+
+Login
+
+</button>
+
+</form>
+
+<div class="links">
+
+<a href="/forgot-password?role={{ role }}">
+
+Forgot Password?
+
+</a>
+
+<a href="/signup?role={{ role }}">
+
+Create Account
+
+</a>
+
+</div>
+
+</div>
+<script>
+
+setTimeout(function(){
+
+let flash=document.querySelector(".flash");
+
+if(flash){
+
+flash.style.transition="0.5s";
+flash.style.opacity="0";
+
+setTimeout(function(){
+
+flash.remove();
+
+},500);
+
+}
+
+},3000);
+
+</script>
+</body>
+
+</html>

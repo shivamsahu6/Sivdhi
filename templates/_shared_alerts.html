@@ -1,0 +1,61 @@
+<style>
+.sivdhi-alert-stack{position:fixed;top:18px;right:18px;z-index:999999;width:min(390px,calc(100vw - 30px));display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.sivdhi-toast{pointer-events:auto;padding:13px 16px;border-radius:12px;box-shadow:0 12px 35px rgba(15,23,42,.18);font:500 13px/1.45 Inter,Arial,sans-serif;display:flex;align-items:flex-start;gap:10px;background:#fff;color:#1f2937;border:1px solid #e5e7eb;opacity:1;transform:translateY(0);transition:opacity .25s ease,transform .25s ease;overflow-wrap:anywhere}
+.sivdhi-toast.success{background:#f0fdf4;border-color:#bbf7d0;color:#166534}.sivdhi-toast.danger,.sivdhi-toast.error{background:#fef2f2;border-color:#fecaca;color:#991b1b}.sivdhi-toast.warning{background:#fffbeb;border-color:#fde68a;color:#92400e}.sivdhi-toast.info{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.sivdhi-toast-close{border:0;background:transparent;color:inherit;font-size:18px;line-height:1;cursor:pointer;margin-left:auto;padding:0 0 0 8px}
+.sivdhi-toast.is-hiding{opacity:0;transform:translateY(-6px)}
+</style>
+<div id="sivdhiAlertStack" class="sivdhi-alert-stack" aria-live="polite" aria-atomic="false">
+{% if not sivdhi_template_has_flash %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="sivdhi-toast {{ category|e }}" role="alert"><span>{{ message }}</span><button type="button" class="sivdhi-toast-close" aria-label="Close">×</button></div>
+    {% endfor %}
+  {% endwith %}
+{% endif %}
+</div>
+<script>
+(function(){
+  'use strict';
+  const stack=document.getElementById('sivdhiAlertStack');
+  if(!stack || stack.dataset.ready==='1') return;
+  stack.dataset.ready='1';
+  function hide(el){
+    if(!el || el.dataset.sivdhiDismissScheduled==='1') return;
+    el.dataset.sivdhiDismissScheduled='1';
+    window.setTimeout(function(){
+      if(!el.isConnected) return;
+      el.classList.add('is-hiding');
+      window.setTimeout(function(){if(el.isConnected)el.remove();},270);
+    },2000);
+  }
+  function toast(message, category){
+    if(!stack) return;
+    const el=document.createElement('div');
+    el.className='sivdhi-toast '+(category||'info');
+    el.setAttribute('role','alert');
+    const text=document.createElement('span'); text.textContent=String(message);
+    const close=document.createElement('button'); close.type='button'; close.className='sivdhi-toast-close'; close.setAttribute('aria-label','Close'); close.textContent='×';
+    close.addEventListener('click',function(){el.remove();});
+    el.append(text,close); stack.appendChild(el); hide(el);
+  }
+  stack.querySelectorAll('.sivdhi-toast').forEach(function(el){
+    const close=el.querySelector('.sivdhi-toast-close');
+    if(close) close.addEventListener('click',function(){el.remove();});
+    hide(el);
+  });
+  // Existing template alerts are also dismissed consistently after two seconds.
+  function scan(root){
+    if(!root || root.nodeType!==1) return;
+    const selectors='.alert, .flash, .flash-message, .alert-message, [role="alert"], .message-alert';
+    if(root.matches && root.matches(selectors) && !root.closest('#sivdhiAlertStack')) hide(root);
+    if(root.querySelectorAll) root.querySelectorAll(selectors).forEach(function(el){if(!el.closest('#sivdhiAlertStack'))hide(el);});
+  }
+  scan(document.body);
+  const observer=new MutationObserver(function(records){records.forEach(function(rec){rec.addedNodes.forEach(function(n){if(n.nodeType===1)scan(n);});});});
+  observer.observe(document.body,{childList:true,subtree:true});
+  // Convert native JavaScript alert popups to non-blocking 2-second Sivdhi toasts.
+  const originalAlert=window.alert;
+  window.alert=function(message){toast(message,'info');};
+})();
+</script>

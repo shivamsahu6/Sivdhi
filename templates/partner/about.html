@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>About Sivdhi</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:40px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:30px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+font-size:26px;
+}
+
+.header p{
+margin-top:5px;
+font-size:14px;
+opacity:.9;
+}
+
+.card{
+margin:20px;
+background:white;
+padding:22px;
+border-radius:18px;
+box-shadow:0 6px 15px rgba(0,0,0,.08);
+}
+
+.logo{
+width:90px;
+height:90px;
+border-radius:50%;
+background:#2563eb;
+color:white;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:34px;
+font-weight:bold;
+margin:0 auto 18px;
+}
+
+.title{
+text-align:center;
+font-size:24px;
+font-weight:bold;
+color:#111827;
+margin-bottom:8px;
+}
+
+.version{
+text-align:center;
+font-size:14px;
+color:#6b7280;
+margin-bottom:20px;
+}
+
+.text{
+font-size:15px;
+line-height:28px;
+color:#444;
+text-align:justify;
+}
+
+.info{
+margin-top:25px;
+border-top:1px solid #eee;
+padding-top:18px;
+}
+
+.item{
+display:flex;
+justify-content:space-between;
+padding:12px 0;
+border-bottom:1px solid #eee;
+}
+
+.item:last-child{
+border:none;
+}
+
+.label{
+color:#666;
+}
+
+.value{
+font-weight:600;
+color:#111827;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>📄 About Sivdhi</h2>
+
+<p>Know more about the application</p>
+
+</div>
+
+<div class="card">
+
+<div class="logo">
+S
+</div>
+
+<div class="title">
+Sivdhi Partner
+</div>
+
+<div class="version">
+Version 1.0.0
+</div>
+
+<div class="text">
+
+Sivdhi Partner is a professional platform that helps partners manage workers, jobs, bank details, withdrawals, notifications and profile information in one place.
+
+Our goal is to provide a simple, secure and fast experience for every partner.
+
+</div>
+
+<div class="info">
+
+<div class="item">
+<span class="label">Developer</span>
+<span class="value">Sivdhi Team</span>
+</div>
+
+<div class="item">
+<span class="label">Version</span>
+<span class="value">1.0.0</span>
+</div>
+
+
+
+<div class="item">
+<span class="label">Copyright</span>
+<span class="value">© 2026 Sivdhi</span>
+</div>
+
+</div>
+
+</div>
+
+</body>
+
+</html>

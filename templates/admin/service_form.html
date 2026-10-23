@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} | Sivdhi Admin</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #090b14;
+            --panel: #121626;
+            --panel2: #171c30;
+            --line: #2a3048;
+            --text: #f5f6ff;
+            --muted: #a6aec6;
+            --pink: #ec4899;
+            --purple: #8b5cf6;
+            --blue: #3b82f6;
+            --green: #34d399;
+            --red: #fb7185
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            font-family: Inter, Segoe UI, Arial, sans-serif;
+            background: radial-gradient(ellipse at top left, rgba(139, 92, 246, .16), transparent 38%), radial-gradient(ellipse at top right, rgba(236, 72, 153, .11), transparent 35%), var(--bg);
+            color: var(--text);
+            min-height: 100vh
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 22px clamp(16px, 4vw, 42px);
+            border-bottom: 1px solid var(--line);
+            background: rgba(9, 11, 20, .8);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: blur(12px)
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 13px
+        }
+
+        .logo {
+            width: 46px;
+            height: 46px;
+            border-radius: 15px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, var(--pink), var(--purple), var(--blue));
+            font-size: 23px;
+            box-shadow: 0 8px 28px #8b5cf633
+        }
+
+        .brand h1 {
+            font-size: 19px;
+            letter-spacing: .2px
+        }
+
+        .brand p {
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 4px
+        }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 15px;
+            border: 1px solid #3a405c;
+            background: #171c30;
+            color: var(--text);
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 650;
+            font-size: 13px;
+            white-space: nowrap
+        }
+
+        .back:hover {
+            border-color: var(--purple)
+        }
+
+        main {
+            width: min(1120px, calc(100% - 28px));
+            margin: 30px auto 60px
+        }
+
+        .intro {
+            margin: 0 0 22px
+        }
+
+        .eyebrow {
+            color: #c4b5fd;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-size: 11px;
+            font-weight: 800
+        }
+
+        .intro h2 {
+            font-size: clamp(24px, 4vw, 32px);
+            margin-top: 7px
+        }
+
+        .intro p {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.65;
+            margin-top: 8px;
+            max-width: 760px
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 18px;
+            align-items: start
+        }
+
+        .panel {
+            background: linear-gradient(160deg, rgba(23, 28, 48, .98), rgba(15, 19, 33, .98));
+            border: 1px solid var(--line);
+            border-radius: 21px;
+            padding: clamp(17px, 3vw, 26px);
+            box-shadow: 0 18px 50px #0005
+        }
+
+        .panel h3 {
+            font-size: 17px;
+            margin-bottom: 7px
+        }
+
+        .subhead {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.55;
+            margin-bottom: 22px
+        }
+
+        .fields {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px
+        }
+
+        .field {
+            min-width: 0
+        }
+
+        .field.wide {
+            grid-column: 1/-1
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 750;
+            color: #e1e5f7;
+            margin-bottom: 8px
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.5;
+            margin-top: 6px
+        }
+
+        input,
+        textarea,
+        select {
+            font: inherit;
+            font-size: 14px;
+            color: var(--text);
+            background: #0c1020;
+            border: 1px solid #343b58;
+            border-radius: 11px;
+            width: 100%;
+            padding: 12px 13px;
+            outline: none
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: var(--purple);
+            box-shadow: 0 0 0 3px #8b5cf622
+        }
+
+        textarea {
+            min-height: 96px;
+            resize: vertical;
+            line-height: 1.55
+        }
+
+        select option {
+            background: #121626;
+            color: var(--text)
+        }
+
+        .prefix {
+            position: relative
+        }
+
+        .prefix span {
+            position: absolute;
+            left: 13px;
+            top: 12px;
+            color: var(--muted);
+            font-size: 14px
+        }
+
+        .prefix input {
+            padding-left: 31px
+        }
+
+        .iconrow {
+            display: grid;
+            grid-template-columns: 1fr 54px;
+            gap: 10px;
+            align-items: center
+        }
+
+        .icon-preview {
+            height: 48px;
+            display: grid;
+            place-items: center;
+            border: 1px solid #343b58;
+            border-radius: 12px;
+            background: #0c1020;
+            font-size: 25px
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--line);
+            margin: 22px 0
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 800;
+            margin-bottom: 15px;
+            color: #ddd6fe
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 22px
+        }
+
+        .button {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            padding: 12px 17px;
+            border-radius: 12px;
+            border: 0;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer
+        }
+
+        .primary {
+            color: white;
+            background: linear-gradient(110deg, var(--pink), var(--purple), var(--blue));
+            box-shadow: 0 8px 24px #8b5cf633
+        }
+
+        .secondary {
+            color: var(--text);
+            background: #252b42;
+            border: 1px solid #3a405c
+        }
+
+        .danger {
+            color: #fecdd3;
+            background: #371725;
+            border: 1px solid #713044
+        }
+
+        .note {
+            border: 1px solid #45366c;
+            background: #1b1730;
+            color: #dcd4ff;
+            padding: 12px 13px;
+            border-radius: 12px;
+            font-size: 12px;
+            line-height: 1.6;
+            margin-top: 16px
+        }
+
+        .problem {
+            border: 1px solid var(--line);
+            background: #0e1221;
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 12px
+        }
+
+        .problem-head {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            justify-content: space-between
+        }
+
+        .problem-head h4 {
+            font-size: 14px;
+            line-height: 1.45
+        }
+
+        .price-pill {
+            font-weight: 800;
+            color: #a7f3d0;
+            white-space: nowrap
+        }
+
+        .problem-form {
+            display: grid;
+            grid-template-columns: 1fr 130px;
+            gap: 12px;
+            margin-top: 13px
+        }
+
+        .problem-form .wide {
+            grid-column: 1/-1
+        }
+
+        .problem-meta {
+            color: var(--muted);
+            font-size: 11px;
+            margin-top: 6px
+        }
+
+        .problem-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: wrap
+        }
+
+        .inline-button {
+            border-radius: 9px;
+            padding: 8px 11px;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800
+        }
+
+        .status.on {
+            color: #a7f3d0;
+            background: #123329
+        }
+
+        .status.off {
+            color: #fecdd3;
+            background: #3b1926
+        }
+
+        .empty {
+            border: 1px dashed #414965;
+            border-radius: 13px;
+            padding: 18px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+            margin-top: 12px
+        }
+
+        .flash-wrap {
+            margin-bottom: 16px
+        }
+
+        .flash {
+            padding: 12px 14px;
+            border-radius: 12px;
+            margin-bottom: 9px;
+            font-size: 13px;
+            border: 1px solid var(--line);
+            background: #171c30
+        }
+
+        .flash.success {
+            border-color: #23634d;
+            color: #bbf7d0
+        }
+
+        .flash.danger,
+        .flash.error {
+            border-color: #713044;
+            color: #fecdd3
+        }
+
+        .flash.warning {
+            border-color: #75542d;
+            color: #fde68a
+        }
+
+        @media(max-width:800px) {
+            .layout {
+                grid-template-columns: 1fr
+            }
+
+            .topbar {
+                padding: 16px
+            }
+
+            .brand h1 {
+                font-size: 16px
+            }
+
+            .brand p {
+                font-size: 11px
+            }
+        }
+
+        @media(max-width:520px) {
+            .topbar {
+                align-items: flex-start
+            }
+
+            .logo {
+                width: 40px;
+                height: 40px
+            }
+
+            .back {
+                padding: 10px;
+                font-size: 12px
+            }
+
+            .fields {
+                grid-template-columns: 1fr
+            }
+
+            .field.wide {
+                grid-column: auto
+            }
+
+            .problem-form {
+                grid-template-columns: 1fr
+            }
+
+            .problem-form .wide {
+                grid-column: auto
+            }
+
+            .actions {
+                flex-direction: column
+            }
+
+            .button {
+                width: 100%
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    <header class="topbar">
+        <div class="brand">
+            <div class="logo">✦</div>
+            <div>
+                <h1>Sivdhi Admin</h1>
+                <p>Category & service catalog</p>
+            </div>
+        </div>
+        <a class="back" href="/admin/services">← Back to services</a>
+    </header>
+
+    <main>
+        <div class="intro">
+            <div class="eyebrow">Catalog management</div>
+            <h2>{{ page_title }}</h2>
+            <p>Manage each subcategory's Normal and Full-day prices plus Partner and Sivdhi commission rates. Customers
+                book directly from Category → Subcategory → Price.</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}<div class="flash-wrap">{% for category, message in messages %}<div
+                class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+        {% endwith %}
+
+        <div class="layout">
+            <section class="panel">
+                <h3>Service details</h3>
+                <p class="subhead">Fields marked with * are required. Keep customer-facing text clear and easy to
+                    understand.</p>
+
+                <form id="serviceForm" method="post" action="">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="fields">
+                        <div class="field wide">
+                            <label for="category">Parent category *</label>
+                            <select id="category" name="category" required>
+                                <option value="">Choose a category</option>
+                                {% for category in categories %}
+                                <option value="{{ category['name'] }}" {% if service and (service['category'] or ''
+                                    )|lower==category['name']|lower %}selected{% endif %}>{{ category['name'] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <p class="hint">Choose the category created and managed in Admin Settings. Workers can use
+                                this category when their profile is set up.</p>
+                        </div>
+
+                        <div class="field">
+                            <label for="name">Subcategory name *</label>
+                            <input id="name" name="name" type="text" maxlength="100" required
+                                value="{{ service['name'] if service else '' }}" placeholder="e.g. AC Repair">
+                        </div>
+                        <div class="field">
+                            <label for="icon">Icon / emoji</label>
+                            <div class="iconrow">
+                                <input id="icon" name="icon" type="text" maxlength="12"
+                                    value="{{ service['icon'] if service and service['icon'] else '✦' }}"
+                                    oninput="previewIcon(this.value)" placeholder="🛠️">
+                                <div class="icon-preview" id="iconPreview">{{ service['icon'] if service and
+                                    service['icon'] else '✦' }}</div>
+                            </div>
+                        </div>
+                        <div class="field wide">
+                            <label for="description">Description</label>
+                            <textarea id="description" name="description" maxlength="500"
+                                placeholder="Explain this service in customer-friendly language">{{ service['description'] if service and service['description'] else '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+                    <div class="section-title">Price setup</div>
+                    <div class="fields">
+                        <div class="field">
+                            <label for="price">Base / starting price (₹)</label>
+                            <div class="prefix"><span>₹</span><input id="price" name="price" type="number" min="0"
+                                    step="0.01"
+                                    value="{{ '%.2f'|format(service['price']|float) if service else '0.00' }}"></div>
+                            <p class="hint">This is the customer-facing price for one Normal service booking.</p>
+                        </div>
+                        <div class="field">
+                            <label for="visit_fee">Visit / inspection fee (₹)</label>
+                            <div class="prefix"><span>₹</span><input id="visit_fee" name="visit_fee" type="number"
+                                    min="0" step="0.01"
+                                    value="{{ '%.2f'|format(service['visit_fee']|float) if service else '0.00' }}">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="partner_commission_percent">Partner commission (%)</label>
+                            <input id="partner_commission_percent" name="partner_commission_percent" type="number" min="0" max="100" step="0.01" value="{{ '%.2f'|format(service['partner_commission_percent']|float) if service and service['partner_commission_percent'] is defined else '10.00' }}">
+                            <p class="hint">Paid to the assigned Partner, if the worker belongs to one.</p>
+                        </div>
+                        <div class="field">
+                            <label for="platform_commission_percent">Sivdhi commission (%)</label>
+                            <input id="platform_commission_percent" name="platform_commission_percent" type="number" min="0" max="100" step="0.01" value="{{ '%.2f'|format(service['platform_commission_percent']|float) if service and service['platform_commission_percent'] is defined else '10.00' }}">
+                            <p class="hint">Sivdhi's platform share. Combined commission cannot exceed 100%.</p>
+                        </div>
+                        <div class="field">
+                            <label for="full_day_price">Full-Day price (₹)</label>
+                            <div class="prefix"><span>₹</span><input id="full_day_price" name="full_day_price"
+                                    type="number" min="0" step="0.01"
+                                    value="{{ '%.2f'|format(service['full_day_price']|float) if service else '0.00' }}">
+                            </div>
+                            <p class="hint">Price for this subcategory when the customer selects Full-day mode.</p>
+                        </div>
+                        <div class="field">
+                            <label for="commission">Internal commission (%)</label>
+                            <input id="commission" name="commission" type="number" min="0" max="100" step="0.01"
+                                value="{{ '%.2f'|format(service['commission']|float) if service else '0.00' }}">
+                            <p class="hint">Admin-only setting. This is not the price shown to customers.</p>
+                        </div>
+                        <div class="field wide">
+                            <label for="included_work">What's included</label>
+                            <textarea id="included_work" name="included_work" maxlength="3000"
+                                placeholder="List work included in the chosen price">{{ service['included_work'] if service and service['included_work'] else '' }}</textarea>
+                        </div>
+                        <div class="field wide">
+                            <label for="excluded_work">What's not included</label>
+                            <textarea id="excluded_work" name="excluded_work" maxlength="3000"
+                                placeholder="List materials, repairs or work charged separately">{{ service['excluded_work'] if service and service['excluded_work'] else '' }}</textarea>
+                        </div>
+                        <div class="field wide">
+                            <label for="active">Status</label>
+                            <select id="active" name="active">
+                                <option value="1" {% if not service or service['active']==1 %}selected{% endif %}>Active
+                                    — available for new catalog selection</option>
+                                <option value="0" {% if service and service['active']==0 %}selected{% endif %}>Inactive
+                                    — hide from new catalog selection</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="note">Customer pricing should be transparent: enter only the amount charged for the
+                        service/problem and any visit fee that applies. Extra work should be clearly described and must
+                        require customer approval.</div>
+                    <div class="actions">
+                        <button class="button primary" type="submit">{% if service %}Save subcategory changes{% else
+                            %}Create subcategory{% endif %}</button>
+                        <a class="button secondary" href="/admin/services">Cancel</a>
+                    </div>
+                </form>
+            </section>
+
+        </div>
+    </main>
+
+    <script>
+        function previewIcon(value) { document.getElementById('iconPreview').textContent = value.trim() || '✦'; }
+        document.getElementById('serviceForm').addEventListener('submit', function (event) {
+            const name = document.getElementById('name').value.trim();
+            const category = document.getElementById('category').value.trim();
+            const commission = Number(document.getElementById('commission').value || 0);
+            const fullDayPrice = Number(document.getElementById('full_day_price').value || 0);
+            const numericFields = ['price', 'visit_fee', 'full_day_price', 'commission'];
+            if (!name || !category) { event.preventDefault(); alert('Please enter a subcategory name and choose its parent category.'); return; }
+            if (commission < 0 || commission > 100) { event.preventDefault(); alert('Internal commission must be between 0 and 100%.'); return; }
+            for (const id of numericFields) {
+                const el = document.getElementById(id);
+                if (el.value !== '' && (!Number.isFinite(Number(el.value)) || Number(el.value) < 0)) { event.preventDefault(); alert('Prices and commission cannot be negative.'); el.focus(); return; }
+            }
+            if (fullDayPrice > 0 && !Number.isFinite(fullDayPrice)) { event.preventDefault(); alert('Please enter a valid Full-Day price.'); }
+            const partnerRate = Number(document.getElementById('partner_commission_percent').value || 0);
+            const platformRate = Number(document.getElementById('platform_commission_percent').value || 0);
+            if (partnerRate + platformRate > 100) { event.preventDefault(); alert('Partner and Sivdhi commission together cannot exceed 100%.'); }
+        });
+    </script>
+</body>
+
+</html>

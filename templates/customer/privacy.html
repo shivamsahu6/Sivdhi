@@ -1,0 +1,771 @@
+<!-- templates/customer/privacy.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6d28d9">
+
+    <title>Privacy Policy | Sivdhi</title>
+
+    <style>
+        :root {
+            --primary: #6d28d9;
+            --primary-light: #8b5cf6;
+            --background: #f7f7fb;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding-bottom: 85px;
+            color: var(--text);
+            background: var(--background);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         Roboto, Arial, sans-serif;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.97);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .back-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            color: var(--text);
+            background: #fff;
+            text-decoration: none;
+            font-size: 24px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 19px;
+            font-weight: 750;
+        }
+
+        .topbar p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 22px 15px;
+        }
+
+        .hero {
+            padding: 25px 23px;
+            margin-bottom: 20px;
+            color: #fff;
+            background: linear-gradient(135deg, #5b21b6, #8b5cf6);
+            border-radius: 23px;
+        }
+
+        .hero-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 49px;
+            height: 49px;
+            margin-bottom: 17px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.17);
+            font-size: 25px;
+        }
+
+        .hero h2 {
+            margin: 0 0 9px;
+            font-size: 25px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero p {
+            max-width: 520px;
+            margin: 0;
+            color: #f3e8ff;
+            font-size: 13px;
+            line-height: 1.75;
+        }
+
+        .updated-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin-top: 17px;
+            padding: 7px 10px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 9px;
+            font-size: 11px;
+        }
+
+        .notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            background: #f0ebff;
+            border: 1px solid #e5dcff;
+            border-radius: 17px;
+        }
+
+        .notice-icon {
+            flex-shrink: 0;
+            font-size: 21px;
+        }
+
+        .notice strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .notice p {
+            margin: 0;
+            color: #5b526e;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .policy-card {
+            padding: 22px;
+            background: #fff;
+            border: 1px solid #eeedf3;
+            border-radius: 20px;
+            box-shadow: 0 5px 20px rgba(31, 41, 55, 0.025);
+        }
+
+        .policy-section {
+            padding: 0 0 22px;
+            margin-bottom: 22px;
+            border-bottom: 1px solid #f0f0f5;
+            scroll-margin-top: 85px;
+        }
+
+        .policy-section:last-child {
+            padding-bottom: 0;
+            margin-bottom: 0;
+            border-bottom: 0;
+        }
+
+        .policy-section h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 12px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .section-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 31px;
+            height: 31px;
+            flex-shrink: 0;
+            border-radius: 10px;
+            color: var(--primary);
+            background: #f0ebff;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .policy-section p {
+            margin: 0 0 11px;
+            color: #5b6472;
+            font-size: 13px;
+            line-height: 1.85;
+        }
+
+        .policy-section p:last-child {
+            margin-bottom: 0;
+        }
+
+        .policy-section ul {
+            display: grid;
+            gap: 9px;
+            padding-left: 20px;
+            margin: 10px 0 0;
+            color: #5b6472;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .policy-section li::marker {
+            color: var(--primary-light);
+        }
+
+        .toc {
+            padding: 19px;
+            margin-bottom: 20px;
+            background: #fff;
+            border: 1px solid #eeedf3;
+            border-radius: 18px;
+        }
+
+        .toc h3 {
+            margin: 0 0 13px;
+            font-size: 15px;
+        }
+
+        .toc-links {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+        }
+
+        .toc a {
+            display: block;
+            padding: 11px 12px;
+            color: #5b21b6;
+            background: #faf9ff;
+            border: 1px solid #f0ebff;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .toc a:hover {
+            background: #f0ebff;
+        }
+
+        .contact-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 19px;
+            margin-top: 20px;
+            background: #fff;
+            border: 1px solid #e8e1fb;
+            border-radius: 18px;
+        }
+
+        .contact-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 47px;
+            height: 47px;
+            flex-shrink: 0;
+            border-radius: 15px;
+            color: var(--primary);
+            background: #f0ebff;
+            font-size: 23px;
+        }
+
+        .contact-content {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .contact-content h3 {
+            margin: 0 0 5px;
+            font-size: 14px;
+        }
+
+        .contact-content p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .contact-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 39px;
+            padding: 10px 13px;
+            flex-shrink: 0;
+            border-radius: 11px;
+            color: #fff;
+            background: var(--primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .contact-button:hover {
+            background: #5b21b6;
+        }
+
+        .footer-note {
+            padding: 17px 5px 5px;
+            color: var(--muted);
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 20;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+            background: rgba(255, 255, 255, 0.97);
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 48px;
+            color: #9ca3af;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+            line-height: 1.2;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        @media (max-width: 520px) {
+            .topbar {
+                padding: 13px 14px;
+            }
+
+            .page {
+                padding: 18px 12px;
+            }
+
+            .hero {
+                padding: 22px 18px;
+                border-radius: 20px;
+            }
+
+            .hero h2 {
+                font-size: 23px;
+            }
+
+            .policy-card {
+                padding: 18px 15px;
+            }
+
+            .toc-links {
+                grid-template-columns: 1fr;
+            }
+
+            .contact-card {
+                flex-wrap: wrap;
+                padding: 15px;
+            }
+
+            .contact-content {
+                flex-basis: calc(100% - 65px);
+            }
+
+            .contact-button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+    <header class="topbar">
+        <a href="{{ url_for('customer.settings') }}"
+           class="back-button"
+           aria-label="Back to settings">‹</a>
+
+        <div>
+            <h1>Privacy Policy</h1>
+            <p>Your privacy matters</p>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="hero">
+            <div class="hero-icon" aria-hidden="true">🛡️</div>
+            <h2>Your privacy matters to us</h2>
+            <p>
+                This page explains the types of information that may be used
+                when you access Sivdhi, place bookings or manage your account.
+            </p>
+            <div class="updated-label">
+                <span aria-hidden="true">📄</span>
+                <span>Privacy information</span>
+            </div>
+        </section>
+
+        <aside class="notice">
+            <span class="notice-icon" aria-hidden="true">ℹ️</span>
+            <div>
+                <strong>Please read this policy</strong>
+                <p>
+                    This is a draft template for the Sivdhi website. The
+                    actual policy must be checked against the information
+                    the project collects, its service providers and its
+                    applicable legal obligations before publication.
+                </p>
+            </div>
+        </aside>
+
+        <nav class="toc" aria-label="Privacy policy contents">
+            <h3>In this policy</h3>
+
+            <div class="toc-links">
+                <a href="#information">Information we collect</a>
+                <a href="#usage">How information is used</a>
+                <a href="#location">Location information</a>
+                <a href="#sharing">Information sharing</a>
+                <a href="#security">Data security</a>
+                <a href="#retention">Data retention</a>
+                <a href="#rights">Your choices and rights</a>
+                <a href="#children">Children's privacy</a>
+                <a href="#changes">Policy updates</a>
+                <a href="#contact">Contact and questions</a>
+            </div>
+        </nav>
+
+        <article class="policy-card">
+            <section class="policy-section" id="information">
+                <h3>
+                    <span class="section-number">01</span>
+                    Information we collect
+                </h3>
+
+                <p>
+                    Depending on the features you use, Sivdhi may process
+                    information that you submit while registering, maintaining
+                    your account or requesting a service.
+                </p>
+
+                <ul>
+                    <li>
+                        <strong>Profile information:</strong>
+                        information such as your name, email address and
+                        other details you choose to provide.
+                    </li>
+                    <li>
+                        <strong>Booking information:</strong>
+                        selected services, service address, booking status
+                        and related transaction references.
+                    </li>
+                    <li>
+                        <strong>Support messages:</strong>
+                        information you provide when reporting an issue
+                        or requesting assistance.
+                    </li>
+                    <li>
+                        <strong>Technical information:</strong>
+                        limited device, browser or log information where
+                        the website or its infrastructure records it.
+                    </li>
+                </ul>
+
+                <p>
+                    The exact information collected depends on the features
+                    implemented and the permissions you grant.
+                </p>
+            </section>
+
+            <section class="policy-section" id="usage">
+                <h3>
+                    <span class="section-number">02</span>
+                    How information is used
+                </h3>
+
+                <p>
+                    Information may be used for legitimate platform
+                    operations, including:
+                </p>
+
+                <ul>
+                    <li>Creating and managing your customer account.</li>
+                    <li>Processing bookings and displaying their status.</li>
+                    <li>Finding available service providers for a booking.</li>
+                    <li>Sending relevant service and account notifications.</li>
+                    <li>Responding to support requests and resolving disputes.</li>
+                    <li>Protecting accounts and identifying suspicious activity.</li>
+                    <li>Maintaining and improving website functionality.</li>
+                </ul>
+
+                <p>
+                    Any additional use should be explained to customers and
+                    handled in accordance with applicable requirements.
+                </p>
+            </section>
+
+            <section class="policy-section" id="location">
+                <h3>
+                    <span class="section-number">03</span>
+                    Location information
+                </h3>
+
+                <p>
+                    If you enter a service address or choose to share your
+                    location, that information may be used to determine service
+                    availability and match a booking with an eligible provider.
+                </p>
+
+                <p>
+                    Browser-based location access generally requires
+                    permission. You can manage location permissions through
+                    your browser or device settings.
+                </p>
+
+                <p>
+                    The project should collect and display only the location
+                    details necessary for the service and should explain
+                    any additional use clearly.
+                </p>
+            </section>
+
+            <section class="policy-section" id="sharing">
+                <h3>
+                    <span class="section-number">04</span>
+                    When information may be shared
+                </h3>
+
+                <p>
+                    Information may need to be processed by systems or people
+                    involved in providing the service, subject to the
+                    platform's actual workflow and applicable safeguards.
+                </p>
+
+                <ul>
+                    <li>
+                        <strong>Service fulfilment:</strong>
+                        limited booking details may be needed to arrange
+                        the requested service.
+                    </li>
+                    <li>
+                        <strong>Technology providers:</strong>
+                        hosting, messaging or other providers may process
+                        information if the project uses their services.
+                    </li>
+                    <li>
+                        <strong>Legal or safety requirements:</strong>
+                        information may be disclosed where required by
+                        applicable law or a valid legal process.
+                    </li>
+                </ul>
+
+                <p>
+                    Customer and worker personal phone numbers should not be
+                    exposed on pages where they are not required. Access to
+                    personal information should be limited to authorized
+                    purposes.
+                </p>
+            </section>
+
+            <section class="policy-section" id="security">
+                <h3>
+                    <span class="section-number">05</span>
+                    Data security
+                </h3>
+
+                <p>
+                    Sivdhi should use appropriate technical and organizational
+                    safeguards to protect information against unauthorized
+                    access, alteration, disclosure or loss.
+                </p>
+
+                <p>
+                    Safeguards may include access controls, secure password
+                    handling, protected connections, server-side validation
+                    and appropriate database permissions.
+                </p>
+
+                <p>
+                    No website or electronic storage system can guarantee
+                    absolute security. Never send passwords, OTPs, PINs or
+                    full payment credentials through ordinary support messages.
+                </p>
+            </section>
+
+            <section class="policy-section" id="retention">
+                <h3>
+                    <span class="section-number">06</span>
+                    How long information is retained
+                </h3>
+
+                <p>
+                    Information should be retained only as long as necessary
+                    for the purpose for which it was collected, subject to
+                    applicable legal, accounting, security and dispute
+                    resolution requirements.
+                </p>
+
+                <p>
+                    The specific retention periods should be established
+                    according to the real database, operational needs and
+                    legal obligations of the service.
+                </p>
+            </section>
+
+            <section class="policy-section" id="rights">
+                <h3>
+                    <span class="section-number">07</span>
+                    Your choices and rights
+                </h3>
+
+                <p>
+                    Depending on applicable law, you may have rights or
+                    options regarding your personal information, including
+                    requesting access to or correction of certain details,
+                    changing notification preferences or seeking deletion
+                    where permitted.
+                </p>
+
+                <p>
+                    You can review your profile and the available settings
+                    through your account. Some information may need to be
+                    retained when required by law or for legitimate operational
+                    and dispute-resolution purposes.
+                </p>
+
+                <p>
+                    To ask a question or make a request, use the Help &amp;
+                    Support page.
+                </p>
+            </section>
+
+            <section class="policy-section" id="children">
+                <h3>
+                    <span class="section-number">08</span>
+                    Children's privacy
+                </h3>
+
+                <p>
+                    Sivdhi should define appropriate eligibility requirements
+                    for its services and avoid collecting personal information
+                    from children where doing so is not permitted.
+                </p>
+
+                <p>
+                    If you believe that personal information has been
+                    submitted inappropriately, contact support so the matter
+                    can be reviewed.
+                </p>
+            </section>
+
+            <section class="policy-section" id="changes">
+                <h3>
+                    <span class="section-number">09</span>
+                    Changes to this policy
+                </h3>
+
+                <p>
+                    This policy may need updating when website features,
+                    information practices or applicable legal requirements
+                    change.
+                </p>
+
+                <p>
+                    Any published version should indicate its effective or
+                    last-updated date and explain material changes where
+                    appropriate.
+                </p>
+            </section>
+
+            <section class="policy-section" id="contact">
+                <h3>
+                    <span class="section-number">10</span>
+                    Contact and questions
+                </h3>
+
+                <p>
+                    For privacy-related questions, requests or concerns,
+                    use the available customer support channel.
+                </p>
+
+                <p>
+                    Do not include your password, OTP, PIN or full bank
+                    account number when contacting support.
+                </p>
+
+                <p>
+                    <a href="{{ url_for('customer.help') }}"
+                       style="color:#6d28d9;font-weight:700;text-decoration:none;">
+                        Open Help &amp; Support →
+                    </a>
+                </p>
+            </section>
+        </article>
+
+        <section class="contact-card">
+            <div class="contact-icon" aria-hidden="true">💬</div>
+
+            <div class="contact-content">
+                <h3>Have a privacy question?</h3>
+                <p>Contact support with your question or concern.</p>
+            </div>
+
+            <a href="{{ url_for('customer.help') }}"
+               class="contact-button">
+                Get help
+            </a>
+        </section>
+
+        <footer class="footer-note">
+            This template is not a substitute for a reviewed privacy policy.
+            Confirm the actual data practices and applicable legal
+            requirements before publishing it.
+        </footer>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a href="{{ url_for('customer.home') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>Home</span>
+        </a>
+
+        <a href="{{ url_for('customer.bookings') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">▣</span>
+            <span>Bookings</span>
+        </a>
+
+        <a href="{{ url_for('customer.profile') }}"
+           class="nav-item active"
+           aria-current="page">
+            <span class="nav-icon" aria-hidden="true">♙</span>
+            <span>Profile</span>
+        </a>
+    </nav>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partner Jobs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Poppins, sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            padding-bottom: 90px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            padding: 25px;
+            color: white;
+            border-radius: 0 0 25px 25px;
+        }
+
+        .flash {
+            margin: 16px 15px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+        .flash.success { background: #dcfce7; color: #166534; }
+        .flash.danger, .flash.error { background: #fee2e2; color: #991b1b; }
+        .flash.warning { background: #fef3c7; color: #92400e; }
+        .flash.info { background: #dbeafe; color: #1e40af; }
+
+        .job {
+            margin: 15px;
+            background: white;
+            padding: 18px;
+            border-radius: 18px;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, .08);
+        }
+
+        .service {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .info {
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: #fff7cc;
+            color: #b8860b;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .buttons a,
+        .buttons form {
+            flex: 1;
+            min-width: 120px;
+            text-decoration: none;
+        }
+
+        .buttons button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .details {
+            background: #2563eb;
+            color: white;
+        }
+
+        .call {
+            background: #22c55e;
+            color: white;
+        }
+
+        .accept {
+            background: #16a34a;
+            color: white;
+        }
+
+        .reject {
+            background: #dc2626;
+            color: white;
+        }
+
+        .empty {
+            margin: 20px;
+            padding: 40px;
+            background: white;
+            text-align: center;
+            border-radius: 15px;
+            color: #777;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, .08);
+        }
+
+        .bottom {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, .08);
+        }
+
+        .bottom a {
+            text-decoration: none;
+            color: #555;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .active {
+            color: #2563eb;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    <div class="header">
+        <h2>💼 My Jobs</h2>
+        <p>view your jobs</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ category|e }}" role="status" aria-live="polite">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% for job in jobs %}
+    {% set status = (job['job_status'] or 'pending')|lower %}
+    <div class="job">
+        <div class="service">
+            {{ job['service'] or job['category'] or 'Service' }}
+        </div>
+
+        <div class="info">
+            👤 {{ job['customer_name'] or 'Customer' }}
+        </div>
+
+        {% if job['customer_mobile'] %}
+        <div class="info">📱 {{ job['customer_mobile'] }}</div>
+        {% endif %}
+
+        {% if job['booking_date'] %}
+        <div class="info">📅 {{ job['booking_date'] }}</div>
+        {% endif %}
+
+        {% if job['booking_time'] %}
+        <div class="info">🕒 {{ job['booking_time'] }}</div>
+        {% endif %}
+
+        {% if job['amount'] is not none %}
+        <div class="info">
+            💰 ₹{{ '%.2f'|format(job['amount']|float) }}
+        </div>
+        {% endif %}
+
+        <div class="status">
+            {{ status.replace('_',' ')|title }}
+        </div>
+
+        <div class="buttons">
+            <a href="/partner/job/{{ job['job_id'] }}">
+                <button type="button" class="details">
+                    View Details
+                </button>
+            </a>
+
+            {% if job['customer_mobile'] %}
+            <a href="tel:{{ job['customer_mobile'] }}">
+                <button type="button" class="call">
+                    📞 Customer
+                </button>
+            </a>
+            {% endif %}
+        </div>
+
+        {% if status in ['assigned', 'pending'] %}
+        <div class="buttons">
+
+            {% if not job['partner_acknowledged_at'] %}
+            <form
+                method="POST"
+                action="/partner/job/{{ job['id'] }}/accept"
+                onsubmit="this.querySelector('button').disabled=true;"
+            >
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token() }}"
+                >
+
+                <button type="submit" class="accept">
+                    ✓ Acknowledge
+                </button>
+            </form>
+            {% else %}
+            <button type="button" class="accept" disabled>
+                ✓ Acknowledged
+            </button>
+            {% endif %}
+
+            <form
+                method="POST"
+                action="/partner/job/{{ job['id'] }}/reject"
+                onsubmit="return rejectJob(this);"
+            >
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token() }}"
+                >
+
+                <input type="hidden" name="reason" value="">
+
+                <button type="submit" class="reject">
+                    ✕ Reject
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <div class="empty">No Jobs found</div>
+    {% endfor %}
+
+    <div class="bottom">
+        <a href="/partner/home">🏠<br>Home</a>
+        <a href="/partner/workers">👷<br>Workers</a>
+        <a class="active" href="/partner/jobs">💼<br>Jobs</a>
+        <a href="/partner/wallet">💰<br>Wallet</a>
+        <a href="/partner/profile">👤<br>Profile</a>
+    </div>
+
+    <script>
+        function rejectJob(form) {
+            const reason = prompt(
+                'Reason for rejecting this job (optional):',
+                'Rejected by partner'
+            );
+
+            if (reason === null) {
+                return false;
+            }
+
+            form.querySelector('input[name="reason"]').value =
+                reason.trim().slice(0, 500) || 'Rejected by partner';
+
+            const button = form.querySelector('button');
+
+            if (button) {
+                button.disabled = true;
+            }
+
+            return true;
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Terms & Conditions</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:30px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:30px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+margin-bottom:5px;
+}
+
+.card{
+margin:18px;
+background:white;
+padding:22px;
+border-radius:18px;
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+line-height:26px;
+font-size:15px;
+color:#4b5563;
+}
+
+.card h3{
+margin-top:20px;
+margin-bottom:10px;
+color:#111827;
+}
+
+.card h3:first-child{
+margin-top:0;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>
+📄 Terms & Conditions
+</h2>
+
+<p>
+Please read these terms carefully.
+</p>
+
+</div>
+
+<div class="card">
+
+<h3>Acceptance</h3>
+
+<p>
+By using the Sivdhi Partner platform, you agree to follow all applicable rules, policies and these Terms & Conditions.
+</p>
+
+<h3>Partner Responsibility</h3>
+
+<p>
+Partners are responsible for providing accurate information, maintaining account security and ensuring all services are delivered professionally.
+</p>
+
+<h3>Payments</h3>
+
+<p>
+Earnings are credited to the partner wallet according to completed jobs. Withdrawal requests are processed only after admin approval.
+</p>
+
+<h3>Account Suspension</h3>
+
+<p>
+Sivdhi reserves the right to suspend or terminate any account involved in fraud, misuse or activities that violate platform policies.
+</p>
+
+<h3>Privacy</h3>
+
+<p>
+Your personal information is handled according to our Privacy Policy and is used only for providing Sivdhi services.
+</p>
+
+<h3>Changes</h3>
+
+<p>
+Sivdhi may update these Terms & Conditions at any time. Continued use of the platform means you accept the updated terms.
+</p>
+
+<h3>Contact</h3>
+
+<p>
+For any questions related to these Terms & Conditions, please contact the Sivdhi Support Team.
+</p>
+
+</div>
+
+</body>
+
+</html>

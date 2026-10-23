@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+>
+
+<title>Check for Update</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:40px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:30px 20px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+font-size:26px;
+}
+
+.header p{
+margin-top:5px;
+font-size:14px;
+opacity:.9;
+}
+
+.card{
+margin:20px;
+background:white;
+padding:30px 22px;
+border-radius:20px;
+box-shadow:0 6px 15px rgba(0,0,0,.08);
+text-align:center;
+}
+
+.icon{
+font-size:65px;
+margin-bottom:15px;
+}
+
+.title{
+font-size:22px;
+font-weight:bold;
+color:#111827;
+margin-bottom:10px;
+}
+
+.message{
+font-size:15px;
+color:#666;
+line-height:25px;
+margin-bottom:25px;
+}
+
+.version{
+background:#f3f4f6;
+padding:14px;
+border-radius:12px;
+margin-bottom:20px;
+}
+
+.version-label{
+font-size:13px;
+color:#6b7280;
+}
+
+.version-number{
+font-size:18px;
+font-weight:bold;
+color:#111827;
+margin-top:4px;
+}
+
+.success{
+background:#dcfce7;
+color:#166534;
+padding:15px;
+border-radius:12px;
+font-weight:600;
+}
+
+.update{
+background:#dbeafe;
+color:#1d4ed8;
+padding:15px;
+border-radius:12px;
+font-weight:600;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+<div class="header">
+
+<h2>🔄 Check for Update</h2>
+
+<p>
+Keep your Sivdhi Partner app updated
+</p>
+
+</div>
+
+
+<div class="card">
+
+
+<div class="icon">
+
+{% if update_available %}
+
+🚀
+
+{% else %}
+
+✅
+
+{% endif %}
+
+</div>
+
+
+<div class="title">
+
+{% if update_available %}
+
+Update Available
+
+{% else %}
+
+You're Up to Date
+
+{% endif %}
+
+</div>
+
+
+<div class="message">
+
+{% if update_available %}
+
+A new version of Sivdhi Partner is available.
+
+{% else %}
+
+You are using the latest version of Sivdhi Partner.
+
+{% endif %}
+
+</div>
+
+
+<div class="version">
+
+<div class="version-label">
+
+Current Version
+
+</div>
+
+<div class="version-number">
+
+v{{ current_version }}
+
+</div>
+
+</div>
+
+
+{% if update_available %}
+
+<div class="update">
+
+New Version Available:
+v{{ latest_version }}
+
+</div>
+
+{% else %}
+
+<div class="success">
+
+✓ Latest version installed
+
+</div>
+
+{% endif %}
+
+
+</div>
+
+
+</body>
+
+</html>

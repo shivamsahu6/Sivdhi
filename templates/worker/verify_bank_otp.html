@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Verify Bank OTP</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+padding:20px;
+}
+
+.card{
+width:100%;
+max-width:420px;
+background:white;
+padding:35px;
+border-radius:22px;
+box-shadow:0 10px 25px rgba(0,0,0,.12);
+text-align:center;
+}
+
+.icon{
+font-size:60px;
+margin-bottom:20px;
+}
+
+h2{
+color:#2563eb;
+margin-bottom:10px;
+}
+
+.message{
+margin:18px 0;
+padding:14px;
+border-radius:12px;
+font-size:15px;
+font-weight:bold;
+}
+
+.success{
+background:#dcfce7;
+color:#166534;
+}
+
+.danger{
+background:#fee2e2;
+color:#b91c1c;
+}
+
+p{
+color:#666;
+font-size:15px;
+margin-bottom:25px;
+line-height:24px;
+}
+
+input{
+width:100%;
+padding:16px;
+border:1px solid #ddd;
+border-radius:12px;
+font-size:20px;
+text-align:center;
+letter-spacing:5px;
+margin-bottom:18px;
+outline:none;
+transition:.3s;
+}
+
+input:focus{
+border-color:#2563eb;
+box-shadow:0 0 8px rgba(37,99,235,.15);
+}
+
+button{
+width:100%;
+padding:15px;
+border:none;
+border-radius:12px;
+background:#2563eb;
+color:white;
+font-size:17px;
+font-weight:bold;
+cursor:pointer;
+transition:.3s;
+}
+
+button:hover{
+background:#1d4ed8;
+}
+
+.resend{
+margin-top:18px;
+display:inline-block;
+text-decoration:none;
+font-size:15px;
+color:#2563eb;
+font-weight:bold;
+}
+
+.resend:hover{
+text-decoration:underline;
+}
+
+
+.resend-form{margin-top:12px}
+button.resend-button{padding:0;border:0;background:transparent;font:inherit;cursor:pointer}
+button.resend-button:hover{background:transparent;text-decoration:underline}
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="card">
+
+<div class="icon">
+
+📩
+
+</div>
+
+<h2>
+
+Verify OTP
+
+</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+
+{% if messages %}
+
+{% for category,message in messages %}
+
+<div class="message {{ category }}">
+
+{{ message }}
+
+</div>
+
+{% endfor %}
+
+{% endif %}
+
+{% endwith %}
+
+<p>
+
+Enter the 6-digit OTP sent to your registered email.
+
+</p>
+
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<input
+type="text"
+name="otp"
+maxlength="6"
+inputmode="numeric"
+pattern="[0-9]{6}"
+placeholder="Enter OTP"
+required>
+
+<button>
+
+Verify OTP
+
+</button>
+
+</form>
+
+<form method="POST" action="/worker/resend-bank-otp" class="resend-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button type="submit" class="resend resend-button">Resend OTP</button>
+</form>
+
+</div>
+
+<script>
+
+setTimeout(function(){
+
+const alerts=document.querySelectorAll(".message");
+
+alerts.forEach(function(alert){
+
+alert.style.transition=".5s";
+alert.style.opacity="0";
+alert.style.transform="translateY(-20px)";
+
+setTimeout(function(){
+
+alert.remove();
+
+},500);
+
+});
+
+},2000);
+
+</script>
+
+</body>
+
+</html>

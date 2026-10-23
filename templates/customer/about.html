@@ -1,0 +1,326 @@
+<!-- templates/customer/about.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+
+    <title>About Sivdhi | Sivdhi</title>
+
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190, 130, 255, .20);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            min-height: 100%;
+            background: var(--bg);
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            padding-bottom: calc(85px + env(safe-area-inset-bottom));
+            background:
+                radial-gradient(
+                    ellipse at 0 0,
+                    rgba(255, 67, 140, .09),
+                    transparent 40%
+                ),
+                radial-gradient(
+                    ellipse at 100% 45%,
+                    rgba(86, 109, 255, .09),
+                    transparent 42%
+                ),
+                var(--bg);
+            color: var(--text);
+            font-family: Inter, -apple-system, BlinkMacSystemFont,
+                "Segoe UI", Arial, sans-serif;
+        }
+
+        .header {
+            padding: 29px 22px 32px;
+            color: white;
+            background: linear-gradient(
+                120deg,
+                #a42470,
+                #7625b9,
+                #3939a8
+            );
+            border-bottom: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 0 0 26px 26px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::after {
+            content: "";
+            position: absolute;
+            width: 190px;
+            height: 190px;
+            top: -85px;
+            right: -60px;
+            border: 25px solid rgba(255, 255, 255, .08);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .header h1 {
+            position: relative;
+            z-index: 1;
+            margin: 0;
+            font-size: 25px;
+            font-weight: 800;
+            letter-spacing: -.5px;
+        }
+
+        .header p {
+            position: relative;
+            z-index: 1;
+            margin: 8px 0 0;
+            color: rgba(255, 255, 255, .83);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 22px 15px;
+        }
+
+        .card {
+            padding: 27px 22px;
+            background: rgba(23, 18, 31, .96);
+            border: 1px solid var(--border);
+            border-radius: 23px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, .20);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 88px;
+            height: 88px;
+            margin: 0 auto 19px;
+            border: 1px solid rgba(255, 255, 255, .24);
+            border-radius: 27px;
+            background: linear-gradient(
+                135deg,
+                var(--pink),
+                var(--purple),
+                var(--blue)
+            );
+            color: white;
+            font-size: 39px;
+            font-weight: 900;
+            box-shadow: 0 10px 28px rgba(164, 77, 255, .23);
+        }
+
+        .title {
+            margin-bottom: 8px;
+            color: var(--text);
+            text-align: center;
+            font-size: 25px;
+            font-weight: 850;
+            letter-spacing: -.5px;
+        }
+
+        .version {
+            margin-bottom: 24px;
+            color: #d7a5ff;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .text {
+            color: #c2b5d1;
+            font-size: 13px;
+            line-height: 1.95;
+            text-align: left;
+            overflow-wrap: anywhere;
+        }
+
+        .info {
+            padding-top: 10px;
+            margin-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, .09);
+        }
+
+        .item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, .07);
+        }
+
+        .item:last-child {
+            padding-bottom: 3px;
+            border-bottom: none;
+        }
+
+        .label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .value {
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 700;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+
+        /* Customer's persistent three-tab navigation */
+        .bottom-nav {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            padding: 9px 14px calc(9px + env(safe-area-inset-bottom));
+            border-top: 1px solid rgba(190, 130, 255, .16);
+            background: rgba(17, 13, 24, .96);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 5px;
+            min-height: 49px;
+            color: #897b99;
+            text-decoration: none;
+            font-size: 10px;
+            font-weight: 650;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+            line-height: 1.15;
+        }
+
+        .nav-item.active {
+            color: #ff72b6;
+        }
+
+        a:focus-visible {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        @media (max-width: 380px) {
+            .header {
+                padding: 25px 18px 28px;
+            }
+
+            .page {
+                padding: 18px 12px;
+            }
+
+            .card {
+                padding: 24px 17px;
+            }
+
+            .item {
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+    <header class="header">
+        <h1>📄 About Sivdhi</h1>
+        <p>Know more about the application</p>
+    </header>
+
+    <main class="page">
+        <section class="card">
+
+            <div class="logo" aria-hidden="true">S</div>
+
+            <div class="title">Sivdhi Customer</div>
+
+            <div class="version">VERSION 1.0.0</div>
+
+            <div class="text">
+                Sivdhi Customer is a service platform that helps customers
+                explore available services, review prices, place booking
+                requests and check their booking status in one place.
+
+                Our goal is to provide customers with a simple, convenient
+                and easy-to-understand experience when accessing services
+                through the platform.
+            </div>
+
+            <div class="info">
+                <div class="item">
+                    <span class="label">Developer</span>
+                    <span class="value">Sivdhi Team</span>
+                </div>
+
+                <div class="item">
+                    <span class="label">Version</span>
+                    <span class="value">1.0.0</span>
+                </div>
+
+                <div class="item">
+                    <span class="label">Copyright</span>
+                    <span class="value">© 2026 Sivdhi</span>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a href="{{ url_for('customer.home') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>Home</span>
+        </a>
+
+        <a href="{{ url_for('customer.bookings') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">▣</span>
+            <span>Bookings</span>
+        </a>
+
+        <a href="{{ url_for('customer.profile') }}"
+           class="nav-item active"
+           aria-current="page">
+            <span class="nav-icon" aria-hidden="true">♙</span>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+</body>
+</html>

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>My Bookings | Sivdhi</title>
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190, 130, 255, .20);
+            --green: #78e5b0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background:
+                radial-gradient(ellipse at 0 0, rgba(255, 67, 140, .08), transparent 38%),
+                radial-gradient(ellipse at 100% 55%, rgba(115, 67, 255, .08), transparent 42%),
+                var(--bg);
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        .app {
+            max-width: 900px;
+            min-height: 100vh;
+            margin: auto;
+            padding: 0 20px 120px;
+        }
+
+        .header {
+            min-height: 74px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, .065);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 41px;
+            height: 41px;
+            display: grid;
+            place-items: center;
+            border-radius: 13px;
+            background: linear-gradient(135deg, var(--pink), var(--purple), var(--blue));
+            color: #fff;
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .brand-name {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -.7px;
+        }
+
+        .brand-name span {
+            color: #ff72b6;
+        }
+
+        .brand-caption {
+            display: block;
+            margin-top: 3px;
+            color: #9788a6;
+            font-size: 8px;
+            letter-spacing: 1.2px;
+        }
+
+        .intro {
+            padding: 29px 0 21px;
+        }
+
+        .eyebrow {
+            color: #e0acff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 10px 0 0;
+            font-size: clamp(27px, 4vw, 35px);
+            letter-spacing: -1px;
+        }
+
+        .intro p {
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .booking-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .booking-card {
+            padding: 18px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: radial-gradient(ellipse at 100% 0, rgba(164, 77, 255, .09), transparent 55%),
+                linear-gradient(145deg, #1b1526, #110d18);
+        }
+
+        .booking-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .booking-service {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .booking-service h2 {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .booking-id {
+            display: block;
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 10px;
+            overflow-wrap: anywhere;
+        }
+
+        .status {
+            max-width: 45%;
+            flex-shrink: 0;
+            padding: 7px 9px;
+            border: 1px solid rgba(190, 130, 255, .22);
+            border-radius: 10px;
+            background: rgba(164, 77, 255, .08);
+            color: #e7bbff;
+            font-size: 9px;
+            font-weight: 800;
+            text-align: center;
+            overflow-wrap: anywhere;
+        }
+
+        .status.completed {
+            border-color: rgba(120, 229, 176, .25);
+            background: rgba(120, 229, 176, .06);
+            color: #9cebc1;
+        }
+
+        .status.cancelled,
+        .status.failed {
+            border-color: rgba(255, 139, 168, .23);
+            background: rgba(255, 67, 140, .06);
+            color: #ffafc3;
+        }
+
+        .divider {
+            height: 1px;
+            margin: 15px 0;
+            background: rgba(255, 255, 255, .07);
+        }
+
+        .booking-info {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 15px;
+        }
+
+        .wide {
+            grid-column: 1/-1;
+        }
+
+        .info-label {
+            display: block;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .info-value {
+            display: block;
+            margin-top: 5px;
+            color: #f2e8fc;
+            font-size: 11px;
+            font-weight: 650;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .booking-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 17px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, .07);
+        }
+
+        .amount-label {
+            display: block;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .amount {
+            display: block;
+            margin-top: 5px;
+            color: #ff9ccd;
+            font-size: 21px;
+            font-weight: 800;
+        }
+
+        .mode-label {
+            padding: 7px 9px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: #d9b4f8;
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+        .balance-panel {
+            margin-top: 15px;
+            padding: 14px;
+            border: 1px solid rgba(120, 229, 176, .25);
+            border-radius: 14px;
+            background: rgba(120, 229, 176, .055);
+        }
+
+        .balance-title {
+            color: #baf6d5;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .balance-copy {
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .pay-button,
+        .primary-button {
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            margin-top: 13px;
+            padding: 0 16px;
+            border: 0;
+            border-radius: 12px;
+            background: linear-gradient(105deg, var(--pink), var(--purple), var(--blue));
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .pay-button {
+            width: 100%;
+            background: linear-gradient(105deg, #16a36a, #0f766e);
+            font-size: 12px;
+        }
+
+        .pay-button:disabled {
+            opacity: .55;
+            cursor: wait;
+        }
+
+        .empty-state {
+            padding: 35px 18px;
+            border: 1px dashed var(--border);
+            border-radius: 18px;
+            text-align: center;
+        }
+
+        .empty-state h2 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .empty-state p {
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.8;
+        }
+
+        .flash-list {
+            display: grid;
+            gap: 8px;
+            margin: 14px 0;
+        }
+
+        .flash {
+            padding: 11px 13px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: #e7d5f7;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .flash.success {
+            color: #a8f2ce;
+        }
+
+        .flash.warning,
+        .flash.danger {
+            color: #ffb5c8;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            z-index: 5;
+            left: 50%;
+            bottom: max(9px, env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            width: min(490px, calc(100vw - 28px));
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 4px;
+            padding: 7px;
+            border: 1px solid rgba(196, 133, 255, .22);
+            border-radius: 21px;
+            background: rgba(17, 13, 24, .96);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, .45);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-item {
+            min-height: 47px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-radius: 13px;
+            color: #9d90aa;
+            font-size: 18px;
+        }
+
+        .nav-item small {
+            font-size: 10px;
+        }
+
+        .nav-item.active {
+            background: rgba(164, 77, 255, .12);
+            color: #ff89c1;
+        }
+
+        @media(max-width:560px) {
+            .app {
+                padding: 0 14px 120px;
+            }
+
+            .header {
+                min-height: 66px;
+            }
+
+            .booking-card {
+                padding: 14px;
+            }
+
+            .booking-service h2 {
+                font-size: 12px;
+            }
+
+            .amount {
+                font-size: 19px;
+            }
+        }
+
+        @media(prefers-reduced-motion:reduce) {
+
+            *,
+            *::before,
+            *::after {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    <div class="app">
+        <header class="header">
+            <a class="brand" href="{{ url_for('customer.home') }}" aria-label="Sivdhi Home">
+                <div class="brand-icon">S</div>
+                <div>
+                    <div class="brand-name">Sivdhi<span>.</span></div>
+                    <span class="brand-caption">HOME SERVICES</span>
+                </div>
+            </a>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-list" aria-live="polite">
+            {% for category, message in messages %}
+            <div class="flash {{ category|e }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <main>
+            <section class="intro">
+                <div class="eyebrow">● YOUR ACTIVITY</div>
+                <h1>My Bookings</h1>
+                <p>View your service bookings, payment status and remaining balance.</p>
+            </section>
+
+            {% if bookings %}
+            <section class="booking-list">
+                {% for booking in bookings %}
+                {% set status_text = booking['customer_status_label']|default('Booking Confirmed') %}
+                {% set status_key = status_text|string|lower %}
+                {% set mode_text = booking['booking_type']|default(booking['booking_mode']|default('normal')) %}
+                {% set balance_due = booking['balance_due_amount']|default(0)|float %}
+                {% set balance_state = booking['balance_payment_status']|default('DUE')|string|upper %}
+                {% set paid_states = ['PAID', 'SUCCESS', 'DEMO_PAID', 'COLLECTED', 'COMPLETED'] %}
+                {% set total_value =
+                booking['total_amount']|default(booking['amount']|default(booking['service_charge']|default(0)))|float
+                %}
+                {% set booking_ref = booking['booking_id']|default(booking['id']|default('')) %}
+
+                <article class="booking-card">
+                    <div class="booking-top">
+                        <div class="booking-service">
+                            <h2>{{
+                                booking['service_name']|default(booking['service']|default(booking['category']|default('Home
+                                Service'))) }}</h2>
+                            <span class="booking-id">Booking ID: {{ booking_ref or '—' }}</span>
+                        </div>
+                        <span
+                            class="status {% if 'complete' in status_key %}completed{% elif 'cancel' in status_key or 'fail' in status_key or 'refund' in status_key %}cancelled{% endif %}">
+                            {{ status_text|replace('_',' ')|title }}
+                        </span>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="booking-info">
+                        <div>
+                            <span class="info-label">Service date</span>
+                            <span class="info-value">{{ booking['booking_date'] or booking['created_at'] or 'Not
+                                available' }}</span>
+                        </div>
+                        <div>
+                            <span class="info-label">Service time</span>
+                            <span class="info-value">
+                                {% if mode_text|string|lower in ['full-day','full_day','fullday'] %}
+                                9:00 AM – 5:00 PM
+                                {% else %}
+                                {{ booking['booking_time'] or 'Not available' }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="info-label">Advance recorded</span>
+                            <span class="info-value">₹{{ '%.2f'|format(booking['advance_paid_amount']|default(0)|float)
+                                }}</span>
+                        </div>
+                        <div>
+                            <span class="info-label">Balance due at arrival</span>
+                            <span class="info-value">₹{{ '%.2f'|format(balance_due) }}</span>
+                        </div>
+                        <div class="wide">
+                            <span class="info-label">Payment status</span>
+                            <span class="info-value">{{ booking['payment_status']|default('Not available')|replace('_','
+                                ')|title }}</span>
+                        </div>
+                    </div>
+
+                    <div class="booking-bottom">
+                        <div>
+                            <span class="amount-label">Total booking amount</span>
+                            <span class="amount">₹{{ '%.2f'|format(total_value) }}</span>
+                        </div>
+                        <span class="mode-label">
+                            {% if mode_text|string|lower in ['full-day','full_day','fullday'] %}FULL-DAY{% else
+                            %}NORMAL{% endif %}
+                        </span>
+                    </div>
+
+                    {% if booking['worker_arrived_at'] and balance_due > 0 and balance_state not in paid_states and
+                    status_key not in ['cancelled', 'canceled', 'completed', 'complete', 'refunded', 'failed'] %}
+                    <section class="balance-panel" aria-label="Remaining balance payment">
+                        <div class="balance-title">📍 Worker has arrived</div>
+                        <p class="balance-copy">
+                            Your remaining balance of ₹{{ '%.2f'|format(balance_due) }} is now due.
+                            Your booking advance was recorded earlier.
+                        </p>
+
+                        {% if demo_mode %}
+                        <form method="post"
+                            action="{{ url_for('customer.pay_booking_balance', booking_ref=booking_ref) }}"
+                            onsubmit="const b=this.querySelector('button'); if(!b || b.disabled) return false; b.disabled=true; b.textContent='Recording demo payment…'; return true;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="pay-button" type="submit">
+                                Record ₹{{ '%.2f'|format(balance_due) }} demo balance
+                            </button>
+                        </form>
+                        <p class="balance-copy">
+                            Demo only: this creates a simulated receipt. No real money is collected.
+                        </p>
+                        {% else %}
+                        <button class="pay-button" type="button" disabled>
+                            Live balance payment not configured
+                        </button>
+                        <p class="balance-copy">
+                            No charge was made. Online payment is unavailable until a real payment gateway is
+                            configured.
+                        </p>
+                        {% endif %}
+                    </section>
+
+                    {% elif not booking['worker_arrived_at'] and balance_due > 0 and balance_state not in paid_states
+                    and status_key not in ['cancelled', 'canceled', 'completed', 'complete', 'refunded', 'failed'] %}
+                    <p class="info-label" style="margin-top:14px;line-height:1.8">
+                        Remaining ₹{{ '%.2f'|format(balance_due) }} is payable only after your assigned worker arrives.
+                        You do not need to pay it during booking.
+                    </p>
+
+                    {% elif balance_state in paid_states and balance_due <= 0 and booking['worker_arrived_at'] %}
+                        <section class="balance-panel">
+                        <div class="balance-title">✓ Remaining balance recorded</div>
+                        <p class="balance-copy">
+                            {% if balance_state == 'DEMO_PAID' %}
+                            Demo receipt only. No real money was collected.
+                            {% else %}
+                            The remaining balance is marked as paid.
+                            {% endif %}
+                        </p>
+            </section>
+            {% endif %}
+
+            {% if booking['can_cancel'] %}
+            <form method="post" action="{{ url_for('customer.cancel_booking', booking_ref=booking_ref) }}"
+                style="margin-top:14px" onsubmit="return confirm('Cancel this booking?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="primary-button"
+                    style="background:transparent;border:1px solid #fb7185;color:#fecdd3">
+                    Cancel booking
+                </button>
+            </form>
+            {% elif status_key not in ['cancelled','canceled','completed','complete'] %}
+            <p class="info-label" style="margin-top:12px">
+                Cancellation is unavailable after worker assignment.
+            </p>
+            {% endif %}
+            </article>
+            {% endfor %}
+            </section>
+            {% else %}
+            <section class="empty-state">
+                <h2>No bookings yet</h2>
+                <p>Your booked services will appear here after you complete the booking process.</p>
+                <a class="primary-button" href="{{ url_for('customer.home') }}">Explore Services →</a>
+            </section>
+            {% endif %}
+        </main>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a class="nav-item" href="{{ url_for('customer.home') }}"><span>⌂</span><small>Home</small></a>
+        <a class="nav-item active" href="/customer/bookings"
+            aria-current="page"><span>▤</span><small>Bookings</small></a>
+        <a class="nav-item" href="{{ url_for('customer.profile') }}"><span>♙</span><small>Profile</small></a>
+    </nav>
+</body>
+
+</html>

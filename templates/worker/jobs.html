@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Jobs | Sivdhi</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Poppins, Arial, sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            color: #1e293b;
+            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            padding: 25px;
+            color: white;
+            border-radius: 0 0 25px 25px;
+        }
+
+        .header h2 {
+            font-size: 22px;
+            margin-bottom: 7px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.86);
+        }
+
+        .job {
+            background: white;
+            margin: 15px;
+            padding: 18px;
+            border-radius: 18px;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, .08);
+            overflow-wrap: anywhere;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #1e293b;
+        }
+
+        .info {
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: #fff7cc;
+            color: #b8860b;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+        }
+
+        .accept {
+            background: #22c55e;
+            color: white;
+        }
+
+        .reject {
+            background: #ef4444;
+            color: white;
+        }
+
+        .details {
+            background: #2563eb;
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 50px 20px;
+            color: #777;
+            font-size: 14px;
+        }
+
+        /* Same footer layout on all worker pages */
+        .bottom {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: calc(70px + env(safe-area-inset-bottom, 0px));
+            box-sizing: border-box;
+            padding: 5px 4px env(safe-area-inset-bottom, 0px);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            background: #ffffff;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+        }
+
+        .bottom a {
+            flex: 1 1 25%;
+            min-width: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            padding: 5px 2px;
+            box-sizing: border-box;
+            text-decoration: none;
+            color: #555555;
+            font-size: 12px;
+            line-height: 1.2;
+            text-align: center;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .bottom a > span:first-child {
+            display: block;
+            font-size: 20px;
+            line-height: 1.1;
+        }
+
+        .bottom a .nav-label {
+            display: block;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .bottom a.active {
+            color: #2563eb;
+            font-weight: 700;
+        }
+
+        .bottom a:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: -3px;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 380px) {
+            .bottom a,
+            .bottom a .nav-label {
+                font-size: 11px;
+            }
+
+            .bottom a > span:first-child {
+                font-size: 19px;
+            }
+
+            .header {
+                padding: 22px 16px;
+            }
+
+            .header h2 {
+                font-size: 20px;
+            }
+
+            .job {
+                margin: 12px;
+                padding: 15px;
+            }
+
+            .title {
+                font-size: 18px;
+            }
+
+            .buttons {
+                gap: 8px;
+            }
+
+            button {
+                padding: 11px 8px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+    <header class="header">
+        <h2>💼 My Jobs</h2>
+        <p>All Assigned Jobs</p>
+    </header>
+
+    {% for job in jobs %}
+        {% set status = (job["booking_status"] or job["status"] or "pending")|lower %}
+
+        <div class="job" data-job-id="{{ job['id'] }}">
+
+            <div class="title">
+                {{ job["service"] or job["category"] or "Service Booking" }}
+            </div>
+
+            <div class="info">
+                👤 {{ job["customer_name"] or "Customer" }}
+            </div>
+
+            <div class="info">
+                📍 {{ job["customer_address"] or job["address"] or "Address not available" }}
+            </div>
+
+            {% if job["booking_date"] %}
+                <div class="info">📅 {{ job["booking_date"] }}</div>
+            {% endif %}
+
+            {% if job["booking_time"] %}
+                <div class="info">🕒 {{ job["booking_time"] }}</div>
+            {% endif %}
+
+            <div class="status">
+                {{ status|replace('_', ' ')|title }}
+            </div>
+
+            {% if status in ['assigned', 'pending'] %}
+                <div class="buttons">
+                    <button
+                        type="button"
+                        class="accept job-action"
+                        data-job-id="{{ job['id'] }}"
+                        data-action="accept"
+                    >Accept</button>
+
+                    <button
+                        type="button"
+                        class="reject job-action"
+                        data-job-id="{{ job['id'] }}"
+                        data-action="reject"
+                    >Reject</button>
+                </div>
+
+            {% elif status == 'accepted' %}
+                <div class="buttons">
+                    <button
+                        type="button"
+                        class="accept job-action"
+                        data-job-id="{{ job['id'] }}"
+                        data-action="start"
+                    >Start Job</button>
+                </div>
+
+            {% elif status in ['started', 'in_progress'] %}
+                <div class="buttons">
+                    <button
+                        type="button"
+                        class="accept job-action"
+                        data-job-id="{{ job['id'] }}"
+                        data-action="complete"
+                    >Complete Job</button>
+                </div>
+            {% endif %}
+
+            <button
+                type="button"
+                class="details job-details"
+                data-job-id="{{ job['id'] }}"
+            >View Details</button>
+
+        </div>
+
+    {% else %}
+        <div class="empty">No Jobs Available</div>
+    {% endfor %}
+
+    <nav class="bottom" aria-label="Worker navigation">
+        <a href="{{ url_for('worker.worker_home') }}">
+            <span aria-hidden="true">🏠</span>
+            <span class="nav-label">Home</span>
+        </a>
+
+        <a class="active"
+           href="{{ url_for('worker.worker_jobs') }}"
+           aria-current="page">
+            <span aria-hidden="true">💼</span>
+            <span class="nav-label">Jobs</span>
+        </a>
+
+        <a href="{{ url_for('worker.wallet') }}">
+            <span aria-hidden="true">💰</span>
+            <span class="nav-label">Wallet</span>
+        </a>
+
+        <a href="{{ url_for('worker.profile') }}">
+            <span aria-hidden="true">👤</span>
+            <span class="nav-label">Profile</span>
+        </a>
+    </nav>
+
+    <script>
+        document.querySelectorAll(".job-action").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const jobId = this.dataset.jobId;
+                const action = this.dataset.action;
+
+                if (action === "reject") {
+                    rejectJob(jobId, this);
+                } else {
+                    updateJob(jobId, action, this);
+                }
+            });
+        });
+
+        document.querySelectorAll(".job-details").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const jobId = this.dataset.jobId;
+
+                if (jobId) {
+                    window.location.href =
+                        "/worker/job/" + encodeURIComponent(jobId);
+                }
+            });
+        });
+
+        async function postJobAction(url, button) {
+            if (button) {
+                button.disabled = true;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRFToken":
+                            document.querySelector(
+                                'meta[name="csrf-token"]'
+                            )?.content || ""
+                    }
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || "Request failed.");
+                }
+
+                window.location.reload();
+            } catch (error) {
+                alert(error.message || "Something went wrong.");
+
+                if (button) {
+                    button.disabled = false;
+                }
+            }
+        }
+
+        function updateJob(jobId, action, button) {
+            const encodedJobId = encodeURIComponent(jobId);
+
+            const endpoints = {
+                accept: `/worker/job/${encodedJobId}/accept`,
+                start: `/worker/job/${encodedJobId}/start`,
+                complete: `/worker/job/${encodedJobId}/complete`
+            };
+
+            if (!endpoints[action]) {
+                return;
+            }
+
+            postJobAction(endpoints[action], button);
+        }
+
+        function rejectJob(jobId, button) {
+            const reason = window.prompt(
+                "Reason for rejecting this job:",
+                "Worker rejected the job."
+            );
+
+            if (reason === null) {
+                return;
+            }
+
+            const cleanReason =
+                reason.trim().slice(0, 500) ||
+                "Worker rejected the job.";
+
+            if (button) {
+                button.disabled = true;
+            }
+
+            fetch(`/worker/job/${encodeURIComponent(jobId)}/reject`, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken":
+                        document.querySelector(
+                            'meta[name="csrf-token"]'
+                        )?.content || ""
+                },
+                body: JSON.stringify({ reason: cleanReason })
+            })
+                .then(async response => {
+                    const data = await response.json().catch(() => ({}));
+
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.message || "Request failed.");
+                    }
+
+                    window.location.reload();
+                })
+                .catch(error => {
+                    alert(error.message || "Something went wrong.");
+
+                    if (button) {
+                        button.disabled = false;
+                    }
+                });
+        }
+    </script>
+
+    <script>
+        (function workerHeartbeat() {
+            let pingInProgress = false;
+
+            const ping = () => {
+                if (document.visibilityState !== "visible") {
+                    return;
+                }
+
+                if (pingInProgress) {
+                    return;
+                }
+
+                pingInProgress = true;
+
+                fetch("/worker/ping", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRFToken":
+                            document.querySelector(
+                                'meta[name="csrf-token"]'
+                            )?.content || ""
+                    }
+                })
+                    .catch(() => {})
+                    .finally(() => {
+                        pingInProgress = false;
+                    });
+            };
+
+            ping();
+
+            window.setInterval(ping, 60000);
+
+            document.addEventListener("visibilitychange", () => {
+                if (document.visibilityState === "visible") {
+                    ping();
+                }
+            });
+
+            window.addEventListener("online", ping);
+        })();
+    </script>
+
+</body>
+</html>

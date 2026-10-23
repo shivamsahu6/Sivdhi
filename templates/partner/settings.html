@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Settings | Sivdhi</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:40px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:28px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+font-size:26px;
+}
+
+.header p{
+margin-top:5px;
+font-size:14px;
+opacity:.9;
+}
+
+.menu{
+margin:20px;
+background:white;
+border-radius:18px;
+overflow:hidden;
+box-shadow:0 5px 15px rgba(0,0,0,.08);
+}
+
+.item{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:18px;
+text-decoration:none;
+color:#111827;
+border-bottom:1px solid #eee;
+transition:.3s;
+}
+
+.item:last-child{
+border:none;
+}
+
+.item:hover{
+background:#f9fafb;
+}
+
+.left{
+display:flex;
+align-items:center;
+gap:14px;
+font-size:16px;
+font-weight:500;
+}
+
+.icon{
+font-size:22px;
+}
+
+.arrow{
+font-size:18px;
+color:#9ca3af;
+}
+
+.version{
+text-align:center;
+margin-top:25px;
+font-size:13px;
+color:#777;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>⚙ Settings</h2>
+
+<p>Manage your account preferences</p>
+
+</div>
+
+<div class="menu">
+
+<a href="/partner/notifications" class="item">
+<div class="left">
+<span class="icon">🔔</span>
+<span>Notifications</span>
+</div>
+<span class="arrow">›</span>
+</a>
+
+
+<a href="/partner/change-password" class="item">
+<div class="left">
+<span class="icon">🔒</span>
+<span>Change Password</span>
+</div>
+<span class="arrow">›</span>
+</a>
+
+<a href="/partner/about" class="item">
+<div class="left">
+<span class="icon">📄</span>
+<span>About Sivdhi</span>
+</div>
+<span class="arrow">›</span>
+</a>
+
+<a href="/partner/rate-app" class="item">
+<div class="left">
+<span class="icon">⭐</span>
+<span>Rate App</span>
+</div>
+<span class="arrow">›</span>
+</a>
+
+<a href="/partner/check-update" class="item">
+<div class="left">
+<span class="icon">🔄</span>
+<span>Check for Updates</span>
+</div>
+<span class="arrow">›</span>
+</a>
+
+<a href="/partner/app-version" class="item">
+<div class="left">
+<span class="icon">📱</span>
+<span>App Version</span>
+</div>
+<span class="arrow">›</span>
+</a>
+
+</div>
+
+<div class="version">
+Sivdhi Partner v1.0.0
+</div>
+
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Sivdhi</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+
+height:100vh;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+background:linear-gradient(135deg,#2563eb,#0f172a);
+
+overflow:hidden;
+
+}
+
+.box{
+
+text-align:center;
+
+color:white;
+
+animation:fade 1s ease;
+
+}
+
+.logo{
+
+width:120px;
+
+height:120px;
+
+margin:auto;
+
+border-radius:50%;
+
+background:white;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+font-size:55px;
+
+font-weight:bold;
+
+color:#2563eb;
+
+box-shadow:0 10px 30px rgba(255,255,255,.25);
+
+}
+
+h1{
+
+margin-top:25px;
+
+font-size:36px;
+
+}
+
+p{
+
+margin-top:10px;
+
+font-size:17px;
+
+color:#dbeafe;
+
+}
+
+.loader{
+
+margin:35px auto 0;
+
+width:50px;
+
+height:50px;
+
+border:5px solid rgba(255,255,255,.3);
+
+border-top:5px solid white;
+
+border-radius:50%;
+
+animation:spin 1s linear infinite;
+
+}
+
+@keyframes spin{
+
+100%{
+
+transform:rotate(360deg);
+
+}
+
+}
+
+@keyframes fade{
+
+from{
+
+opacity:0;
+
+transform:translateY(20px);
+
+}
+
+to{
+
+opacity:1;
+
+transform:translateY(0);
+
+}
+
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="box">
+
+<div class="logo">
+
+S
+
+</div>
+
+<h1>
+
+Sivdhi
+
+</h1>
+
+<p>
+
+Connecting Workers & Partners
+
+</p>
+
+<div class="loader">
+
+</div>
+
+</div>
+
+<script>
+
+setTimeout(function(){
+
+window.location.href="/choose-role";
+
+},3000);
+
+</script>
+
+</body>
+
+</html>

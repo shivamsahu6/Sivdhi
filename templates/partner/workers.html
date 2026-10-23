@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>My Workers</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:90px;
+}
+
+.header{
+
+background:linear-gradient(135deg,#2563eb,#0f172a);
+
+padding:25px;
+
+color:white;
+
+border-radius:0 0 25px 25px;
+
+}
+
+.search{
+
+padding:18px;
+
+}
+
+.search input{
+
+width:100%;
+
+padding:15px;
+
+border:none;
+
+outline:none;
+
+border-radius:12px;
+
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+
+}
+
+.worker{
+
+background:white;
+
+margin:15px;
+
+padding:18px;
+
+border-radius:18px;
+
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+
+}
+
+.name{
+
+font-size:20px;
+
+font-weight:bold;
+
+margin-bottom:8px;
+
+}
+
+.id{
+
+color:#666;
+
+margin-bottom:8px;
+
+}
+
+.status{
+
+display:inline-block;
+
+padding:6px 12px;
+
+background:#dcfce7;
+
+color:#16a34a;
+
+border-radius:20px;
+
+font-size:13px;
+
+margin-bottom:12px;
+
+}
+
+.buttons{
+
+display:flex;
+
+gap:10px;
+
+margin-top:10px;
+
+}
+
+.buttons a{
+
+flex:1;
+
+text-decoration:none;
+
+}
+
+button{
+
+width:100%;
+
+padding:12px;
+
+border:none;
+
+border-radius:10px;
+
+cursor:pointer;
+
+font-size:15px;
+
+}
+
+.call{
+
+background:#2563eb;
+
+color:white;
+
+}
+
+.profile{
+
+background:#f3f4f6;
+
+}
+
+.empty{
+
+margin:20px;
+
+padding:40px;
+
+background:white;
+
+text-align:center;
+
+border-radius:15px;
+
+color:#777;
+
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+
+}
+
+.bottom{
+
+position:fixed;
+
+bottom:0;
+
+left:0;
+
+width:100%;
+
+height:70px;
+
+background:white;
+
+display:flex;
+
+justify-content:space-around;
+
+align-items:center;
+
+box-shadow:0 -5px 15px rgba(0,0,0,.08);
+
+}
+
+.bottom a{
+
+text-decoration:none;
+
+color:#555;
+
+font-size:14px;
+
+text-align:center;
+
+}
+
+.active{
+
+color:#2563eb;
+
+font-weight:bold;
+
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>
+
+👷 My Workers
+
+</h2>
+
+<p>
+
+Manage Your Workers
+
+</p>
+
+</div>
+
+<div class="search">
+
+<input
+type="text"
+id="searchWorker"
+placeholder="Search Worker">
+
+</div>
+
+{% for worker in workers %}
+
+<div class="worker worker-card">
+
+<div class="name">
+
+{{ worker["fullname"] }}
+
+</div>
+
+<div class="id">
+
+🆔 {{ worker["worker_id"] }}
+
+</div>
+
+<div class="id">
+
+📱 {{ worker["mobile"] }}
+
+</div>
+
+<div class="status">
+
+{{ worker["status"] }}
+
+</div>
+
+<div class="buttons">
+
+<a href="tel:{{ worker['mobile'] }}">
+
+<button class="call">
+
+📞 Call
+
+</button>
+
+</a>
+
+<a href="/partner/worker/{{ worker['worker_id'] }}">
+
+<button class="profile">
+
+View Profile
+
+</button>
+
+</a>
+
+</div>
+
+</div>
+
+{% else %}
+
+<div class="empty">
+
+No Workers Available
+
+</div>
+
+{% endfor %}
+
+<div class="bottom">
+
+<a href="/partner/home">
+
+🏠<br>Home
+
+</a>
+
+<a class="active" href="/partner/workers">
+
+👷<br>Workers
+
+</a>
+
+<a href="/partner/jobs">
+
+💼<br>Jobs
+
+</a>
+
+<a href="/partner/wallet">
+💰<br>Wallet
+</a>
+
+
+<a href="/partner/profile">
+
+👤<br>Profile
+
+</a>
+
+</div>
+
+</body>
+<script>
+
+const search=document.getElementById("searchWorker");
+
+search.addEventListener("keyup",function(){
+
+    let value=this.value.toLowerCase();
+
+    document.querySelectorAll(".worker-card").forEach(function(card){
+
+        let text=card.innerText.toLowerCase();
+
+        if(text.includes(value)){
+            card.style.display="block";
+        }
+        else{
+            card.style.display="none";
+        }
+
+    });
+
+});
+
+</script>
+</html>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Admin Login - Sivdhi</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Poppins,sans-serif;
+}
+
+body{
+    min-height:100vh;
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.card{
+    width:100%;
+    max-width:420px;
+    background:#ffffff;
+    padding:35px 28px;
+    border-radius:24px;
+    box-shadow:0 15px 40px rgba(0,0,0,.25);
+}
+
+.logo{
+    width:78px;
+    height:78px;
+    margin:0 auto 20px;
+
+    border-radius:50%;
+
+    background:#2563eb;
+    color:white;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    font-size:34px;
+    font-weight:bold;
+
+    box-shadow:0 8px 20px rgba(37,99,235,.3);
+}
+
+h2{
+    text-align:center;
+    color:#111827;
+    margin-bottom:7px;
+}
+
+.subtitle{
+    text-align:center;
+    color:#6b7280;
+    font-size:14px;
+    margin-bottom:25px;
+}
+
+.message{
+    padding:13px;
+    border-radius:12px;
+    text-align:center;
+    font-size:14px;
+    font-weight:600;
+    margin-bottom:18px;
+}
+
+.success{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.danger{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+label{
+    display:block;
+    margin-bottom:7px;
+    color:#374151;
+    font-size:14px;
+    font-weight:600;
+}
+
+input{
+    width:100%;
+    padding:15px;
+
+    border:1px solid #ddd;
+    border-radius:12px;
+
+    outline:none;
+
+    font-size:15px;
+
+    margin-bottom:18px;
+}
+
+input:focus{
+    border-color:#2563eb;
+    box-shadow:0 0 0 3px rgba(37,99,235,.1);
+}
+
+button{
+    width:100%;
+    padding:15px;
+
+    border:none;
+    border-radius:12px;
+
+    background:#2563eb;
+    color:white;
+
+    font-size:16px;
+    font-weight:bold;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+button:hover{
+    background:#1d4ed8;
+    transform:translateY(-1px);
+}
+
+.security{
+    text-align:center;
+    margin-top:20px;
+
+    color:#9ca3af;
+    font-size:12px;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+
+<div class="card">
+
+
+    <div class="logo">
+        S
+    </div>
+
+
+    <h2>
+        Admin Login
+    </h2>
+
+
+    <div class="subtitle">
+        Sivdhi Administration Panel
+    </div>
+
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+        {% if messages %}
+
+            {% for category, message in messages %}
+
+                <div class="message {{ category }}">
+                    {{ message }}
+                </div>
+
+            {% endfor %}
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+
+        <label>
+            Admin ID
+        </label>
+
+
+        <input
+            type="text"
+            name="admin_id"
+            placeholder="Enter Admin ID"
+            autocomplete="username"
+            required
+        >
+
+
+        <label>
+            Password
+        </label>
+
+
+        <input
+            type="password"
+            name="password"
+            placeholder="Enter Password"
+            autocomplete="current-password"
+            required
+        >
+
+
+        <button type="submit">
+            Login to Admin Panel
+        </button>
+
+
+    </form>
+
+
+    <div class="security">
+        🔒 Authorized Admin Access Only
+    </div>
+
+
+</div>
+
+
+</body>
+
+</html>

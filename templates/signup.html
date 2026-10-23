@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Signup | Sivdhi</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+
+height:100vh;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+background:linear-gradient(135deg,#2563eb,#0f172a);
+
+padding:20px;
+
+}
+
+.signup-box{
+
+width:100%;
+max-width:420px;
+
+padding:35px;
+
+background:rgba(255,255,255,.10);
+
+backdrop-filter:blur(20px);
+
+border-radius:25px;
+
+box-shadow:0 15px 40px rgba(0,0,0,.35);
+
+color:white;
+
+}
+
+.logo{
+
+width:90px;
+height:90px;
+
+margin:auto;
+
+background:white;
+
+border-radius:50%;
+
+display:flex;
+
+justify-content:center;
+align-items:center;
+
+font-size:40px;
+
+font-weight:bold;
+
+color:#2563eb;
+
+margin-bottom:20px;
+
+}
+
+h2{
+
+text-align:center;
+
+margin-bottom:10px;
+
+}
+
+p{
+
+text-align:center;
+
+margin-bottom:25px;
+
+color:#dbeafe;
+
+}
+
+.input{
+
+width:100%;
+
+padding:15px;
+
+margin-bottom:15px;
+
+border:none;
+
+outline:none;
+
+border-radius:12px;
+
+font-size:15px;
+
+}
+
+.btn{
+
+width:100%;
+
+padding:15px;
+
+border:none;
+
+border-radius:12px;
+
+background:white;
+
+color:#2563eb;
+
+font-size:16px;
+
+font-weight:bold;
+
+cursor:pointer;
+
+transition:.3s;
+
+}
+
+.btn:hover{
+
+background:#eff6ff;
+
+}
+
+.bottom{
+
+margin-top:20px;
+
+text-align:center;
+
+}
+
+.bottom a{
+
+color:white;
+
+text-decoration:none;
+
+font-weight:bold;
+
+}
+
+.flash{
+background:#22c55e;
+padding:12px;
+border-radius:10px;
+margin-bottom:15px;
+text-align:center;
+animation:fadeIn .3s;
+}
+
+@keyframes fadeIn{
+from{opacity:0;transform:translateY(-10px);}
+to{opacity:1;transform:translateY(0);}
+}
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="signup-box">
+
+<div class="logo">
+
+S
+
+</div>
+
+<h2>
+
+{% if role=="worker" %}
+
+Worker Registration
+
+{% else %}
+
+Referral Partner Registration
+
+{% endif %}
+
+</h2>
+
+<p>
+
+Create your Sivdhi Account
+
+</p>
+
+{% with messages=get_flashed_messages() %}
+{% if messages %}
+
+<div class="flash">
+
+{{ messages[0] }}
+
+</div>
+
+{% endif %}
+{% endwith %}
+
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<input
+class="input"
+type="text"
+name="fullname"
+placeholder="Full Name"
+required>
+
+<input
+class="input"
+type="email"
+name="email"
+placeholder="Email Address"
+required>
+
+<input
+class="input"
+type="text"
+name="mobile"
+placeholder="Mobile Number"
+required>
+
+{% if role=="worker" %}
+
+<input
+class="input"
+type="text"
+name="referral_code"
+placeholder="Referral Code (Optional)"
+value="{{ referral_code or 'SV00000' }}">
+
+<input
+type="hidden"
+name="signup_default_referral_code"
+value="{{ referral_code or 'SV00000' }}">
+
+{% endif %}
+
+<input
+class="input"
+type="password"
+name="password"
+placeholder="Password"
+required>
+
+<input
+class="input"
+type="password"
+name="confirm_password"
+placeholder="Confirm Password"
+required>
+
+<button
+class="btn"
+type="submit">
+
+Create Account
+
+</button>
+
+</form>
+
+<div class="bottom">
+
+Already have an account?
+
+<a href="/login?role={{ role }}">
+
+Login
+
+</a>
+
+</div>
+
+</div>
+<script>
+
+setTimeout(function(){
+
+let flash=document.querySelector(".flash");
+
+if(flash){
+
+flash.style.transition="0.5s";
+flash.style.opacity="0";
+
+setTimeout(function(){
+
+flash.remove();
+
+},500);
+
+}
+
+},3000);
+
+</script>
+</body>
+
+</html>

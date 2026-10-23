@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Partner Dashboard | Sivdhi</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Poppins, sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            padding-bottom: 90px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            padding: 30px 20px;
+            color: white;
+            border-radius: 0 0 25px 25px;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .header-copy {
+            min-width: 0;
+        }
+
+        .header h2 {
+            margin-bottom: 8px;
+        }
+
+        .notification-bell {
+            position: relative;
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 14px;
+            font-size: 22px;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .notification-bell:hover {
+            background: rgba(255, 255, 255, 0.28);
+            transform: translateY(-2px);
+        }
+
+        .notification-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 19px;
+            height: 19px;
+            padding: 0 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ef4444;
+            color: #fff;
+            border: 2px solid #1e3a8a;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            border-radius: 18px;
+            text-align: center;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h3 {
+            font-size: 15px;
+            margin-bottom: 12px;
+            color: #555;
+        }
+
+        .card p {
+            font-size: 30px;
+            font-weight: bold;
+            color: #2563eb;
+        }
+
+        .wallet {
+            margin: 20px;
+            background: white;
+            padding: 25px;
+            border-radius: 18px;
+            text-align: center;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .wallet h2 {
+            color: #22c55e;
+            font-size: 35px;
+            margin-top: 10px;
+        }
+
+        .bottom {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.08);
+            z-index: 10;
+        }
+
+        .bottom a {
+            text-decoration: none;
+            color: #555;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .active {
+            color: #2563eb;
+            font-weight: bold;
+        }
+
+        @media (max-width: 380px) {
+            .header {
+                padding: 25px 16px;
+            }
+
+            .grid {
+                gap: 10px;
+                padding: 14px;
+            }
+
+            .card {
+                padding: 18px 10px;
+            }
+
+            .bottom a {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+    <div class="header">
+
+        <div class="header-top">
+
+            <div class="header-copy">
+                <h2>Welcome Partner 👋</h2>
+                <p>ID : {{ session.user_id }}</p>
+            </div>
+
+            <!-- Bell opens the new notification inbox -->
+            <a
+                class="notification-bell"
+                href="/partner/notification"
+                aria-label="Open notifications"
+                title="Notifications"
+            >
+                <span aria-hidden="true">🔔</span>
+
+                {% if total_notifications and total_notifications > 0 %}
+                    <span class="notification-count">
+                        {{ '9+' if total_notifications > 9 else total_notifications }}
+                    </span>
+                {% endif %}
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="wallet">
+
+        <h3>Wallet Balance</h3>
+
+        <h2>₹ {{ wallet }}</h2>
+
+    </div>
+
+    <div class="grid">
+
+        <div class="card">
+            <h3>Workers</h3>
+            <p>{{ total_workers }}</p>
+        </div>
+
+        <div class="card">
+            <h3>Jobs</h3>
+            <p>{{ total_jobs }}</p>
+        </div>
+
+        <div class="card">
+            <h3>Pending Jobs</h3>
+            <p>{{ pending_jobs }}</p>
+        </div>
+
+        <div class="card">
+            <h3>Notifications</h3>
+            <p>{{ total_notifications }}</p>
+        </div>
+
+    </div>
+
+    <div class="bottom">
+
+        <a class="active" href="/partner/home">
+            🏠<br>
+            Home
+        </a>
+
+        <a href="/partner/workers">
+            👷<br>
+            Workers
+        </a>
+
+        <a href="/partner/jobs">
+            💼<br>
+            Jobs
+        </a>
+
+        <a href="/partner/wallet">
+            💰<br>
+            Wallet
+        </a>
+
+        <a href="/partner/profile">
+            👤<br>
+            Profile
+        </a>
+
+    </div>
+
+</body>
+</html>

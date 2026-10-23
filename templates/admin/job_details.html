@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Job Details | Sivdhi Admin</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#f1f5f9;
+    color:#0f172a;
+}
+
+/* HEADER */
+
+.header{
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+    padding:25px 30px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.header h1{
+    font-size:26px;
+}
+
+.header p{
+    margin-top:6px;
+    font-size:14px;
+    opacity:.8;
+}
+
+.back{
+    text-decoration:none;
+    color:white;
+    background:rgba(255,255,255,.15);
+    padding:11px 18px;
+    border-radius:10px;
+}
+
+/* CONTAINER */
+
+.container{
+    max-width:1200px;
+    margin:30px auto;
+    padding:0 20px;
+}
+
+/* JOB HERO */
+
+.job-hero{
+    background:white;
+    border-radius:22px;
+    padding:30px;
+    box-shadow:0 8px 25px rgba(15,23,42,.08);
+    margin-bottom:22px;
+}
+
+.job-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:20px;
+}
+
+.job-icon{
+    width:65px;
+    height:65px;
+    border-radius:16px;
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:30px;
+    flex-shrink:0;
+}
+
+.job-title-area{
+    flex:1;
+}
+
+.job-title{
+    font-size:28px;
+    font-weight:700;
+    word-break:break-word;
+}
+
+.job-id{
+    color:#64748b;
+    font-size:14px;
+    margin-top:8px;
+}
+
+.status{
+    display:inline-block;
+    padding:8px 15px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:bold;
+    white-space:nowrap;
+}
+
+.status-active{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.status-pending{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.status-completed{
+    background:#dbeafe;
+    color:#1d4ed8;
+}
+
+.status-cancelled{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+.status-suspended{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+/* GRID */
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:20px;
+}
+
+.card{
+    background:white;
+    border-radius:20px;
+    padding:25px;
+    box-shadow:0 6px 20px rgba(15,23,42,.07);
+}
+
+.card h3{
+    font-size:18px;
+    margin-bottom:18px;
+    padding-bottom:13px;
+    border-bottom:1px solid #e2e8f0;
+}
+
+.info-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:20px;
+    padding:13px 0;
+    border-bottom:1px solid #f1f5f9;
+}
+
+.info-row:last-child{
+    border-bottom:none;
+}
+
+.label{
+    color:#64748b;
+    font-size:14px;
+}
+
+.value{
+    font-weight:600;
+    text-align:right;
+    word-break:break-word;
+}
+
+.money{
+    color:#16a34a;
+    font-size:21px;
+}
+
+.description{
+    line-height:1.7;
+    color:#475569;
+    font-size:14px;
+    white-space:pre-wrap;
+}
+
+/* PEOPLE */
+
+.person{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.person-avatar{
+    width:45px;
+    height:45px;
+    border-radius:12px;
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+    font-size:17px;
+}
+
+.person-name{
+    font-weight:700;
+}
+
+.person-id{
+    color:#64748b;
+    font-size:12px;
+    margin-top:3px;
+}
+
+/* ACTIONS */
+
+.actions{
+    background:white;
+    margin-top:22px;
+    padding:22px;
+    border-radius:20px;
+    box-shadow:0 6px 20px rgba(15,23,42,.07);
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+.btn{
+    border:none;
+    padding:13px 20px;
+    border-radius:10px;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+    text-decoration:none;
+    font-size:14px;
+}
+
+.back-btn{
+    background:#64748b;
+}
+
+.approve{
+    background:#16a34a;
+}
+
+.cancel{
+    background:#dc2626;
+}
+
+.btn:hover{
+    opacity:.9;
+}
+
+/* FULL WIDTH */
+
+.full{
+    grid-column:1 / -1;
+}
+
+/* MOBILE */
+
+@media(max-width:700px){
+
+    .header{
+        padding:20px;
+    }
+
+    .header h1{
+        font-size:21px;
+    }
+
+    .header p{
+        font-size:12px;
+    }
+
+    .back{
+        padding:9px 12px;
+        font-size:13px;
+    }
+
+    .container{
+        margin:20px auto;
+        padding:0 12px;
+    }
+
+    .job-hero{
+        padding:22px 17px;
+    }
+
+    .job-top{
+        flex-direction:column;
+    }
+
+    .job-title{
+        font-size:22px;
+    }
+
+    .grid{
+        grid-template-columns:1fr;
+    }
+
+    .full{
+        grid-column:auto;
+    }
+
+    .info-row{
+        flex-direction:column;
+        gap:6px;
+    }
+
+    .value{
+        text-align:left;
+    }
+
+    .actions{
+        flex-direction:column;
+    }
+
+    .btn{
+        width:100%;
+        text-align:center;
+    }
+
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<!-- HEADER -->
+
+<div class="header">
+
+
+<div>
+
+    <h1>💼 Job Details</h1>
+
+    <p>Job Management • Admin Panel</p>
+
+</div>
+
+<a href="/admin/jobs" class="back">
+    ← Jobs
+</a>
+
+
+</div>
+
+<div class="container">
+
+<!-- JOB HERO -->
+
+<div class="job-hero">
+
+
+<div class="job-top">
+
+    <div class="job-icon">
+        💼
+    </div>
+
+
+    <div class="job-title-area">
+
+        <div class="job-title">
+
+            {{ job["title"] or "Untitled Job" }}
+
+        </div>
+
+        <div class="job-id">
+
+            Job ID:
+            #{{ job["id"] }}
+
+        </div>
+
+    </div>
+
+
+    {% set job_status = job["status"] or "pending" %}
+
+    {% if job_status == "completed" %}
+
+        <span class="status status-completed">
+            COMPLETED
+        </span>
+
+    {% elif job_status == "cancelled" %}
+
+        <span class="status status-cancelled">
+            CANCELLED
+        </span>
+
+    {% elif job_status == "active" %}
+
+        <span class="status status-active">
+            ACTIVE
+        </span>
+
+    {% else %}
+
+        <span class="status status-pending">
+            {{ job_status|upper }}
+        </span>
+
+    {% endif %}
+
+</div>
+
+
+</div>
+
+<!-- DETAILS -->
+
+<div class="grid">
+
+<!-- BASIC INFORMATION -->
+
+<div class="card">
+
+
+<h3>
+    📋 Job Information
+</h3>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Job ID
+    </span>
+
+    <span class="value">
+        #{{ job["id"] }}
+    </span>
+
+</div>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Job Title
+    </span>
+
+    <span class="value">
+        {{ job["title"] or "Not Added" }}
+    </span>
+
+</div>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Status
+    </span>
+
+    <span class="value">
+        {{ (job["booking_status"] if "booking_status" in job.keys() else job["status"]) or "Pending" }}
+    </span>
+
+</div>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Created
+    </span>
+
+    <span class="value">
+        {{ job["created_at"] or "Not Available" }}
+    </span>
+
+</div>
+
+
+</div>
+
+<!-- PAYMENT -->
+
+<div class="card">
+
+
+<h3>
+    💰 Payment Information
+</h3>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Amount
+    </span>
+
+    <span class="value money">
+
+        ₹{{ job["amount"] or 0 }}
+
+    </span>
+
+</div>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Payment Status
+    </span>
+
+    <span class="value">
+
+        {{ job["payment_status"] or "Not Available" }}
+
+    </span>
+
+</div>
+
+
+</div>
+
+<!-- PARTNER -->
+
+<div class="card">
+
+
+<h3>
+    🤝 Partner Information
+</h3>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Partner ID
+    </span>
+
+    <span class="value">
+
+        {{ job["partner_public_id"] or job["partner_id"] or "Not Assigned" }}
+
+    </span>
+
+</div>
+
+
+</div>
+
+<!-- WORKER -->
+
+<div class="card">
+
+
+<h3>
+    👷 Worker Information
+</h3>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Worker ID
+    </span>
+
+    <span class="value">
+
+        {{ job["worker_public_id"] or job["worker_id"] or "Not Assigned" }}
+
+    </span>
+
+</div>
+
+
+</div>
+
+<!-- LOCATION -->
+
+<div class="card">
+
+
+<h3>
+    📍 Location
+</h3>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Address
+    </span>
+
+    <span class="value">
+
+        {{ job["address"] or "Not Added" }}
+
+    </span>
+
+</div>
+
+
+<div class="info-row">
+
+    <span class="label">
+        City
+    </span>
+
+    <span class="value">
+
+        {{ job["city"] or "Not Added" }}
+
+    </span>
+
+</div>
+
+
+<div class="info-row">
+
+    <span class="label">
+        State
+    </span>
+
+    <span class="value">
+
+        {{ job["state"] or "Not Added" }}
+
+    </span>
+
+</div>
+
+
+<div class="info-row">
+
+    <span class="label">
+        Pincode
+    </span>
+
+    <span class="value">
+
+        {{ job["pincode"] or "Not Added" }}
+
+    </span>
+
+</div>
+
+
+</div>
+
+<!-- DESCRIPTION -->
+
+<div class="card">
+
+
+<h3>
+    📝 Job Description
+</h3>
+
+<div class="description">
+
+    {{ job["description"] or "No description added for this job." }}
+
+</div>
+
+
+</div>
+
+</div>
+
+<!-- ACTIONS -->
+
+<div class="actions">
+
+<a href="/admin/jobs" class="btn back-btn">
+    ← Back to Jobs
+</a>
+
+{% set current_status = job["status"] or "pending" %}
+
+<form method="POST" action="/admin/booking/{{ job['id'] }}/status" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="admin-status" style="font-weight:700;color:#475569;">Status</label>
+    <select id="admin-status" name="status" required style="padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;background:white;font-weight:600;">
+        {% for value, label in [("pending","Pending"),("confirmed","Confirmed"),("assigned","Assigned"),("in_progress","In Progress"),("completed","Completed"),("cancelled","Cancelled")] %}
+        <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn approve" onclick="return confirm('Update this booking status?');">
+        ✓ Update Status
+    </button>
+</form>
+
+</div>
+
+</div>
+
+</body>
+
+</html>

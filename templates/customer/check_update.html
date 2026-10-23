@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>Check for Update | Sivdhi</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190, 130, 255, .20);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            min-height: 100dvh;
+            color: var(--text);
+            background:
+                radial-gradient(ellipse at top left,
+                    rgba(255, 67, 140, .10), transparent 42%),
+                var(--bg);
+            font-family: Inter, -apple-system, BlinkMacSystemFont,
+                "Segoe UI", Arial, sans-serif;
+        }
+
+        .header {
+            padding: 26px 20px 30px;
+            color: white;
+            background: linear-gradient(
+                125deg, #a42470, #7625b9, #3939a8
+            );
+            border-radius: 0 0 25px 25px;
+        }
+
+        .top-row {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+        }
+
+        .back {
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            width: 42px;
+            height: 42px;
+            border: 1px solid rgba(255,255,255,.25);
+            border-radius: 13px;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,.10);
+            font-size: 25px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .header p {
+            margin: 7px 0 0 55px;
+            color: rgba(255,255,255,.85);
+            font-size: 12px;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 24px 15px;
+        }
+
+        .card {
+            padding: 27px 22px;
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            background: var(--panel);
+            text-align: center;
+            box-shadow: 0 12px 35px rgba(0,0,0,.18);
+        }
+
+        .icon {
+            display: grid;
+            place-items: center;
+            width: 76px;
+            height: 76px;
+            margin: 0 auto 19px;
+            border-radius: 23px;
+            background: linear-gradient(
+                135deg, var(--pink), var(--purple), var(--blue)
+            );
+            font-size: 35px;
+        }
+
+        .title {
+            margin: 0 0 10px;
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .message {
+            margin: 0 0 23px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .version {
+            padding: 16px;
+            margin-bottom: 14px;
+            border: 1px solid rgba(190,130,255,.14);
+            border-radius: 14px;
+            background: rgba(255,255,255,.025);
+        }
+
+        .version-label {
+            margin-bottom: 7px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .version-number {
+            color: #e1c0ff;
+            font-size: 20px;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
+
+        .status {
+            padding: 14px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .status.current {
+            color: #78e5b0;
+            background: rgba(120,229,176,.07);
+            border-color: rgba(120,229,176,.22);
+        }
+
+        .status.update {
+            color: #ffd28a;
+            background: rgba(255,190,90,.07);
+            border-color: rgba(255,190,90,.22);
+        }
+
+        .status.unknown {
+            color: #c8b5e7;
+            background: rgba(164,77,255,.07);
+        }
+
+        .button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            width: 100%;
+            min-height: 50px;
+            padding: 14px 18px;
+            border: 0;
+            border-radius: 13px;
+            color: white;
+            background: linear-gradient(
+                105deg, var(--pink), var(--purple), var(--blue)
+            );
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .button:disabled {
+            opacity: .65;
+            cursor: wait;
+        }
+
+        .flash {
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: #d9c6ff;
+            background: rgba(164,77,255,.08);
+            font-size: 12px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .flash.success {
+            color: #78e5b0;
+        }
+
+        .flash.warning {
+            color: #ffd28a;
+        }
+
+        .flash.error,
+        .flash.danger {
+            color: #ff8aa4;
+        }
+
+        @media (max-width: 380px) {
+            .card {
+                padding: 23px 16px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    <header class="header">
+        <div class="top-row">
+            <a
+                class="back"
+                href="{{ url_for('customer.profile') }}"
+                aria-label="Back to profile"
+            >‹</a>
+            <h1>Check for Update</h1>
+        </div>
+        <p>Check the available Sivdhi version</p>
+    </header>
+
+    <main class="page">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category|e }}" role="status">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <section class="card">
+            <div class="icon" aria-hidden="true">
+                {% if update_available %}
+                    🚀
+                {% elif update_status == 'Current' %}
+                    ✓
+                {% else %}
+                    ↻
+                {% endif %}
+            </div>
+
+            <h2 class="title">
+                {% if update_available %}
+                    Update Available
+                {% elif update_status == 'Current' %}
+                    You're Up to Date
+                {% else %}
+                    Version Status
+                {% endif %}
+            </h2>
+
+            <p class="message">
+                {% if update_available %}
+                    A newer Sivdhi version is configured as available.
+                {% elif update_status == 'Current' %}
+                    The configured version information shows no newer version.
+                {% else %}
+                    Version information has not been fully configured yet.
+                {% endif %}
+            </p>
+
+            <div class="version">
+                <div class="version-label">Current Version</div>
+                <div class="version-number">
+                    {{ current_version }}
+                </div>
+            </div>
+
+            {% if update_available %}
+                <div class="version">
+                    <div class="version-label">Latest Version</div>
+                    <div class="version-number">
+                        {{ latest_version }}
+                    </div>
+                </div>
+
+                <div class="status update">
+                    A newer version is available.
+                </div>
+            {% elif update_status == 'Current' %}
+                <div class="status current">
+                    ✓ You're using the configured latest version.
+                </div>
+            {% else %}
+                <div class="status unknown">
+                    Update status cannot be confirmed.
+                </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('customer.check_update') }}">
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token() }}"
+                >
+                <button class="button" type="submit" id="checkButton">
+                    ↻ Check Again
+                </button>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            const form = document.querySelector("form");
+            const button = document.getElementById("checkButton");
+
+            if (form && button) {
+                form.addEventListener("submit", function () {
+                    button.disabled = true;
+                    button.textContent = "Checking...";
+                });
+
+                window.addEventListener("pageshow", function () {
+                    button.disabled = false;
+                    button.textContent = "↻ Check Again";
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

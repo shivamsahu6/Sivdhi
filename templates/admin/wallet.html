@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Wallet | Sivdhi Admin</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Inter,Poppins,Arial,sans-serif;
+}
+
+:root{
+    --primary:#2563eb;
+    --primary-dark:#1d4ed8;
+    --dark:#0b1220;
+    --text:#111827;
+    --muted:#64748b;
+    --border:#e5e7eb;
+    --bg:#f6f8fc;
+    --white:#fff;
+    --green:#16a34a;
+    --red:#dc2626;
+    --orange:#f59e0b;
+}
+
+body{
+    background:var(--bg);
+    color:var(--text);
+}
+
+/* HEADER */
+
+.header{
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+    padding:25px 30px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.header h1{
+    font-size:26px;
+}
+
+.header p{
+    margin-top:6px;
+    font-size:13px;
+    opacity:.8;
+}
+
+.back{
+    text-decoration:none;
+    color:white;
+    background:rgba(255,255,255,.15);
+    padding:11px 18px;
+    border-radius:10px;
+    font-size:13px;
+}
+
+/* CONTAINER */
+
+.container{
+    max-width:1400px;
+    margin:30px auto;
+    padding:0 20px;
+}
+
+/* TITLE */
+
+.page-title{
+    margin-bottom:22px;
+}
+
+.page-title h2{
+    font-size:23px;
+}
+
+.page-title p{
+    color:var(--muted);
+    font-size:13px;
+    margin-top:5px;
+}
+
+/* STATS */
+
+.stats{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:18px;
+    margin-bottom:22px;
+}
+
+.stat{
+    background:white;
+    border:1px solid #edf0f5;
+    border-radius:17px;
+    padding:21px;
+    box-shadow:0 4px 15px rgba(15,23,42,.04);
+}
+
+.stat-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.stat-icon{
+    width:43px;
+    height:43px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+}
+
+.blue{
+    background:#eff6ff;
+}
+
+.green{
+    background:#f0fdf4;
+}
+
+.orange{
+    background:#fffbeb;
+}
+
+.red{
+    background:#fef2f2;
+}
+
+.stat-label{
+    color:var(--muted);
+    font-size:12px;
+    margin-top:15px;
+}
+
+.stat-value{
+    font-size:25px;
+    font-weight:750;
+    margin-top:5px;
+}
+
+/* SEARCH */
+
+.search-card{
+    background:white;
+    border:1px solid #edf0f5;
+    border-radius:17px;
+    padding:18px;
+    margin-bottom:18px;
+    box-shadow:0 4px 15px rgba(15,23,42,.04);
+}
+
+.search{
+    width:100%;
+    height:45px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:0 15px;
+    outline:none;
+    font-size:13px;
+}
+
+.search:focus{
+    border-color:var(--primary);
+}
+
+/* TABLE */
+
+.table-card{
+    background:white;
+    border:1px solid #edf0f5;
+    border-radius:17px;
+    overflow:hidden;
+    box-shadow:0 5px 20px rgba(15,23,42,.05);
+}
+
+.table-head{
+    padding:19px 20px;
+    border-bottom:1px solid #f0f2f5;
+}
+
+.table-head h3{
+    font-size:15px;
+}
+
+.table-head p{
+    color:var(--muted);
+    font-size:11px;
+    margin-top:4px;
+}
+
+.table-wrapper{
+    overflow-x:auto;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:850px;
+}
+
+thead{
+    background:#f8fafc;
+}
+
+th{
+    padding:16px;
+    text-align:left;
+    color:#64748b;
+    font-size:11px;
+    text-transform:uppercase;
+    white-space:nowrap;
+}
+
+td{
+    padding:16px;
+    border-top:1px solid #f1f5f9;
+    font-size:13px;
+    white-space:nowrap;
+}
+
+tr:hover{
+    background:#f8fafc;
+}
+
+/* USER */
+
+.user{
+    display:flex;
+    align-items:center;
+    gap:11px;
+}
+
+.avatar{
+    width:40px;
+    height:40px;
+    border-radius:11px;
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+}
+
+.user-name{
+    font-weight:600;
+}
+
+.user-id{
+    color:#94a3b8;
+    font-size:10px;
+    margin-top:3px;
+}
+
+/* TYPE */
+
+.type{
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:8px;
+    font-size:11px;
+    font-weight:bold;
+}
+
+.worker{
+    background:#eff6ff;
+    color:#2563eb;
+}
+
+.partner{
+    background:#f0fdf4;
+    color:#16a34a;
+}
+
+/* BALANCE */
+
+.balance{
+    color:#16a34a;
+    font-weight:bold;
+}
+
+/* TRANSACTION */
+
+.credit{
+    color:#16a34a;
+    font-weight:bold;
+}
+
+.debit{
+    color:#dc2626;
+    font-weight:bold;
+}
+
+/* STATUS */
+
+.status{
+    display:inline-block;
+    padding:6px 11px;
+    border-radius:20px;
+    font-size:10px;
+    font-weight:bold;
+}
+
+.completed{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.pending{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.failed{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+/* EMPTY */
+
+.empty{
+    text-align:center;
+    padding:65px 20px;
+    color:#64748b;
+}
+
+.empty-icon{
+    font-size:40px;
+    margin-bottom:10px;
+}
+
+/* MOBILE */
+
+@media(max-width:1000px){
+
+    .stats{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+}
+
+@media(max-width:700px){
+
+    .header{
+        padding:20px;
+    }
+
+    .header h1{
+        font-size:21px;
+    }
+
+    .header p{
+        font-size:11px;
+    }
+
+    .back{
+        padding:9px 12px;
+        font-size:11px;
+    }
+
+    .container{
+        margin:20px auto;
+        padding:0 12px;
+    }
+
+    .stats{
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+    }
+
+    .stat{
+        padding:15px;
+    }
+
+    .stat-icon{
+        width:36px;
+        height:36px;
+        font-size:16px;
+    }
+
+    .stat-label{
+        font-size:10px;
+    }
+
+    .stat-value{
+        font-size:20px;
+    }
+
+}
+
+@media(max-width:450px){
+
+    .stats{
+        grid-template-columns:1fr;
+    }
+
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+<!-- HEADER -->
+
+<div class="header">
+
+    <div>
+
+        <h1>💰 Wallet Management</h1>
+
+        <p>Manage Sivdhi wallet balances, Partner/Worker payouts & internal commission ledger</p>
+
+    </div>
+
+    <a href="/admin/dashboard" class="back">
+        ← Dashboard
+    </a>
+
+</div>
+
+
+<div class="container">
+
+
+<!-- TITLE -->
+
+<div class="page-title">
+
+    <h2>Wallet Overview</h2>
+
+    <p>
+        Monitor Worker/Partner wallet activity and the platform commission recorded after completed services.
+    </p>
+
+</div>
+
+
+<!-- STATS -->
+
+<div class="stats">
+
+
+    <div class="stat">
+
+        <div class="stat-top">
+
+            <div class="stat-icon blue">
+                💰
+            </div>
+
+        </div>
+
+        <div class="stat-label">
+            Total Wallet Balance
+        </div>
+
+        <div class="stat-value">
+            ₹{{ total_wallet|default(0) }}
+        </div>
+
+    </div>
+
+
+    <div class="stat">
+
+        <div class="stat-top">
+
+            <div class="stat-icon green">
+                👷
+            </div>
+
+        </div>
+
+        <div class="stat-label">
+            Worker Wallet
+        </div>
+
+        <div class="stat-value">
+            ₹{{ worker_wallet|default(0) }}
+        </div>
+
+    </div>
+
+
+    <div class="stat">
+
+        <div class="stat-top">
+
+            <div class="stat-icon orange">
+                🤝
+            </div>
+
+        </div>
+
+        <div class="stat-label">
+            Partner Wallet
+        </div>
+
+        <div class="stat-value">
+            ₹{{ partner_wallet|default(0) }}
+        </div>
+
+    </div>
+
+
+    <div class="stat">
+        <div class="stat-top"><div class="stat-icon red">💸</div></div>
+        <div class="stat-label">Total Withdrawals</div>
+        <div class="stat-value">₹{{ total_withdrawn|default(0) }}</div>
+    </div>
+
+    <div class="stat">
+        <div class="stat-top"><div class="stat-icon blue">🏦</div></div>
+        <div class="stat-label">Sivdhi Commission Recorded</div>
+        <div class="stat-value">₹{{ platform_commission_earned|default(0) }}</div>
+    </div>
+
+
+</div>
+
+
+<!-- SEARCH -->
+
+<div class="search-card">
+
+    <input
+        type="text"
+        id="walletSearch"
+        class="search"
+        placeholder="🔎 Search by user ID, transaction or description..."
+        onkeyup="searchWallet()"
+    >
+
+</div>
+
+
+<!-- TRANSACTIONS -->
+
+<div class="table-card">
+
+
+    <div class="table-head">
+
+        <h3>
+            Wallet Transactions
+        </h3>
+
+        <p>
+            Recent wallet activity across Sivdhi
+        </p>
+
+    </div>
+
+
+    <div class="table-wrapper">
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>User</th>
+
+                    <th>Type</th>
+
+                    <th>Transaction</th>
+
+                    <th>Amount</th>
+
+                    <th>Balance</th>
+
+                    <th>Status</th>
+
+                    <th>Date</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="walletTable">
+
+
+            {% for transaction in transactions %}
+
+            <tr class="wallet-row">
+
+
+                <td>
+
+                    <div class="user">
+
+                        <div class="avatar">
+
+                            {{ (transaction["fullname"] if transaction["fullname"] else transaction["user_id"])[0]|upper }}
+
+                        </div>
+
+                        <div>
+
+                            <div class="user-name">
+
+                                {{ transaction["fullname"]|default(transaction["user_id"]) }}
+
+                            </div>
+
+                            <div class="user-id">
+
+                                {{ transaction["user_id"] }}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </td>
+
+
+                <td>
+
+                    {% if transaction["user_type"] == "worker" %}
+
+                    <span class="type worker">
+                        Worker
+                    </span>
+
+                    {% else %}
+
+                    <span class="type partner">
+                        Partner
+                    </span>
+
+                    {% endif %}
+
+                </td>
+
+
+                <td>
+
+                    {{ transaction["transaction_type"]|default("Wallet transaction") }}
+                    {% if transaction["description"] %}
+                    <div style="color:#94a3b8;font-size:10px;margin-top:4px;white-space:normal;max-width:260px;">
+                        {{ transaction["description"] }}
+                    </div>
+                    {% endif %}
+
+                </td>
+
+
+                <td>
+
+                    {% set tx_type = (transaction["transaction_type"]|default(""))|lower %}
+                    {% if transaction["amount"]|float >= 0 and tx_type not in ["withdraw", "debit", "withdrawal"] %}
+                    <span class="credit">+₹{{ "%.2f"|format(transaction["amount"]|float) }}</span>
+                    {% else %}
+                    <span class="debit">-₹{{ "%.2f"|format((transaction["amount"]|float)|abs) }}</span>
+                    {% endif %}
+
+                </td>
+
+
+                <td class="balance">
+                    —
+                </td>
+
+
+                <td>
+
+                    <span class="status completed">
+                        Recorded
+                    </span>
+
+                </td>
+
+
+                <td>
+
+                    {{ transaction["created_at"] }}
+
+                </td>
+
+
+            </tr>
+
+            {% else %}
+
+            <tr>
+
+                <td colspan="7">
+
+                    <div class="empty">
+
+                        <div class="empty-icon">
+                            💰
+                        </div>
+
+                        <strong>
+                            No wallet transactions
+                        </strong>
+
+                        <p style="margin-top:6px;">
+                            Wallet activity will appear here.
+                        </p>
+
+                    </div>
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+
+</div>
+
+
+<script>
+
+function searchWallet(){
+
+    let input =
+        document
+        .getElementById("walletSearch")
+        .value
+        .toLowerCase();
+
+    let rows =
+        document.querySelectorAll(".wallet-row");
+
+    rows.forEach(function(row){
+
+        let text =
+            row.innerText.toLowerCase();
+
+        if(text.includes(input)){
+
+            row.style.display="";
+
+        }else{
+
+            row.style.display="none";
+
+        }
+
+    });
+
+}
+
+</script>
+
+
+</body>
+
+</html>

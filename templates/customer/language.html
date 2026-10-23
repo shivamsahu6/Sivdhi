@@ -1,0 +1,634 @@
+<!-- templates/customer/language.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6d28d9">
+
+    <title>Language Settings | Sivdhi</title>
+
+    <style>
+        :root {
+            --primary: #6d28d9;
+            --primary-light: #8b5cf6;
+            --background: #f7f7fb;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding-bottom: 85px;
+            color: var(--text);
+            background: var(--background);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         Roboto, Arial, sans-serif;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.97);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .back-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            color: var(--text);
+            background: #fff;
+            text-decoration: none;
+            font-size: 24px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 19px;
+            font-weight: 750;
+        }
+
+        .topbar p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 620px;
+            margin: 0 auto;
+            padding: 23px 15px;
+        }
+
+        .hero {
+            padding: 25px 22px;
+            margin-bottom: 21px;
+            color: #fff;
+            background: linear-gradient(135deg, #5b21b6, #8b5cf6);
+            border-radius: 22px;
+        }
+
+        .hero-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            margin-bottom: 17px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.17);
+            font-size: 25px;
+        }
+
+        .hero h2 {
+            margin: 0 0 9px;
+            font-size: 24px;
+            letter-spacing: -0.4px;
+        }
+
+        .hero p {
+            margin: 0;
+            color: #f3e8ff;
+            font-size: 13px;
+            line-height: 1.75;
+        }
+
+        .flash-messages {
+            margin-bottom: 17px;
+        }
+
+        .flash-message {
+            padding: 12px 14px;
+            margin-bottom: 9px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .flash-success {
+            color: #166534;
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+        }
+
+        .flash-error,
+        .flash-danger {
+            color: #991b1b;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+        }
+
+        .flash-warning {
+            color: #92400e;
+            background: #fef3c7;
+            border: 1px solid #fde68a;
+        }
+
+        .flash-info {
+            color: #1e40af;
+            background: #dbeafe;
+            border: 1px solid #bfdbfe;
+        }
+
+        .language-card {
+            padding: 22px;
+            background: #fff;
+            border: 1px solid #eeedf3;
+            border-radius: 21px;
+            box-shadow: 0 6px 24px rgba(31, 41, 55, 0.035);
+        }
+
+        .language-card h3 {
+            margin: 0 0 7px;
+            font-size: 18px;
+        }
+
+        .description {
+            margin: 0 0 21px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .language-options {
+            display: grid;
+            gap: 12px;
+        }
+
+        .language-option {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            background: #fff;
+            cursor: pointer;
+            transition: border-color 0.18s, background 0.18s,
+                        box-shadow 0.18s;
+        }
+
+        .language-option:hover {
+            border-color: #c4b5fd;
+        }
+
+        .language-option.selected {
+            background: #faf8ff;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.09);
+        }
+
+        .language-option input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+
+        .language-option input:focus-visible + .language-radio {
+            outline: 3px solid rgba(139, 92, 246, 0.3);
+            outline-offset: 3px;
+        }
+
+        .language-symbol {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 49px;
+            height: 49px;
+            flex-shrink: 0;
+            border-radius: 15px;
+            color: var(--primary);
+            background: #f0ebff;
+            font-size: 22px;
+            font-weight: 750;
+        }
+
+        .language-text {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .language-text strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .language-text span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .language-radio {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 23px;
+            height: 23px;
+            flex-shrink: 0;
+            border: 2px solid #d1d5db;
+            border-radius: 50%;
+            background: #fff;
+        }
+
+        .language-option input:checked ~ .language-radio {
+            border-color: var(--primary);
+        }
+
+        .language-option input:checked ~ .language-radio::after {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: var(--primary);
+            content: "";
+        }
+
+        .preview {
+            padding: 17px;
+            margin-top: 20px;
+            background: #f7f4ff;
+            border: 1px solid #e9ddff;
+            border-radius: 15px;
+        }
+
+        .preview-label {
+            margin: 0 0 11px;
+            color: #6b5b86;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        .preview-heading {
+            margin: 0 0 7px;
+            color: #3b216f;
+            font-size: 18px;
+            font-weight: 750;
+        }
+
+        .preview-text {
+            margin: 0;
+            color: #6b5b86;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .save-button {
+            width: 100%;
+            min-height: 50px;
+            margin-top: 22px;
+            padding: 14px 18px;
+            border: 0;
+            border-radius: 14px;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            font-weight: 750;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(109, 40, 217, 0.17);
+        }
+
+        .save-button:hover {
+            filter: brightness(1.04);
+        }
+
+        .save-button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .info-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 15px;
+            margin-top: 17px;
+            color: #5b526e;
+            background: #f0ebff;
+            border: 1px solid #e5dcff;
+            border-radius: 15px;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .info-note span:first-child {
+            flex-shrink: 0;
+            font-size: 18px;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 20;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+            background: rgba(255, 255, 255, 0.97);
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 48px;
+            color: #9ca3af;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+            line-height: 1.2;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        @media (max-width: 480px) {
+            .topbar {
+                padding: 13px 14px;
+            }
+
+            .page {
+                padding: 19px 12px;
+            }
+
+            .hero {
+                padding: 22px 18px;
+            }
+
+            .language-card {
+                padding: 18px 14px;
+            }
+
+            .language-option {
+                gap: 10px;
+                padding: 13px 11px;
+            }
+
+            .language-symbol {
+                width: 43px;
+                height: 43px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    <header class="topbar">
+        <a href="{{ url_for('customer.settings') }}"
+           class="back-button"
+           aria-label="Back to settings">‹</a>
+
+        <div>
+            <h1>Language</h1>
+            <p>Choose your preferred language</p>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="hero">
+            <div class="hero-icon" aria-hidden="true">🌐</div>
+            <h2>Choose your language</h2>
+            <p>
+                Select the language you prefer to use on Sivdhi.
+                Your selection can be saved to your account.
+            </p>
+        </section>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages" aria-live="polite">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <section class="language-card">
+            <h3>Display language</h3>
+
+            <p class="description">
+                Choose one of the available languages below.
+            </p>
+
+            <form method="POST"
+                  action="{{ url_for('customer.language') }}"
+                  id="languageForm">
+
+                {% if csrf_token is defined %}
+                    <input type="hidden"
+                           name="csrf_token"
+                           value="{{ csrf_token() }}">
+                {% endif %}
+
+                {% set selected_language = customer['language'] if customer and customer['language'] is defined else 'en' %}
+
+                <div class="language-options">
+                    <label class="language-option"
+                           data-language-option="en">
+                        <input
+                            type="radio"
+                            name="language"
+                            value="en"
+                            {% if selected_language == 'en' %}checked{% endif %}
+                            required>
+
+                        <span class="language-symbol" aria-hidden="true">A</span>
+
+                        <span class="language-text">
+                            <strong>English</strong>
+                            <span>Use Sivdhi in English.</span>
+                        </span>
+
+                        <span class="language-radio" aria-hidden="true"></span>
+                    </label>
+
+                    <label class="language-option"
+                           data-language-option="hi">
+                        <input
+                            type="radio"
+                            name="language"
+                            value="hi"
+                            {% if selected_language == 'hi' %}checked{% endif %}
+                            required>
+
+                        <span class="language-symbol" aria-hidden="true">अ</span>
+
+                        <span class="language-text">
+                            <strong>हिंदी</strong>
+                            <span>सिवधी का उपयोग हिंदी में करें।</span>
+                        </span>
+
+                        <span class="language-radio" aria-hidden="true"></span>
+                    </label>
+                </div>
+
+                <div class="preview" aria-live="polite">
+                    <p class="preview-label">Language preview</p>
+                    <h4 class="preview-heading" id="previewHeading">
+                        Welcome to Sivdhi
+                    </h4>
+                    <p class="preview-text" id="previewText">
+                        Manage your services and bookings in one place.
+                    </p>
+                </div>
+
+                <button type="submit"
+                        class="save-button"
+                        id="saveLanguageButton">
+                    Save Language
+                </button>
+            </form>
+        </section>
+
+        <aside class="info-note">
+            <span aria-hidden="true">ℹ️</span>
+            <span>
+                Saving a language preference does not automatically translate
+                every page. Full translation requires the website templates
+                and server-side language handling to support the selected
+                language.
+            </span>
+        </aside>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a href="{{ url_for('customer.home') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>Home</span>
+        </a>
+
+        <a href="{{ url_for('customer.bookings') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">▣</span>
+            <span>Bookings</span>
+        </a>
+
+        <a href="{{ url_for('customer.profile') }}"
+           class="nav-item active"
+           aria-current="page">
+            <span class="nav-icon" aria-hidden="true">♙</span>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const form = document.getElementById("languageForm");
+            const options = Array.from(
+                document.querySelectorAll('input[name="language"]')
+            );
+            const optionCards = Array.from(
+                document.querySelectorAll("[data-language-option]")
+            );
+            const previewHeading = document.getElementById("previewHeading");
+            const previewText = document.getElementById("previewText");
+            const saveButton = document.getElementById("saveLanguageButton");
+
+            if (!form || !previewHeading || !previewText || !saveButton) {
+                return;
+            }
+
+            const previews = {
+                en: {
+                    heading: "Welcome to Sivdhi",
+                    text: "Manage your services and bookings in one place."
+                },
+                hi: {
+                    heading: "सिवधी में आपका स्वागत है",
+                    text: "अपनी सेवाओं और बुकिंग की जानकारी एक ही जगह पर देखें।"
+                }
+            };
+
+            function updateLanguagePreview() {
+                const selected = options.find(function (option) {
+                    return option.checked;
+                });
+
+                const language = selected ? selected.value : "en";
+                const preview = previews[language] || previews.en;
+
+                previewHeading.textContent = preview.heading;
+                previewText.textContent = preview.text;
+
+                optionCards.forEach(function (card) {
+                    const input = card.querySelector('input[name="language"]');
+
+                    card.classList.toggle(
+                        "selected",
+                        Boolean(input && input.checked)
+                    );
+                });
+            }
+
+            options.forEach(function (option) {
+                option.addEventListener("change", updateLanguagePreview);
+            });
+
+            form.addEventListener("submit", function (event) {
+                const selected = options.some(function (option) {
+                    return option.checked;
+                });
+
+                if (!selected) {
+                    event.preventDefault();
+                    return;
+                }
+
+                saveButton.disabled = true;
+                saveButton.textContent = "Saving...";
+            });
+
+            window.addEventListener("pageshow", function () {
+                saveButton.disabled = false;
+                saveButton.textContent = "Save Language";
+                updateLanguagePreview();
+            });
+
+            updateLanguagePreview();
+        })();
+    </script>
+</body>
+</html>

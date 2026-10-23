@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Profile</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Poppins, sans-serif;
+}
+
+body {
+    background: #f5f7fb;
+    padding-bottom: 40px;
+}
+
+.header {
+    background: linear-gradient(135deg, #2563eb, #0f172a);
+    padding: 30px;
+    color: white;
+    text-align: center;
+    border-radius: 0 0 25px 25px;
+}
+
+.card {
+    margin: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 5px 15px rgba(0,0,0,.08);
+}
+
+.photo {
+    width: 120px;
+    height: 120px;
+    margin: auto auto 15px;
+    border-radius: 50%;
+    background: #eee;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 45px;
+    overflow: hidden;
+}
+
+.photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.file {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    font-size: 15px;
+    outline: none;
+    background: white;
+}
+
+.input:focus {
+    border-color: #2563eb;
+}
+
+textarea {
+    resize: none;
+    height: 90px;
+}
+
+select.input {
+    cursor: pointer;
+}
+
+/* Compact, State-Selector-style multi-skill dropdown */
+.skills-picker {
+    position: relative;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.skills-trigger {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 14px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+    color: #334155;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.skills-trigger:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+.skills-trigger .skills-summary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.skills-trigger .skills-chevron {
+    flex-shrink: 0;
+    color: #64748b;
+}
+
+.skills-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #dbe2ea;
+    border-radius: 12px;
+    box-shadow: 0 8px 22px rgba(15,23,42,.14);
+}
+
+.skills-picker.open .skills-panel {
+    display: block;
+}
+
+.skill-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    color: #334155;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.skill-option:hover {
+    background: #f1f5f9;
+}
+
+.skill-option input {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    accent-color: #2563eb;
+}
+
+#skills {
+    display: none;
+}
+
+.location-box {
+    margin-bottom: 18px;
+    padding: 16px;
+    border-radius: 15px;
+    background: #f0f7ff;
+    border: 1px solid #dbeafe;
+}
+
+.location-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #17213c;
+    margin-bottom: 6px;
+}
+
+.location-sub {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.5;
+    margin-bottom: 13px;
+}
+
+.location-btn {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 11px;
+    background: #2563eb;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.location-btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.location-status {
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.location-status.success {
+    color: #15803d;
+}
+
+.location-status.error {
+    color: #dc2626;
+}
+
+.coordinates {
+    margin-top: 8px;
+    padding: 9px;
+    background: white;
+    border-radius: 9px;
+    color: #64748b;
+    font-size: 10px;
+    display: none;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #17213c;
+    margin: 5px 0 8px;
+}
+
+.save-btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 12px;
+    background: #2563eb;
+    color: white;
+    font-size: 17px;
+    cursor: pointer;
+}
+
+.save-btn:hover {
+    background: #1d4ed8;
+}
+
+.flash {
+    margin: 20px;
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: bold;
+    animation: slideDown .3s;
+}
+
+.flash.success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.flash.danger {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+    <h2>Edit Profile</h2>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="flash {{ category }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<div class="card">
+<form method="POST" enctype="multipart/form-data" id="profileForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="photo" id="profilePhotoPreview">
+        {% if worker["profile_photo"] %}
+        <img src="/static/uploads/{{ worker['profile_photo'] }}" alt="Profile Photo">
+        {% else %}
+        👷
+        {% endif %}
+    </div>
+
+    <input class="file" type="file" id="profilePhotoInput"
+           name="profile_photo" accept="image/*">
+
+    <input class="input" type="text" name="fullname"
+           value="{{ worker['fullname'] }}" placeholder="Full Name" required>
+
+    <input class="input" type="email" name="email"
+           value="{{ worker['email'] }}" placeholder="Email" readonly>
+
+    <input class="input" type="text" name="mobile"
+           value="{{ worker['mobile'] }}" placeholder="Mobile" readonly>
+
+    <div class="location-box">
+        <div class="location-title">📍 Live Location</div>
+        <div class="location-sub">
+            Sivdhi uses your location to help customers find workers near them.
+        </div>
+
+        <button type="button" class="location-btn" id="locationBtn"
+                onclick="getLiveLocation()">
+            📍 Use My Live Location
+        </button>
+
+        <div class="location-status" id="locationStatus">Location not added</div>
+        <div class="coordinates" id="coordinates"></div>
+
+        <input type="hidden" name="latitude" id="latitude"
+               value="{{ worker['latitude'] or '' }}">
+        <input type="hidden" name="longitude" id="longitude"
+               value="{{ worker['longitude'] or '' }}">
+    </div>
+
+    <div class="location-box" style="background:#f8fafc;border-color:#e2e8f0;">
+        <div class="location-title">🚗 How far can you travel for work?</div>
+        <div class="location-sub">
+            Customers will be matched only with workers who can travel to their location.
+            If the nearest worker rejects a booking, Sivdhi will try the next nearest
+            eligible worker in the same range.
+        </div>
+
+        <select class="input" name="service_radius_km" id="serviceRadius"
+                style="margin-bottom:0;" required>
+            {% set saved_radius = worker['service_radius_km'] or 10 %}
+            <option value="1" {% if saved_radius == 1 %}selected{% endif %}>Up to 1 km</option>
+            <option value="2" {% if saved_radius == 2 %}selected{% endif %}>Up to 2 km</option>
+            <option value="5" {% if saved_radius == 5 %}selected{% endif %}>Up to 5 km</option>
+            <option value="10" {% if saved_radius == 10 %}selected{% endif %}>Up to 10 km</option>
+            <option value="15" {% if saved_radius == 15 %}selected{% endif %}>Up to 15 km</option>
+            <option value="20" {% if saved_radius == 20 %}selected{% endif %}>Up to 20 km</option>
+            <option value="25" {% if saved_radius == 25 %}selected{% endif %}>Up to 25 km</option>
+            <option value="30" {% if saved_radius == 30 %}selected{% endif %}>Up to 30 km</option>
+            <option value="50" {% if saved_radius == 50 %}selected{% endif %}>Up to 50 km</option>
+            <option value="75" {% if saved_radius == 75 %}selected{% endif %}>Up to 75 km</option>
+            <option value="100" {% if saved_radius == 100 %}selected{% endif %}>Up to 100 km</option>
+        </select>
+    </div>
+
+    <div class="section-title">State</div>
+    <select class="input" name="state" id="state" required>
+        <option value="">Select State</option>
+    </select>
+
+    <div class="section-title">City</div>
+    <select class="input" name="city" id="city" required disabled>
+        <option value="">Select City</option>
+    </select>
+
+    <div class="section-title">Pincode</div>
+    <input class="input" type="text" name="pincode" id="pincode"
+           value="{{ worker['pincode'] or '' }}"
+           placeholder="Enter 6 digit pincode" inputmode="numeric"
+           maxlength="6" pattern="[0-9]{6}" required>
+
+    <div class="section-title">Address</div>
+    <textarea class="input" name="address" placeholder="Enter your complete address"
+              required>{{ worker["address"] or "" }}</textarea>
+
+    <!-- Compact multi-select Skills dropdown -->
+    <label for="skillsPickerButton">Skills</label>
+
+    <div class="skills-picker" id="skillsPicker">
+        <button type="button" class="skills-trigger" id="skillsPickerButton"
+                aria-expanded="false" aria-controls="skillsPickerPanel">
+            <span class="skills-summary" id="skillsSummary">Select skills</span>
+            <span class="skills-chevron" aria-hidden="true">▾</span>
+        </button>
+
+        <div class="skills-panel" id="skillsPickerPanel"
+             role="group" aria-label="Choose skills">
+            {% for category in skill_categories %}
+            <label class="skill-option">
+                <input type="checkbox" value="{{ category['name'] }}">
+                <span>{{ category['name'] }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <select class="input" id="skills" name="skills" multiple
+            aria-hidden="true" tabindex="-1"
+            data-saved="{{ worker['skills'] or '' }}">
+        {% set saved_skill_names = (worker['skills'] or '').split(',')|map('trim')|list %}
+        {% for category in skill_categories %}
+        <option value="{{ category['name'] }}"
+                {% if category['name'] in saved_skill_names %}selected{% endif %}>
+            {{ category['name'] }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <small style="display:block;color:#64748b;margin:-8px 0 15px;">
+        Select one or more skills. You can change your selection anytime.
+    </small>
+
+    <label for="work_type">Work type</label>
+    <select class="input" id="work_type" name="work_type" required>
+        {% set selected_work_type = (worker['work_type'] or 'both')|lower|replace('_','-') %}
+        <option value="part-time"
+            {% if selected_work_type in ['part-time','parttime','normal'] %}selected{% endif %}>
+            Part-Time / Normal bookings
+        </option>
+        <option value="full-day"
+            {% if selected_work_type in ['full-day','fullday','full day'] %}selected{% endif %}>
+            Full-Day bookings
+        </option>
+        <option value="both"
+            {% if selected_work_type not in ['part-time','parttime','normal','full-day','fullday','full day'] %}selected{% endif %}>
+            Both (Normal + Full-Day)
+        </option>
+    </select>
+
+    <small style="display:block;color:#64748b;margin:-8px 0 15px;">
+        Sivdhi will match bookings only for this work type and your selected categories.
+    </small>
+
+    <label for="experience">Experience <span>(Optional)</span></label>
+    <select class="input" id="experience" name="experience">
+        <option value="">Select experience</option>
+        <option value="Fresher">Fresher</option>
+        <option value="Less than 1 Year">Less than 1 Year</option>
+        <option value="1 Year">1 Year</option>
+        <option value="2 Years">2 Years</option>
+        <option value="3 Years">3 Years</option>
+        <option value="4 Years">4 Years</option>
+        <option value="5 Years">5 Years</option>
+        <option value="6 Years">6 Years</option>
+        <option value="7 Years">7 Years</option>
+        <option value="8 Years">8 Years</option>
+        <option value="9 Years">9 Years</option>
+        <option value="10+ Years">10+ Years</option>
+    </select>
+
+    <button type="submit" class="save-btn">💾 Save Changes</button>
+</form>
+</div>
+
+<script>
+/* Live profile-photo preview: display the selected image immediately. */
+const profilePhotoInput = document.getElementById("profilePhotoInput");
+const profilePhotoPreview = document.getElementById("profilePhotoPreview");
+let profilePhotoObjectUrl = null;
+
+if (profilePhotoInput && profilePhotoPreview) {
+    profilePhotoInput.addEventListener("change", function () {
+        const file = this.files && this.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        if (!file.type || !file.type.startsWith("image/")) {
+            this.value = "";
+            alert("Please select a valid image file.");
+            return;
+        }
+
+        if (profilePhotoObjectUrl) {
+            URL.revokeObjectURL(profilePhotoObjectUrl);
+        }
+
+        profilePhotoObjectUrl = URL.createObjectURL(file);
+
+        let previewImage = profilePhotoPreview.querySelector("img");
+
+        if (!previewImage) {
+            previewImage = document.createElement("img");
+            previewImage.alt = "Selected Profile Photo Preview";
+            profilePhotoPreview.replaceChildren(previewImage);
+        }
+
+        previewImage.src = profilePhotoObjectUrl;
+        previewImage.alt = "Selected Profile Photo Preview";
+    });
+
+    window.addEventListener("beforeunload", function () {
+        if (profilePhotoObjectUrl) {
+            URL.revokeObjectURL(profilePhotoObjectUrl);
+        }
+    });
+}
+
+/* Existing worker data */
+const savedState = document.getElementById("state").dataset.saved || "";
+const savedCity = document.getElementById("city").dataset.saved || "";
+const savedSkills = document.getElementById("skills").dataset.saved || "";
+
+/* India states and cities */
+const stateCities = {
+    "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Tirupati", "Kurnool"],
+    "Arunachal Pradesh": ["Itanagar", "Naharlagun", "Pasighat", "Tawang"],
+    "Assam": ["Guwahati", "Dibrugarh", "Silchar", "Jorhat", "Tezpur"],
+    "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Darbhanga", "Purnia"],
+    "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba", "Durg"],
+    "Goa": ["Panaji", "Margao", "Vasco da Gama", "Mapusa"],
+    "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar", "Jamnagar", "Gandhinagar"],
+    "Haryana": ["Gurugram", "Faridabad", "Panipat", "Ambala", "Hisar", "Rohtak", "Karnal"],
+    "Himachal Pradesh": ["Shimla", "Dharamshala", "Mandi", "Solan", "Kullu"],
+    "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Deoghar"],
+    "Karnataka": ["Bengaluru", "Mysuru", "Mangaluru", "Hubballi", "Belagavi", "Davanagere"],
+    "Kerala": ["Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur", "Kollam", "Kannur"],
+    "Madhya Pradesh": ["Bhopal", "Indore", "Gwalior", "Jabalpur", "Ujjain", "Sagar"],
+    "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik", "Aurangabad", "Thane", "Kolhapur", "Solapur"],
+    "Manipur": ["Imphal", "Thoubal", "Bishnupur", "Churachandpur"],
+    "Meghalaya": ["Shillong", "Tura", "Jowai"],
+    "Mizoram": ["Aizawl", "Lunglei", "Champhai"],
+    "Nagaland": ["Kohima", "Dimapur", "Mokokchung"],
+    "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Puri", "Sambalpur", "Berhampur"],
+    "Punjab": ["Amritsar", "Ludhiana", "Jalandhar", "Patiala", "Bathinda", "Mohali"],
+    "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota", "Ajmer", "Bikaner", "Alwar"],
+    "Sikkim": ["Gangtok", "Namchi", "Gyalshing"],
+    "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Salem", "Tiruchirappalli", "Tirunelveli", "Vellore"],
+    "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam"],
+    "Tripura": ["Agartala", "Udaipur", "Dharmanagar"],
+    "Uttar Pradesh": [
+        "Bareilly", "Lucknow", "Kanpur", "Agra", "Varanasi", "Prayagraj",
+        "Meerut", "Ghaziabad", "Noida", "Moradabad", "Aligarh", "Gorakhpur",
+        "Mathura", "Firozabad", "Rampur", "Shahjahanpur", "Pilibhit",
+        "Budaun", "Sitapur", "Ayodhya"
+    ],
+    "Uttarakhand": ["Dehradun", "Haridwar", "Haldwani", "Nainital", "Roorkee", "Rudrapur"],
+    "West Bengal": ["Kolkata", "Howrah", "Durgapur", "Siliguri", "Asansol", "Darjeeling"],
+    "Andaman and Nicobar Islands": ["Port Blair"],
+    "Chandigarh": ["Chandigarh"],
+    "Dadra and Nagar Haveli and Daman and Diu": ["Daman", "Diu", "Silvassa"],
+    "Delhi": ["New Delhi", "Delhi"],
+    "Jammu and Kashmir": ["Srinagar", "Jammu", "Anantnag", "Baramulla"],
+    "Ladakh": ["Leh", "Kargil"],
+    "Lakshadweep": ["Kavaratti"],
+    "Puducherry": ["Puducherry", "Karaikal", "Mahe", "Yanam"]
+};
+
+/* State dropdown */
+const stateSelect = document.getElementById("state");
+const citySelect = document.getElementById("city");
+
+Object.keys(stateCities).sort().forEach(function(state) {
+    const option = document.createElement("option");
+    option.value = state;
+    option.textContent = state;
+    stateSelect.appendChild(option);
+});
+
+/* Load cities after state selection */
+function loadCities(selectedState, selectedCity = "") {
+    citySelect.innerHTML = '<option value="">Select City</option>';
+    citySelect.disabled = true;
+
+    if (!selectedState) return;
+
+    const cities = stateCities[selectedState] || [];
+
+    cities.forEach(function(city) {
+        const option = document.createElement("option");
+        option.value = city;
+        option.textContent = city;
+
+        if (city === selectedCity) {
+            option.selected = true;
+        }
+
+        citySelect.appendChild(option);
+    });
+
+    citySelect.disabled = false;
+}
+
+stateSelect.addEventListener("change", function() {
+    loadCities(this.value);
+});
+
+/* Restore saved state and city */
+const workerState = "{{ worker['state'] or '' }}";
+const workerCity = "{{ worker['city'] or '' }}";
+
+if (workerState) {
+    stateSelect.value = workerState;
+    loadCities(workerState, workerCity);
+}
+
+/* Pincode: numbers only */
+document.getElementById("pincode").addEventListener("input", function() {
+    this.value = this.value.replace(/\D/g, "").slice(0, 6);
+});
+
+/* Existing location */
+const existingLatitude = document.getElementById("latitude").value;
+const existingLongitude = document.getElementById("longitude").value;
+
+if (existingLatitude && existingLongitude) {
+    showLocation(existingLatitude, existingLongitude);
+}
+
+/* Get live location */
+function getLiveLocation() {
+    const button = document.getElementById("locationBtn");
+    const status = document.getElementById("locationStatus");
+
+    if (!navigator.geolocation) {
+        status.textContent = "❌ Your browser does not support location.";
+        status.className = "location-status error";
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "📍 Getting your location...";
+    status.textContent = "Please allow location permission.";
+    status.className = "location-status";
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+
+            document.getElementById("latitude").value = latitude;
+            document.getElementById("longitude").value = longitude;
+
+            showLocation(latitude, longitude);
+
+            button.disabled = false;
+            button.textContent = "🔄 Update Live Location";
+        },
+        function(error) {
+            button.disabled = false;
+            button.textContent = "📍 Use My Live Location";
+            status.className = "location-status error";
+
+            if (error.code === 1) {
+                status.textContent = "❌ Location permission denied. Please allow location access.";
+            } else if (error.code === 2) {
+                status.textContent = "❌ Location unavailable.";
+            } else if (error.code === 3) {
+                status.textContent = "❌ Location request timed out.";
+            } else {
+                status.textContent = "❌ Unable to get your location.";
+            }
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        }
+    );
+}
+
+/* Show location */
+function showLocation(latitude, longitude) {
+    const status = document.getElementById("locationStatus");
+    const coordinates = document.getElementById("coordinates");
+
+    status.textContent = "✅ Live location added";
+    status.className = "location-status success";
+
+    coordinates.style.display = "block";
+    coordinates.innerHTML = `
+        Latitude: ${Number(latitude).toFixed(6)}
+        <br>
+        Longitude: ${Number(longitude).toFixed(6)}
+    `;
+}
+
+/* Compact multi-skill dropdown */
+const skillsSelect = document.getElementById("skills");
+const skillsPicker = document.getElementById("skillsPicker");
+const skillsPickerButton = document.getElementById("skillsPickerButton");
+const skillsPickerPanel = document.getElementById("skillsPickerPanel");
+const skillsSummary = document.getElementById("skillsSummary");
+
+function syncSkillsPicker() {
+    const selectedValues = Array.from(skillsSelect.selectedOptions)
+        .map(option => option.value);
+
+    skillsPickerPanel.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
+        checkbox.checked = selectedValues.includes(checkbox.value);
+    });
+
+    if (selectedValues.length === 0) {
+        skillsSummary.textContent = "Select skills";
+        skillsSummary.title = "Select skills";
+    } else {
+        skillsSummary.textContent = selectedValues.length +
+            (selectedValues.length === 1 ? " skill selected" : " skills selected");
+        skillsSummary.title = selectedValues.join(", ");
+    }
+}
+
+skillsPickerButton.addEventListener("click", function() {
+    const isOpen = skillsPicker.classList.toggle("open");
+    skillsPickerButton.setAttribute("aria-expanded", String(isOpen));
+});
+
+skillsPickerPanel.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
+    checkbox.addEventListener("change", function() {
+        const matchingOption = Array.from(skillsSelect.options)
+            .find(option => option.value === checkbox.value);
+
+        if (matchingOption) {
+            matchingOption.selected = checkbox.checked;
+        }
+
+        syncSkillsPicker();
+    });
+});
+
+/* Close dropdown when clicking outside */
+document.addEventListener("click", function(event) {
+    if (!skillsPicker.contains(event.target)) {
+        skillsPicker.classList.remove("open");
+        skillsPickerButton.setAttribute("aria-expanded", "false");
+    }
+});
+
+syncSkillsPicker();
+
+/* Form validation */
+document.getElementById("profileForm").addEventListener("submit", function(event) {
+    const pincode = document.getElementById("pincode").value;
+
+    if (!/^\d{6}$/.test(pincode)) {
+        event.preventDefault();
+        alert("Please enter a valid 6 digit pincode.");
+        return;
+    }
+
+    const city = document.getElementById("city").value;
+
+    if (!city) {
+        event.preventDefault();
+        alert("Please select your city.");
+        return;
+    }
+
+    const selectedSkills = Array.from(skillsSelect.selectedOptions);
+
+    if (selectedSkills.length === 0) {
+        event.preventDefault();
+        alert("Please select at least one skill.");
+        return;
+    }
+});
+
+/* Flash message */
+const flash = document.querySelector(".flash");
+
+if (flash) {
+    setTimeout(function() {
+        flash.style.transition = ".5s";
+        flash.style.opacity = "0";
+        flash.style.transform = "translateY(-20px)";
+
+        setTimeout(function() {
+            window.location.href = "/worker/profile";
+        }, 500);
+    }, 2000);
+}
+</script>
+
+</body>
+</html>

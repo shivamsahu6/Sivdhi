@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Customer Details | Sivdhi Admin</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#f1f5f9;
+    color:#0f172a;
+}
+
+/* HEADER */
+
+.header{
+    background:linear-gradient(135deg,#2563eb,#0f172a);
+    color:white;
+
+    padding:25px 30px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.header h1{
+    font-size:26px;
+}
+
+.header p{
+    margin-top:6px;
+    font-size:14px;
+    opacity:.8;
+}
+
+.back{
+    text-decoration:none;
+    color:white;
+
+    background:rgba(255,255,255,.15);
+
+    padding:11px 18px;
+
+    border-radius:10px;
+}
+
+
+/* CONTAINER */
+
+.container{
+    max-width:1250px;
+
+    margin:30px auto;
+
+    padding:0 20px;
+}
+
+
+/* PROFILE */
+
+.profile-card{
+    background:white;
+
+    border-radius:22px;
+
+    padding:30px;
+
+    box-shadow:
+        0 8px 25px rgba(15,23,42,.08);
+
+    display:flex;
+
+    align-items:center;
+
+    gap:25px;
+
+    margin-bottom:25px;
+}
+
+
+.profile-photo{
+    width:115px;
+    height:115px;
+
+    border-radius:50%;
+
+    object-fit:cover;
+
+    border:4px solid #eff6ff;
+}
+
+
+.profile-placeholder{
+    width:115px;
+    height:115px;
+
+    border-radius:50%;
+
+    background:
+        linear-gradient(
+            135deg,
+            #2563eb,
+            #0f172a
+        );
+
+    color:white;
+
+    display:flex;
+
+    align-items:center;
+    justify-content:center;
+
+    font-size:42px;
+
+    font-weight:bold;
+}
+
+
+.profile-info h2{
+    font-size:28px;
+}
+
+.customer-id{
+    color:#64748b;
+
+    margin-top:7px;
+
+    font-size:14px;
+}
+
+
+.verified{
+    display:inline-block;
+
+    margin-top:12px;
+
+    padding:7px 15px;
+
+    border-radius:20px;
+
+    font-size:12px;
+
+    font-weight:bold;
+
+    background:#dcfce7;
+
+    color:#166534;
+}
+
+
+.unverified{
+    display:inline-block;
+
+    margin-top:12px;
+
+    padding:7px 15px;
+
+    border-radius:20px;
+
+    font-size:12px;
+
+    font-weight:bold;
+
+    background:#fef3c7;
+
+    color:#92400e;
+}
+
+
+/* GRID */
+
+.grid{
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(2,1fr);
+
+    gap:20px;
+}
+
+
+.card{
+
+    background:white;
+
+    border-radius:20px;
+
+    padding:25px;
+
+    box-shadow:
+        0 6px 20px rgba(15,23,42,.07);
+}
+
+
+.card h3{
+
+    font-size:18px;
+
+    margin-bottom:18px;
+
+    padding-bottom:13px;
+
+    border-bottom:
+        1px solid #e2e8f0;
+}
+
+
+.info-row{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:flex-start;
+
+    gap:20px;
+
+    padding:13px 0;
+
+    border-bottom:
+        1px solid #f1f5f9;
+}
+
+
+.info-row:last-child{
+
+    border-bottom:none;
+
+}
+
+
+.label{
+
+    color:#64748b;
+
+    font-size:14px;
+}
+
+
+.value{
+
+    font-weight:600;
+
+    text-align:right;
+
+    word-break:break-word;
+}
+
+
+/* LOCATION */
+
+.location{
+
+    color:#2563eb;
+}
+
+
+/* BOOKING */
+
+.booking-card{
+
+    margin-top:20px;
+
+    background:white;
+
+    border-radius:20px;
+
+    padding:25px;
+
+    box-shadow:
+        0 6px 20px rgba(15,23,42,.07);
+}
+
+
+.no-bookings{
+
+    color:#64748b;
+
+    text-align:center;
+
+    padding:20px;
+}
+
+
+/* MOBILE */
+
+@media(max-width:700px){
+
+    .header{
+
+        padding:20px;
+
+    }
+
+    .header h1{
+
+        font-size:21px;
+
+    }
+
+    .back{
+
+        padding:9px 12px;
+
+        font-size:13px;
+
+    }
+
+    .container{
+
+        margin:20px auto;
+
+        padding:0 12px;
+
+    }
+
+    .profile-card{
+
+        flex-direction:column;
+
+        text-align:center;
+
+        padding:25px 15px;
+
+    }
+
+    .grid{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .info-row{
+
+        flex-direction:column;
+
+        gap:6px;
+
+    }
+
+    .value{
+
+        text-align:left;
+
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+<!-- HEADER -->
+
+<div class="header">
+
+    <div>
+
+        <h1>
+            👤 Customer Details
+        </h1>
+
+        <p>
+            Customer Management • Admin Panel
+        </p>
+
+    </div>
+
+
+    <a
+        href="/admin/customers"
+        class="back"
+    >
+        ← Customers
+    </a>
+
+</div>
+
+
+<div class="container">
+
+
+<!-- PROFILE -->
+
+<div class="profile-card">
+
+
+{% if customer["profile_photo"] %}
+
+<img
+    src="{{ url_for(
+        'static',
+        filename='uploads/' + customer['profile_photo']
+    ) }}"
+    class="profile-photo"
+>
+
+{% else %}
+
+<div class="profile-placeholder">
+
+{{ customer["fullname"][0]|upper }}
+
+</div>
+
+{% endif %}
+
+
+<div class="profile-info">
+
+<h2>
+
+{{ customer["fullname"] }}
+
+</h2>
+
+
+<div class="customer-id">
+
+Customer ID:
+{{ customer["customer_id"] }}
+
+</div>
+
+
+{% if customer["email_verified"] == 1 %}
+
+<span class="verified">
+
+✓ EMAIL VERIFIED
+
+</span>
+
+{% else %}
+
+<span class="unverified">
+
+EMAIL NOT VERIFIED
+
+</span>
+
+{% endif %}
+
+</div>
+
+</div>
+
+
+<div class="grid">
+
+
+<!-- PERSONAL -->
+
+<div class="card">
+
+<h3>
+👤 Personal Information
+</h3>
+
+
+<div class="info-row">
+
+<span class="label">
+Full Name
+</span>
+
+<span class="value">
+{{ customer["fullname"] }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Customer ID
+</span>
+
+<span class="value">
+{{ customer["customer_id"] }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Mobile
+</span>
+
+<span class="value">
+{{ customer["mobile"] }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Email
+</span>
+
+<span class="value">
+{{ customer["email"] }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Email Verification
+</span>
+
+<span class="value">
+
+{% if customer["email_verified"] == 1 %}
+
+Verified
+
+{% else %}
+
+Not Verified
+
+{% endif %}
+
+</span>
+
+</div>
+
+</div>
+
+
+<!-- ADDRESS -->
+
+<div class="card">
+
+<h3>
+📍 Address Information
+</h3>
+
+
+<div class="info-row">
+
+<span class="label">
+Address
+</span>
+
+<span class="value location">
+{{ customer["address"] or "Not Added" }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+City
+</span>
+
+<span class="value">
+{{ customer["city"] or "Not Added" }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+State
+</span>
+
+<span class="value">
+{{ customer["state"] or "Not Added" }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Pincode
+</span>
+
+<span class="value">
+{{ customer["pincode"] or "Not Added" }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Latitude
+</span>
+
+<span class="value">
+{{ customer["latitude"] or "Not Available" }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Longitude
+</span>
+
+<span class="value">
+{{ customer["longitude"] or "Not Available" }}
+</span>
+
+</div>
+
+</div>
+
+
+<!-- ACCOUNT -->
+
+<div class="card">
+
+<h3>
+🔐 Account Information
+</h3>
+
+
+<div class="info-row">
+
+<span class="label">
+Account Created
+</span>
+
+<span class="value">
+{{ customer["created_at"] }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Customer ID
+</span>
+
+<span class="value">
+{{ customer["customer_id"] }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Profile Photo
+</span>
+
+<span class="value">
+
+{% if customer["profile_photo"] %}
+
+Available
+
+{% else %}
+
+Not Added
+
+{% endif %}
+
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Email Status
+</span>
+
+<span class="value">
+
+{% if customer["email_verified"] == 1 %}
+
+Verified
+
+{% else %}
+
+Pending Verification
+
+{% endif %}
+
+</span>
+
+</div>
+
+</div>
+
+
+<!-- CONTACT -->
+
+<div class="card">
+
+<h3>
+📞 Contact Information
+</h3>
+
+
+<div class="info-row">
+
+<span class="label">
+Mobile
+</span>
+
+<span class="value">
+{{ customer["mobile"] }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+Email
+</span>
+
+<span class="value">
+{{ customer["email"] }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+City
+</span>
+
+<span class="value">
+{{ customer["city"] or "Not Added" }}
+</span>
+
+</div>
+
+
+<div class="info-row">
+
+<span class="label">
+State
+</span>
+
+<span class="value">
+{{ customer["state"] or "Not Added" }}
+</span>
+
+</div>
+
+</div>
+
+
+</div>
+
+<section style="background:#fff;border-radius:18px;padding:24px;margin:24px 0;box-shadow:0 8px 25px rgba(15,23,42,.06)">
+  <h2 style="font-size:20px;margin-bottom:8px">Account Management</h2>
+  <p style="color:#64748b;margin-bottom:16px">Status: <strong style="color:{% if customer['status']|default('active')|lower == 'suspended' %}#dc2626{% else %}#16a34a{% endif %}">{{ customer['status']|default('active')|title }}</strong></p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    {% if customer['status']|default('active')|lower == 'suspended' %}
+    <form method="POST" action="/admin/customer/{{ customer['id'] }}/activate" onsubmit="return confirm('Activate this customer account?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button style="border:0;border-radius:9px;padding:11px 16px;background:#dcfce7;color:#166534;font-weight:700;cursor:pointer">✓ Activate Customer</button>
+    </form>
+    {% else %}
+    <form method="POST" action="/admin/customer/{{ customer['id'] }}/suspend" onsubmit="return confirm('Suspend this customer account?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button style="border:0;border-radius:9px;padding:11px 16px;background:#fef3c7;color:#92400e;font-weight:700;cursor:pointer">⏸ Suspend Customer</button>
+    </form>
+    {% endif %}
+    <form method="POST" action="/admin/customer/delete/{{ customer['id'] }}" onsubmit="return confirm('Move this customer to Deleted Accounts?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button style="border:0;border-radius:9px;padding:11px 16px;background:#fee2e2;color:#b91c1c;font-weight:700;cursor:pointer">🗑 Move to Deleted Accounts</button>
+    </form>
+  </div>
+</section>
+
+</div>
+
+</body>
+
+</html>

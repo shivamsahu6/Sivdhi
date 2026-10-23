@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+>
+
+<title>Rate Sivdhi</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:30px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:30px 20px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+font-size:26px;
+}
+
+.header p{
+margin-top:5px;
+opacity:.9;
+font-size:14px;
+}
+
+.card{
+margin:20px;
+background:white;
+padding:22px;
+border-radius:18px;
+box-shadow:0 5px 15px rgba(0,0,0,.08);
+}
+
+.rating{
+display:flex;
+justify-content:center;
+gap:12px;
+margin:20px 0;
+direction:rtl;
+}
+
+.rating input{
+display:none;
+}
+
+.rating label{
+font-size:38px;
+cursor:pointer;
+transition:.3s;
+filter:grayscale(1);
+}
+
+.rating label:hover,
+.rating label:hover ~ label,
+.rating input:checked ~ label{
+filter:grayscale(0);
+transform:scale(1.15);
+}
+
+textarea{
+width:100%;
+height:120px;
+padding:15px;
+border:1px solid #ddd;
+border-radius:12px;
+resize:none;
+outline:none;
+font-size:15px;
+margin-top:15px;
+}
+
+textarea:focus{
+border-color:#2563eb;
+}
+
+button{
+width:100%;
+margin-top:20px;
+padding:15px;
+border:none;
+border-radius:12px;
+background:#2563eb;
+color:white;
+font-size:16px;
+font-weight:bold;
+cursor:pointer;
+}
+
+button:hover{
+background:#1d4ed8;
+}
+
+.flash{
+margin:20px;
+padding:15px;
+border-radius:12px;
+font-size:15px;
+font-weight:600;
+text-align:center;
+}
+
+.flash.success{
+background:#dcfce7;
+color:#166534;
+border:1px solid #22c55e;
+}
+
+.flash.danger{
+background:#fee2e2;
+color:#991b1b;
+border:1px solid #ef4444;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>⭐ Rate Sivdhi</h2>
+
+<p>Tell us about your experience</p>
+
+</div>
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+
+{% if messages %}
+
+{% for category, message in messages %}
+
+<div class="flash {{ category }}">
+
+{{ message }}
+
+</div>
+
+{% endfor %}
+
+{% endif %}
+
+{% endwith %}
+
+
+<div class="card">
+
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<div class="rating">
+
+<input
+type="radio"
+id="5"
+name="rating"
+value="5"
+required
+>
+
+<label for="5">⭐</label>
+
+
+<input
+type="radio"
+id="4"
+name="rating"
+value="4"
+>
+
+<label for="4">⭐</label>
+
+
+<input
+type="radio"
+id="3"
+name="rating"
+value="3"
+>
+
+<label for="3">⭐</label>
+
+
+<input
+type="radio"
+id="2"
+name="rating"
+value="2"
+>
+
+<label for="2">⭐</label>
+
+
+<input
+type="radio"
+id="1"
+name="rating"
+value="1"
+>
+
+<label for="1">⭐</label>
+
+</div>
+
+
+<textarea
+name="feedback"
+placeholder="Write your feedback..."
+></textarea>
+
+
+<button type="submit">
+
+Submit Review
+
+</button>
+
+</form>
+
+</div>
+
+
+<script>
+
+const flash = document.querySelector(".flash");
+
+if(flash){
+
+const isSuccess =
+flash.classList.contains("success");
+
+if(isSuccess){
+
+setTimeout(function(){
+
+window.location.href="/worker/settings";
+
+},2000);
+
+}
+
+}
+
+</script>
+
+</body>
+
+</html>

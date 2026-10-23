@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Job Details | Sivdhi</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f7f7fb;
+            color: #24152f;
+            font-family: Inter, Arial, sans-serif;
+        }
+
+        main {
+            max-width: 760px;
+            margin: auto;
+            padding: 22px 16px 110px;
+        }
+
+        .top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        a.back {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 13px;
+            text-decoration: none;
+            color: #4c3560;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .flash {
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+        .flash.success { background: #dcfce7; color: #166534; }
+        .flash.danger, .flash.error { background: #fee2e2; color: #991b1b; }
+        .flash.warning { background: #fef3c7; color: #92400e; }
+        .flash.info { background: #dbeafe; color: #1e40af; }
+
+        .card {
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 14px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .04);
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 11px 0;
+            border-bottom: 1px solid #f0edf3;
+            font-size: 13px;
+        }
+
+        .row:last-child {
+            border: 0;
+        }
+
+        .label {
+            color: #8a7c94;
+        }
+
+        .value {
+            text-align: right;
+            font-weight: 650;
+            max-width: 65%;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 20px;
+            background: #f1e9ff;
+            color: #6d28d9;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .actions form {
+            margin: 0;
+        }
+
+        .btn {
+            width: 100%;
+            border: 0;
+            border-radius: 12px;
+            padding: 13px 14px;
+            font: 600 14px Inter, Arial, sans-serif;
+            cursor: pointer;
+        }
+
+        .accept {
+            background: #7c3aed;
+            color: #fff;
+        }
+
+        .reject {
+            background: #fff;
+            border: 1px solid #eadfee;
+            color: #b42318;
+        }
+
+        .btn:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+
+        .call {
+            display: block;
+            text-align: center;
+            text-decoration: none;
+            background: #f1e9ff;
+            color: #6d28d9;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 10px;
+            font-weight: 650;
+        }
+
+        .notice {
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: #faf7ff;
+            color: #6d28d9;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        @media(max-width:520px) {
+            .actions {
+                grid-template-columns: 1fr;
+            }
+
+            .row {
+                align-items: flex-start;
+            }
+
+            .value {
+                max-width: 58%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category|e }}" role="status" aria-live="polite">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <div class="top">
+            <a class="back" href="/partner/jobs" aria-label="Back to jobs">←</a>
+            <h1>Job Details</h1>
+        </div>
+
+        {% set booking_ref = job["booking_id"] or job["job_id"] or job["id"] %}
+        {% set service_name = job["service"] or job["category"] or "Service" %}
+        {% set current_status = (job["job_status"] or "pending")|string|lower %}
+        {% set amount = job["amount"] %}
+
+        <section class="card">
+            <div class="row">
+                <span class="label">Job ID</span>
+                <span class="value">{{ booking_ref or "-" }}</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Service</span>
+                <span class="value">{{ service_name }}</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Customer</span>
+                <span class="value">{{ job["customer_name"] or "Customer" }}</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Mobile</span>
+                <span class="value">{{ job["customer_mobile"] or "-" }}</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Address</span>
+                <span class="value">{{ job["customer_address"] or "-" }}{% if job["city"] or job["state"] or job["pincode"] %}
+{{ [job["city"], job["state"], job["pincode"]]|select|join(", ") }}{% endif %}</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Date</span>
+                <span class="value">{{ job["booking_date"] or "-" }}</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Time</span>
+                <span class="value">{{ job["booking_time"] or "-" }}</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Amount</span>
+                <span class="value">
+                    {% if amount is not none %}
+                    ₹{{ "%.2f"|format(amount|float) }}
+                    {% else %}
+                    Amount pending
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="row">
+                <span class="label">Status</span>
+                <span class="value">
+                    <span class="status">
+                        {{ current_status.replace("_", " ")|title }}
+                    </span>
+                </span>
+            </div>
+
+            <div class="row">
+                <span class="label">Payment</span>
+                <span class="value">{{ job["payment_status"] or "Pending" }}</span>
+            </div>
+
+            <div class="row">
+                <span class="label">Worker Assignment</span>
+                <span class="value">
+                    {% if job["assigned_worker_id"] or job["worker_id"] %}
+                    {{ job["assigned_worker_id"] or job["worker_id"] }}
+                    {% else %}
+                    Not assigned
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="row">
+                <span class="label">Description</span>
+                <span class="value">{{ job["description"] or "-" }}</span>
+            </div>
+
+            {% if job["cancellation_reason"] %}
+            <div class="row">
+                <span class="label">Cancellation / Rejection</span>
+                <span class="value">{{ job["cancellation_reason"] }}</span>
+            </div>
+            {% endif %}
+        </section>
+
+        {% if job["customer_mobile"] %}
+        <a class="call" href="tel:{{ job['customer_mobile']|replace(" ","") }}">
+            Call Customer
+        </a>
+        {% endif %}
+
+        {% if current_status in ["pending", "assigned"] %}
+        <section class="card">
+            <div class="actions">
+                {% if not job['partner_acknowledged_at'] %}
+                <form
+                    method="post"
+                    action="/partner/job/{{ job['id'] }}/accept"
+                    onsubmit="return lockAction(this);"
+                >
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    >
+                    <button class="btn accept" type="submit">
+                        Acknowledge
+                    </button>
+                </form>
+                {% else %}
+                <button class="btn accept" type="button" disabled>
+                    Partner Acknowledged
+                </button>
+                {% endif %}
+
+                <form
+                    method="post"
+                    action="/partner/job/{{ job['id'] }}/reject"
+                    onsubmit="return rejectJob(this);"
+                >
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    >
+                    <input type="hidden" name="reason" value="">
+                    <button class="btn reject" type="submit">
+                        Reject Job
+                    </button>
+                </form>
+            </div>
+        </section>
+        {% else %}
+        <section class="card">
+            <div class="notice">
+                This booking is currently
+                <strong>{{ current_status.replace("_", " ")|title }}</strong>.
+                No partner action is available for this status.
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <script>
+        function lockAction(form) {
+            const button = form.querySelector('button[type="submit"]');
+
+            if (!button || button.disabled) {
+                return false;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Processing…';
+
+            return true;
+        }
+
+        function rejectJob(form) {
+            const reason = prompt('Why are you rejecting this job?');
+
+            if (reason === null) {
+                return false;
+            }
+
+            const clean = reason.trim();
+
+            form.querySelector('input[name="reason"]').value =
+                clean || 'Rejected by partner';
+
+            return lockAction(form);
+        }
+    </script>
+</body>
+
+</html>

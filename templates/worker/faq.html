@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+>
+
+<title>FAQ</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+padding-bottom:30px;
+}
+
+.header{
+background:linear-gradient(135deg,#2563eb,#0f172a);
+padding:30px;
+color:white;
+border-radius:0 0 25px 25px;
+}
+
+.header h2{
+margin-bottom:5px;
+}
+
+.header p{
+font-size:14px;
+opacity:.9;
+}
+
+.card{
+margin:18px;
+background:white;
+border-radius:18px;
+box-shadow:0 5px 12px rgba(0,0,0,.08);
+overflow:hidden;
+}
+
+details{
+border-bottom:1px solid #eee;
+}
+
+details:last-child{
+border:none;
+}
+
+summary{
+padding:18px;
+font-size:16px;
+font-weight:600;
+cursor:pointer;
+list-style:none;
+}
+
+summary::-webkit-details-marker{
+display:none;
+}
+
+.answer{
+padding:0 18px 18px;
+font-size:14px;
+line-height:24px;
+color:#555;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+
+<div class="header">
+
+<h2>
+❓ Frequently Asked Questions
+</h2>
+
+<p>
+Find answers to common questions.
+</p>
+
+</div>
+
+
+<div class="card">
+
+
+<!-- =========================
+     FAQ 1
+========================= -->
+
+<details>
+
+<summary>
+How can I check my earnings?
+</summary>
+
+<div class="answer">
+
+Open Wallet to view your total earnings,
+pending payments and payment history.
+
+</div>
+
+</details>
+
+
+<!-- =========================
+     FAQ 2
+========================= -->
+
+<details>
+
+<summary>
+How can I withdraw my earnings?
+</summary>
+
+<div class="answer">
+
+After complete job admin dopsit your earnings in your account
+
+</div>
+
+</details>
+
+
+<!-- =========================
+     FAQ 3
+========================= -->
+
+<details>
+
+<summary>
+Why can't I withdraw money?
+</summary>
+
+<div class="answer">
+
+Please make sure your bank details are added
+correctly and your wallet has sufficient balance.
+
+If the problem continues, contact Help & Support.
+
+</div>
+
+</details>
+
+
+<!-- =========================
+     FAQ 4
+========================= -->
+
+<details>
+
+<summary>
+How can I change my bank account?
+</summary>
+
+<div class="answer">
+
+Go to Profile → Bank Details.
+
+Update your bank details and verify the change
+using the OTP sent to your registered email.
+
+</div>
+
+</details>
+
+
+<!-- =========================
+     FAQ 5
+========================= -->
+
+<details>
+
+<summary>
+How can I edit my profile?
+</summary>
+
+<div class="answer">
+
+Open your Profile and select Edit Profile.
+
+You can update your personal information,
+address, skills, experience and profile photo.
+
+</div>
+
+</details>
+
+
+<!-- =========================
+     FAQ 6
+========================= -->
+
+<details>
+
+<summary>
+How can I change my password?
+</summary>
+
+<div class="answer">
+
+Go to Settings → Change Password.
+
+Enter your current password and your new password.
+An OTP will be sent to your registered email for verification.
+
+</div>
+
+</details>
+
+
+<!-- =========================
+     FAQ 7
+========================= -->
+
+<details>
+
+<summary>
+Where can I see my jobs?
+</summary>
+
+<div class="answer">
+
+Open My Jobs from the worker dashboard
+to view your available and assigned jobs.
+
+</div>
+
+</details>
+
+
+<!-- =========================
+     FAQ 8
+========================= -->
+
+<details>
+
+<summary>
+How can I contact support?
+</summary>
+
+<div class="answer">
+
+Open Help & Support and contact the Sivdhi
+support team through the available support options.
+
+</div>
+
+</details>
+
+
+</div>
+
+
+</body>
+
+</html>

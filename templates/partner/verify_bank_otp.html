@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Verify OTP</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f5f7fb;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+padding:20px;
+}
+
+.card{
+
+width:100%;
+max-width:420px;
+
+background:white;
+
+padding:30px;
+
+border-radius:22px;
+
+box-shadow:0 10px 25px rgba(0,0,0,.12);
+
+text-align:center;
+
+}
+
+.icon{
+
+width:90px;
+height:90px;
+
+margin:auto;
+margin-bottom:20px;
+
+border-radius:50%;
+
+background:#2563eb;
+
+display:flex;
+
+justify-content:center;
+align-items:center;
+
+font-size:42px;
+
+color:white;
+
+}
+
+h2{
+
+margin-bottom:10px;
+color:#111827;
+
+}
+
+p{
+
+color:#6b7280;
+font-size:14px;
+margin-bottom:25px;
+
+}
+
+input{
+
+width:100%;
+
+padding:15px;
+
+border:1px solid #ddd;
+
+border-radius:12px;
+
+font-size:22px;
+
+text-align:center;
+
+letter-spacing:8px;
+
+margin-bottom:20px;
+
+outline:none;
+
+}
+
+button{
+
+width:100%;
+
+padding:15px;
+
+border:none;
+
+border-radius:12px;
+
+background:#2563eb;
+
+color:white;
+
+font-size:17px;
+
+font-weight:bold;
+
+cursor:pointer;
+
+}
+
+button:hover{
+
+background:#1d4ed8;
+
+}
+
+.back{
+
+display:block;
+
+margin-top:18px;
+
+text-decoration:none;
+
+color:#2563eb;
+
+font-weight:bold;
+
+}
+
+.flash{
+
+padding:12px;
+
+margin-bottom:18px;
+
+border-radius:10px;
+
+background:#dcfce7;
+
+color:#166534;
+
+font-size:14px;
+
+}
+
+.error{
+
+background:#fee2e2;
+color:#991b1b;
+
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="card">
+
+<div class="icon">
+🔐
+</div>
+
+<h2>Email Verification</h2>
+
+<p>
+Enter the 6-digit OTP sent to your registered email.
+</p>
+
+{% with messages=get_flashed_messages(with_categories=true) %}
+{% if messages %}
+
+{% for category,message in messages %}
+
+<div class="flash {% if category=='danger' %}error{% endif %}">
+{{ message }}
+</div>
+
+{% endfor %}
+
+{% endif %}
+{% endwith %}
+
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<input
+type="text"
+name="otp"
+maxlength="6"
+placeholder="000000"
+inputmode="numeric"
+pattern="[0-9]{6}"
+oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+required>
+
+<button>
+
+Verify OTP
+
+</button>
+
+<p id="timer" style="margin-top:15px;color:#666;">
+Resend OTP in <span id="count">30</span>s
+</p>
+
+</form>
+
+<form method="POST" action="/partner/resend-bank-otp" class="resend-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button id="resend" type="submit" style="display:none;background:transparent;border:0;padding:0;text-decoration:none;font-weight:bold;color:#2563eb;cursor:pointer;">Resend OTP</button>
+</form>
+
+<a
+class="back"
+href="/partner/bank">
+
+← Back to Bank Details
+
+</a>
+
+</div>
+<script>
+
+// ======================
+// OTP Timer
+// ======================
+
+let time = 30;
+
+const timer = document.getElementById("count");
+const resend = document.getElementById("resend");
+const timerText = document.getElementById("timer");
+
+const interval = setInterval(function(){
+
+    time--;
+
+    timer.innerHTML = time;
+
+    if(time <= 0){
+
+        clearInterval(interval);
+
+        timerText.style.display = "none";
+        resend.style.display = "inline-block";
+
+    }
+
+},1000);
+
+
+// ======================
+// Auto Hide Flash Message
+// ======================
+
+setTimeout(function(){
+
+    const flashMessages = document.querySelectorAll(".flash");
+
+    flashMessages.forEach(function(item){
+
+        item.style.transition = "0.5s";
+        item.style.opacity = "0";
+
+        setTimeout(function(){
+
+            item.remove();
+
+        },500);
+
+    });
+
+},3000);
+
+
+// ======================
+// OTP Only Numbers
+// ======================
+
+const otpInput = document.querySelector("input[name='otp']");
+
+otpInput.addEventListener("input", function(){
+
+    this.value = this.value.replace(/[^0-9]/g,"");
+
+});
+
+</script>
+</body>
+
+</html>

@@ -1,0 +1,763 @@
+<!-- templates/customer/rate_app.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>Rate App | Sivdhi</title>
+
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190, 130, 255, .20);
+            --gold: #ffc65c;
+            --green: #78e5b0;
+            --red: #ff8aa4;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            min-height: 100%;
+            background: var(--bg);
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            color: var(--text);
+            background:
+                radial-gradient(
+                    ellipse at 0 0,
+                    rgba(255, 67, 140, .10),
+                    transparent 40%
+                ),
+                radial-gradient(
+                    ellipse at 100% 55%,
+                    rgba(86, 109, 255, .10),
+                    transparent 42%
+                ),
+                var(--bg);
+            font-family: Inter, -apple-system, BlinkMacSystemFont,
+                "Segoe UI", Arial, sans-serif;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        button,
+        textarea {
+            font: inherit;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 620px;
+            margin: 0 auto;
+            padding: 0 18px 35px;
+        }
+
+        /* Header */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            min-height: 78px;
+            border-bottom: 1px solid rgba(255, 255, 255, .065);
+        }
+
+        .back-button {
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            width: 43px;
+            height: 43px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, .035);
+            color: var(--text);
+            font-size: 25px;
+            line-height: 1;
+            transition: background .2s, border-color .2s;
+        }
+
+        .back-button:hover {
+            border-color: rgba(164, 77, 255, .45);
+            background: rgba(164, 77, 255, .12);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            display: grid;
+            place-items: center;
+            width: 43px;
+            height: 43px;
+            border-radius: 14px;
+            background: linear-gradient(
+                135deg,
+                var(--pink),
+                var(--purple),
+                var(--blue)
+            );
+            box-shadow: 0 7px 22px rgba(164, 77, 255, .20);
+            color: white;
+            font-size: 22px;
+            font-weight: 900;
+        }
+
+        .brand-name {
+            margin: 0;
+            font-size: 21px;
+            font-weight: 800;
+            letter-spacing: -.6px;
+        }
+
+        .brand-name span {
+            color: #ff72b6;
+        }
+
+        .brand-caption {
+            display: block;
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 9px;
+            letter-spacing: 1.3px;
+            text-transform: uppercase;
+        }
+
+        /* Page title */
+        .intro {
+            padding: 28px 0 21px;
+        }
+
+        .eyebrow {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            color: #d7a5ff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.7px;
+            text-transform: uppercase;
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 22px;
+            height: 2px;
+            border-radius: 5px;
+            background: linear-gradient(90deg, var(--pink), var(--purple));
+        }
+
+        .intro h1 {
+            margin: 0;
+            font-size: clamp(26px, 5vw, 33px);
+            line-height: 1.25;
+            letter-spacing: -.8px;
+        }
+
+        .intro h1 span {
+            color: #d7a5ff;
+        }
+
+        .intro p {
+            margin: 10px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        /* Rating card */
+        .card {
+            overflow: hidden;
+            padding: 24px;
+            border: 1px solid var(--border);
+            border-radius: 23px;
+            background: rgba(23, 18, 31, .95);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, .18);
+        }
+
+        .hero {
+            padding: 7px 0 23px;
+            text-align: center;
+        }
+
+        .app-logo {
+            display: grid;
+            place-items: center;
+            width: 82px;
+            height: 82px;
+            margin: 0 auto 17px;
+            border: 1px solid rgba(255, 255, 255, .18);
+            border-radius: 25px;
+            background: linear-gradient(
+                135deg,
+                var(--pink),
+                var(--purple),
+                var(--blue)
+            );
+            box-shadow: 0 10px 30px rgba(164, 77, 255, .24);
+            color: white;
+            font-size: 38px;
+            font-weight: 900;
+        }
+
+        .hero h2 {
+            margin: 0;
+            font-size: 21px;
+            font-weight: 850;
+            letter-spacing: -.4px;
+        }
+
+        .hero p {
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.75;
+        }
+
+        .separator {
+            height: 1px;
+            margin-bottom: 23px;
+            background: rgba(255, 255, 255, .075);
+        }
+
+        .rating-label {
+            display: block;
+            margin-bottom: 15px;
+            color: #f0e8f8;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        /* Five interactive stars */
+        .stars {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: center;
+            gap: clamp(3px, 2vw, 11px);
+            margin: 0 auto 10px;
+        }
+
+        .star-option {
+            position: relative;
+            display: block;
+            cursor: pointer;
+        }
+
+        .star-option input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .star-option span {
+            display: block;
+            padding: 2px;
+            color: #594a68;
+            font-size: clamp(35px, 9vw, 46px);
+            line-height: 1.3;
+            transition: color .17s, transform .17s;
+        }
+
+        .star-option:hover span,
+        .star-option:hover ~ .star-option span,
+        .star-option input:checked ~ span {
+            color: var(--gold);
+        }
+
+        .star-option input:focus-visible ~ span {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+            border-radius: 8px;
+        }
+
+        .star-option:active span {
+            transform: scale(.91);
+        }
+
+        .rating-description {
+            min-height: 24px;
+            margin: 6px 0 23px;
+            color: #e3c5ff;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 750;
+        }
+
+        /* Feedback */
+        .field {
+            margin-bottom: 19px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 9px;
+            color: #f0e8f8;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .optional {
+            margin-left: 5px;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .feedback-box {
+            display: block;
+            width: 100%;
+            min-height: 125px;
+            padding: 14px;
+            resize: vertical;
+            border: 1px solid rgba(190, 130, 255, .22);
+            border-radius: 14px;
+            outline: none;
+            color: var(--text);
+            background: #100c17;
+            font-size: 13px;
+            line-height: 1.7;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .feedback-box::placeholder {
+            color: #766984;
+        }
+
+        .feedback-box:focus {
+            border-color: var(--purple);
+            box-shadow: 0 0 0 3px rgba(164, 77, 255, .10);
+        }
+
+        .field-hint {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.6;
+        }
+
+        .counter {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        /* Submit */
+        .submit-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            min-height: 52px;
+            padding: 14px 18px;
+            border: 0;
+            border-radius: 14px;
+            color: white;
+            background: linear-gradient(
+                105deg,
+                var(--pink),
+                var(--purple),
+                var(--blue)
+            );
+            box-shadow: 0 9px 25px rgba(164, 77, 255, .20);
+            font-size: 13px;
+            font-weight: 850;
+            cursor: pointer;
+            transition: transform .2s, filter .2s;
+        }
+
+        .submit-button:hover {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+        }
+
+        .submit-button:disabled {
+            opacity: .65;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .submit-icon {
+            font-size: 17px;
+        }
+
+        .privacy-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 17px;
+            padding: 14px;
+            border: 1px solid rgba(86, 109, 255, .20);
+            border-radius: 14px;
+            background: rgba(86, 109, 255, .055);
+        }
+
+        .privacy-note-icon {
+            flex-shrink: 0;
+            font-size: 17px;
+        }
+
+        .privacy-note p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.75;
+        }
+
+        /* Flask flash messages */
+        .messages {
+            margin-bottom: 17px;
+        }
+
+        .notice {
+            padding: 13px 15px;
+            margin-bottom: 9px;
+            border: 1px solid transparent;
+            border-radius: 13px;
+            font-size: 12px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .notice.success {
+            color: var(--green);
+            background: rgba(120, 229, 176, .08);
+            border-color: rgba(120, 229, 176, .23);
+        }
+
+        .notice.danger,
+        .notice.error {
+            color: var(--red);
+            background: rgba(255, 67, 140, .08);
+            border-color: rgba(255, 67, 140, .23);
+        }
+
+        .notice.warning {
+            color: #ffd28a;
+            background: rgba(255, 190, 90, .08);
+            border-color: rgba(255, 190, 90, .22);
+        }
+
+        .notice.info {
+            color: #c3c8ff;
+            background: rgba(86, 109, 255, .08);
+            border-color: rgba(86, 109, 255, .23);
+        }
+
+        @media (max-width: 420px) {
+            .page {
+                padding-right: 13px;
+                padding-left: 13px;
+            }
+
+            .card {
+                padding: 20px 15px;
+                border-radius: 20px;
+            }
+
+            .intro {
+                padding-top: 24px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+    <main class="page">
+
+        <header class="topbar">
+            <a
+                class="back-button"
+                href="{{ url_for('customer.profile') }}"
+                aria-label="Back to profile"
+            >‹</a>
+
+            <div class="brand">
+                <div class="brand-icon" aria-hidden="true">S</div>
+                <div>
+                    <p class="brand-name">Siv<span>dhi</span></p>
+                    <span class="brand-caption">Customer Account</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="intro">
+            <div class="eyebrow">Your Feedback</div>
+            <h1>Rate the <span>Sivdhi App</span></h1>
+            <p>
+                Tell us about your experience. Your feedback helps us
+                understand what we're doing well and where we can improve.
+            </p>
+        </section>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="messages" aria-live="polite">
+                    {% for category, message in messages %}
+                        <div class="notice {{ category|e }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <section class="card">
+
+            <div class="hero">
+                <div class="app-logo" aria-hidden="true">S</div>
+                <h2>How was your experience?</h2>
+                <p>Select a star rating and share your thoughts with us.</p>
+            </div>
+
+            <div class="separator"></div>
+
+            <form method="POST" id="rateAppForm">
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token() }}"
+                >
+
+                <fieldset
+                    style="border:0;padding:0;margin:0;min-width:0;"
+                    aria-describedby="ratingDescription"
+                >
+                    <legend class="rating-label">
+                        Your Rating
+                    </legend>
+
+                    <div class="stars" role="radiogroup" aria-label="App rating">
+                        <label class="star-option">
+                            <input
+                                type="radio"
+                                name="rating"
+                                value="5"
+                                required
+                                aria-label="5 stars, Excellent"
+                            >
+                            <span aria-hidden="true">★</span>
+                        </label>
+
+                        <label class="star-option">
+                            <input
+                                type="radio"
+                                name="rating"
+                                value="4"
+                                aria-label="4 stars, Very good"
+                            >
+                            <span aria-hidden="true">★</span>
+                        </label>
+
+                        <label class="star-option">
+                            <input
+                                type="radio"
+                                name="rating"
+                                value="3"
+                                aria-label="3 stars, Good"
+                            >
+                            <span aria-hidden="true">★</span>
+                        </label>
+
+                        <label class="star-option">
+                            <input
+                                type="radio"
+                                name="rating"
+                                value="2"
+                                aria-label="2 stars, Needs improvement"
+                            >
+                            <span aria-hidden="true">★</span>
+                        </label>
+
+                        <label class="star-option">
+                            <input
+                                type="radio"
+                                name="rating"
+                                value="1"
+                                aria-label="1 star, Poor"
+                            >
+                            <span aria-hidden="true">★</span>
+                        </label>
+                    </div>
+
+                    <p
+                        class="rating-description"
+                        id="ratingDescription"
+                        aria-live="polite"
+                    >Tap a star to rate your experience</p>
+                </fieldset>
+
+                <div class="field">
+                    <label for="feedback">
+                        Your Feedback
+                        <span class="optional">Optional</span>
+                    </label>
+
+                    <textarea
+                        class="feedback-box"
+                        id="feedback"
+                        name="feedback"
+                        rows="4"
+                        maxlength="1000"
+                        placeholder="What did you like? What could we improve?"
+                    ></textarea>
+
+                    <div class="field-hint">
+                        <span>Your suggestions are welcome.</span>
+                        <span class="counter" id="feedbackCounter">0/1000</span>
+                    </div>
+                </div>
+
+                <button
+                    class="submit-button"
+                    id="submitButton"
+                    type="submit"
+                >
+                    <span class="submit-icon" aria-hidden="true">★</span>
+                    <span>Submit Rating</span>
+                </button>
+            </form>
+        </section>
+
+        <aside class="privacy-note">
+            <span class="privacy-note-icon" aria-hidden="true">💜</span>
+            <p>
+                Thank you for helping us improve Sivdhi. Your rating and
+                feedback will be submitted to our system.
+            </p>
+        </aside>
+
+    </main>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const form = document.getElementById("rateAppForm");
+            const ratingInputs = document.querySelectorAll(
+                'input[name="rating"]'
+            );
+            const ratingDescription =
+                document.getElementById("ratingDescription");
+            const feedback =
+                document.getElementById("feedback");
+            const feedbackCounter =
+                document.getElementById("feedbackCounter");
+            const submitButton =
+                document.getElementById("submitButton");
+
+            const descriptions = {
+                "1": "We're sorry your experience wasn't great.",
+                "2": "Thank you. We'll work on improving.",
+                "3": "Thanks for sharing your experience.",
+                "4": "Glad you had a good experience!",
+                "5": "Wonderful! We're happy you enjoyed Sivdhi."
+            };
+
+            function updateRatingDescription() {
+                let selectedRating = "";
+
+                ratingInputs.forEach(function (input) {
+                    if (input.checked) {
+                        selectedRating = input.value;
+                    }
+                });
+
+                ratingDescription.textContent = selectedRating
+                    ? descriptions[selectedRating]
+                    : "Tap a star to rate your experience";
+            }
+
+            ratingInputs.forEach(function (input) {
+                input.addEventListener(
+                    "change",
+                    updateRatingDescription
+                );
+            });
+
+            function updateFeedbackCounter() {
+                feedbackCounter.textContent =
+                    feedback.value.length + "/1000";
+            }
+
+            feedback.addEventListener(
+                "input",
+                updateFeedbackCounter
+            );
+
+            form.addEventListener("submit", function (event) {
+                let selected = false;
+
+                ratingInputs.forEach(function (input) {
+                    if (input.checked) {
+                        selected = true;
+                    }
+                });
+
+                if (!selected) {
+                    event.preventDefault();
+                    ratingDescription.textContent =
+                        "Please select a star rating first.";
+                    ratingInputs[0].focus();
+                    return;
+                }
+
+                submitButton.disabled = true;
+                submitButton.querySelector(
+                    "span:last-child"
+                ).textContent = "Submitting feedback...";
+            });
+
+            window.addEventListener("pageshow", function () {
+                submitButton.disabled = false;
+                submitButton.querySelector(
+                    "span:last-child"
+                ).textContent = "Submit Rating";
+            });
+
+            updateRatingDescription();
+            updateFeedbackCounter();
+        })();
+    </script>
+</body>
+</html>

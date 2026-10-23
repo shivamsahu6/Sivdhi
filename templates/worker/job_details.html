@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <title>Job Details | Sivdhi</title>
+
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --primary: #2563eb;
+            --navy: #0f172a;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --green: #15803d;
+            --red: #dc2626;
+            --amber: #b45309;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            padding-bottom: 94px;
+            color: var(--text);
+            font-family: Poppins, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: var(--bg);
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button {
+            font: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid #93c5fd;
+            outline-offset: 3px;
+        }
+
+        .header {
+            padding: 22px 18px;
+            border-radius: 0 0 25px 25px;
+            color: white;
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+        }
+
+        .header-inner {
+            max-width: 760px;
+            margin: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 41px;
+            height: 41px;
+            display: grid;
+            place-items: center;
+            border-radius: 13px;
+            background: rgba(255, 255, 255, .17);
+            border: 1px solid rgba(255, 255, 255, .24);
+            color: white;
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .brand-name {
+            font-size: 21px;
+            font-weight: 800;
+        }
+
+        .brand-name span {
+            color: #bfdbfe;
+        }
+
+        .sub {
+            margin-top: 4px;
+            color: rgba(255, 255, 255, .78);
+            font-size: 10px;
+            letter-spacing: .8px;
+        }
+
+        .back {
+            width: 40px;
+            height: 40px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, .3);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .12);
+            color: white;
+            font-size: 23px;
+        }
+
+        .page {
+            max-width: 760px;
+            margin: auto;
+            padding: 20px 15px;
+        }
+
+        .intro {
+            margin-bottom: 18px;
+        }
+
+        .eyebrow {
+            color: var(--primary);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 8px 0 0;
+            font-size: clamp(24px, 5vw, 30px);
+            letter-spacing: -.5px;
+            overflow-wrap: anywhere;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .card {
+            margin-bottom: 14px;
+            padding: 18px;
+            border: 1px solid #edf0f5;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 5px 15px rgba(15, 23, 42, .06);
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 16px;
+            font-size: 15px;
+        }
+
+        .icon {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid #dbeafe;
+            border-radius: 11px;
+            background: #eff6ff;
+            color: var(--primary);
+        }
+
+        .service-name {
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+
+        .booking-id {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 11px;
+            overflow-wrap: anywhere;
+        }
+
+        .status-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 14px;
+            border-top: 1px solid #eef0f4;
+        }
+
+        .status {
+            display: inline-flex;
+            padding: 6px 11px;
+            border: 1px solid #bfdbfe;
+            border-radius: 20px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .row {
+            margin-bottom: 14px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .row:last-child {
+            margin-bottom: 0;
+        }
+
+        .label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .value {
+            display: block;
+            color: #1f2937;
+            font-size: 13px;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
+
+        .address-box {
+            margin-top: 14px;
+            padding: 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 13px;
+            background: #f8fafc;
+        }
+
+        .amount-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .amount-item {
+            min-width: 0;
+            padding: 12px 9px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+
+        .amount-item span {
+            display: block;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        .amount-item strong {
+            display: block;
+            margin-top: 7px;
+            color: #111827;
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .amount-item.balance strong {
+            color: #b45309;
+        }
+
+        .action-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .action {
+            width: 100%;
+            min-height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            border: 0;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .action:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+
+        .accept,
+        .start {
+            background: #16a34a;
+            color: #fff;
+        }
+
+        .arrived {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .complete {
+            background: #d97706;
+            color: #fff;
+        }
+
+        .reject {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .map {
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .notice {
+            margin-bottom: 13px;
+            padding: 13px;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 12px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .notice.success {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .notice.error {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .notice.warning {
+            border-color: #fde68a;
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .nav {
+            position: fixed;
+            z-index: 5;
+            left: 0;
+            bottom: 0;
+            transform: none;
+            width: 100%;
+            height: 70px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 0;
+            padding: 5px 8px max(5px, env(safe-area-inset-bottom));
+            border: 0;
+            border-radius: 0;
+            background: #fff;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, .08);
+        }
+
+        .nav a {
+            min-width: 58px;
+            min-height: 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-radius: 10px;
+            color: #555;
+            font-size: 19px;
+        }
+
+        .nav small {
+            font-size: 11px;
+        }
+
+        .nav a.active {
+            color: var(--primary);
+            font-weight: 700;
+            background: transparent;
+        }
+
+        @media (max-width: 390px) {
+            .page {
+                padding: 17px 12px;
+            }
+
+            .card {
+                padding: 14px;
+            }
+
+            .amount-grid {
+                gap: 5px;
+            }
+
+            .amount-item {
+                padding: 10px 6px;
+            }
+
+            .amount-item strong {
+                font-size: 11px;
+            }
+
+            .service-name {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+    {% set status = (job["booking_status"] or job["status"] or "pending")|lower %}
+    {% set service_name = job["service"] or job["category"] or "Service Booking" %}
+    {% set address = job["customer_address"] or job["address"] or job["customer_saved_address"] or "Address not available" %}
+    {% set map_query = (job["latitude"] ~ ',' ~ job["longitude"]) if job["latitude"] is not none and job["longitude"] is not none else address %}
+    {% set amount = job["total_amount"] if job["total_amount"] is not none else job["amount"] %}
+    {% set advance_paid = job["advance_paid_amount"]|default(0)|float %}
+    {% set balance_due = job["balance_due_amount"]|default(0)|float %}
+    {% set balance_state = job["balance_payment_status"]|default('DUE')|string|upper %}
+    {% set paid_states = ['PAID','SUCCESS','DEMO_PAID','COLLECTED','COMPLETED'] %}
+    {% set worker_arrived = job["worker_arrived_at"]|default('') %}
+    {% set booking_ref = job["booking_id"] or job["job_id"] or job["id"] %}
+
+    <header class="header">
+        <div class="header-inner">
+            <a class="brand" href="{{ url_for('worker.worker_jobs') }}">
+                <div class="brand-icon">S</div>
+                <div>
+                    <div class="brand-name">Sivdhi<span>.</span></div>
+                    <div class="sub">WORKER WORKSPACE</div>
+                </div>
+            </a>
+
+            <a class="back" href="{{ url_for('worker.worker_jobs') }}" aria-label="Back to jobs">‹</a>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="intro">
+            <div class="eyebrow">● ASSIGNED SERVICE</div>
+            <h1>Job Details</h1>
+            <p class="muted">
+                Follow the booking, arrival and payment steps in order.
+            </p>
+        </section>
+
+        <div id="notice" class="notice" role="alert" aria-live="polite" hidden></div>
+
+        <section class="card">
+            <div class="service-name">{{ service_name }}</div>
+            <div class="booking-id">Booking ID: {{ booking_ref }}</div>
+
+            <div class="status-row">
+                <span class="muted">Current status</span>
+                <span class="status">{{ status|replace('_',' ')|title }}</span>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 class="card-title">
+                <span class="icon">👤</span>
+                Customer &amp; Location
+            </h2>
+
+            <div class="row">
+                <span class="label">Customer name</span>
+                <span class="value">{{ job["customer_name"] or "Customer" }}</span>
+            </div>
+
+            {% if job["customer_mobile"] %}
+            <div class="row">
+                <span class="label">Customer contact</span>
+                <span class="value">{{ job["customer_mobile"] }}</span>
+            </div>
+            {% endif %}
+
+            <div class="address-box">
+                <div class="row">
+                    <span class="label">Service address</span>
+                    <span class="value">📍 {{ address }}</span>
+                </div>
+
+                {% if job["customer_booking_city"] or job["customer_city"] %}
+                <span class="muted">
+                    {{ job["customer_booking_city"] or job["customer_city"] }}
+                    {% if job["customer_booking_state"] or job["customer_state"] %}
+                    , {{ job["customer_booking_state"] or job["customer_state"] }}
+                    {% endif %}
+                    {% if job["customer_booking_pincode"] or job["customer_pincode"] %}
+                    - {{ job["customer_booking_pincode"] or job["customer_pincode"] }}
+                    {% endif %}
+                </span>
+                {% endif %}
+            </div>
+
+            <a class="action map" style="margin-top:14px"
+               href="https://maps.google.com/?q={{ map_query|urlencode }}"
+               target="_blank" rel="noopener noreferrer">
+                🗺 Open Google Maps
+            </a>
+        </section>
+
+        <section class="card">
+            <h2 class="card-title">
+                <span class="icon">▦</span>
+                Booking Information
+            </h2>
+
+            {% if job["booking_date"] %}
+            <div class="row">
+                <span class="label">Service date</span>
+                <span class="value">{{ job["booking_date"] }}</span>
+            </div>
+            {% endif %}
+
+            {% if job["booking_time"] %}
+            <div class="row">
+                <span class="label">Service time</span>
+                <span class="value">{{ job["booking_time"] }}</span>
+            </div>
+            {% endif %}
+
+            {% if job["description"] %}
+            <div class="row">
+                <span class="label">Customer instructions</span>
+                <span class="value">{{ job["description"] }}</span>
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2 class="card-title">
+                <span class="icon">₹</span>
+                Payment Summary
+            </h2>
+
+            <div class="amount-grid">
+                <div class="amount-item">
+                    <span>Total amount</span>
+                    <strong>
+                        {% if amount is not none %}
+                        ₹{{ "%.2f"|format(amount|float) }}
+                        {% else %}
+                        Pending
+                        {% endif %}
+                    </strong>
+                </div>
+
+                <div class="amount-item">
+                    <span>Advance recorded</span>
+                    <strong>₹{{ "%.2f"|format(advance_paid) }}</strong>
+                </div>
+
+                <div class="amount-item balance">
+                    <span>Remaining balance</span>
+                    <strong>₹{{ "%.2f"|format(balance_due) }}</strong>
+                </div>
+            </div>
+
+            {% if balance_due > 0 and balance_state not in paid_states %}
+                {% if worker_arrived %}
+                <div class="notice warning" style="margin-top:15px">
+                    Waiting for the customer to pay the remaining
+                    ₹{{ "%.2f"|format(balance_due) }} from My Bookings.
+                    Do not start the service until the server confirms the
+                    balance payment.
+                </div>
+                {% else %}
+                <div class="notice" style="margin-top:15px">
+                    Mark your arrival only after reaching the customer.
+                    The customer can pay the remaining balance after arrival.
+                </div>
+                {% endif %}
+            {% endif %}
+
+            {% if worker_arrived %}
+            <div class="row" style="margin-top:15px">
+                <span class="label">Arrival recorded at</span>
+                <span class="value">{{ worker_arrived }}</span>
+            </div>
+            {% endif %}
+
+            <p class="muted">
+                Marking arrival must not itself mark the remaining balance as
+                paid. Demo receipts are simulated and do not represent real
+                money.
+            </p>
+        </section>
+
+        <section class="card">
+            <h2 class="card-title">
+                <span class="icon">⚙</span>
+                Job Actions
+            </h2>
+
+            <div class="action-list" id="jobActions" data-job-id="{{ job['id'] or job_id }}">
+
+                {% if status in ['assigned','pending'] %}
+
+                <button class="action accept" type="button" onclick="runAction('accept', this)">
+                    👁 I Have Seen This Booking
+                </button>
+
+                <button class="action reject" type="button" onclick="rejectJob(this)">
+                    ✕ Reject Booking
+                </button>
+
+                {% elif status == 'accepted' and not worker_arrived %}
+
+                <button class="action arrived" type="button" onclick="runAction('arrived', this)">
+                    📍 Mark Arrival
+                </button>
+
+                <p class="muted">
+                    This records arrival only. It does not itself mark the
+                    remaining balance as paid.
+                </p>
+
+                {% elif status == 'accepted' and worker_arrived %}
+
+                    {% if balance_due > 0 and balance_state not in paid_states %}
+
+                    <div class="notice warning">
+                        Waiting for the customer to pay the remaining
+                        ₹{{ "%.2f"|format(balance_due) }} from My Bookings.
+                        Start Job will become available after the backend
+                        confirms payment.
+                    </div>
+
+                    {% else %}
+
+                    <button class="action start" type="button" onclick="runAction('start', this)">
+                        ▶ Start Job
+                    </button>
+
+                    {% endif %}
+
+                {% elif status in ['started','in_progress'] %}
+
+                <button class="action complete" type="button" onclick="runAction('complete', this)">
+                    ✔ Complete Job
+                </button>
+
+                {% elif status in ['completed','cancelled','canceled'] %}
+
+                <p class="muted">
+                    This booking is {{ status|replace('_',' ')|title }}.
+                </p>
+
+                {% else %}
+
+                <p class="muted">
+                    No action is currently available for this booking status.
+                </p>
+
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <nav class="nav" aria-label="Worker navigation">
+        <a href="{{ url_for('worker.worker_home') }}">
+            <span>🏠</span>
+            <small>Home</small>
+        </a>
+
+        <a class="active" href="{{ url_for('worker.worker_jobs') }}">
+            <span>💼</span>
+            <small>Jobs</small>
+        </a>
+
+        <a href="{{ url_for('worker.wallet') }}">
+            <span>💰</span>
+            <small>Wallet</small>
+        </a>
+
+        <a href="{{ url_for('worker.profile') }}">
+            <span>👤</span>
+            <small>Profile</small>
+        </a>
+    </nav>
+
+    <script>
+        "use strict";
+
+        const jobActions = document.getElementById("jobActions");
+        const jobId = jobActions ? jobActions.dataset.jobId : "";
+        const notice = document.getElementById("notice");
+
+        const csrfMeta = document.querySelector(
+            'meta[name="csrf-token"]'
+        );
+
+        const csrfToken = csrfMeta ? csrfMeta.content : "";
+
+        const endpoints = {
+            accept: `/worker/job/${encodeURIComponent(jobId)}/accept`,
+            arrived: `/worker/job/${encodeURIComponent(jobId)}/arrived`,
+            start: `/worker/job/${encodeURIComponent(jobId)}/start`,
+            complete: `/worker/job/${encodeURIComponent(jobId)}/complete`,
+            reject: `/worker/job/${encodeURIComponent(jobId)}/reject`
+        };
+
+        function showNotice(message, type = "error") {
+            if (!notice) return;
+
+            notice.className = "notice " + type;
+            notice.textContent = message || "Something went wrong.";
+            notice.hidden = false;
+
+            notice.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest"
+            });
+        }
+
+        async function sendAction(action, button, extra = {}) {
+            if (!endpoints[action] || !jobId) {
+                showNotice("The booking or action could not be identified.");
+                return;
+            }
+
+            if (!csrfToken) {
+                showNotice(
+                    "Security token missing. Refresh the page and retry."
+                );
+                return;
+            }
+
+            if (button && button.disabled) return;
+
+            if (button) button.disabled = true;
+
+            try {
+                const body = new URLSearchParams();
+
+                Object.entries(extra).forEach(([key, value]) => {
+                    body.set(key, value);
+                });
+
+                const response = await fetch(endpoints[action], {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRFToken": csrfToken,
+                        "Content-Type":
+                            "application/x-www-form-urlencoded;charset=UTF-8"
+                    },
+                    body: body.toString()
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok || !data.success) {
+                    throw new Error(
+                        data.message ||
+                        "The server could not complete this action."
+                    );
+                }
+
+                showNotice(
+                    data.message || "Action completed successfully.",
+                    "success"
+                );
+
+                window.setTimeout(() => {
+                    window.location.reload();
+                }, 650);
+
+            } catch (error) {
+                showNotice(
+                    error.message || "Network error. Please try again."
+                );
+
+                if (button) button.disabled = false;
+            }
+        }
+
+        function runAction(action, button) {
+            if (action === "start" && !window.confirm(
+                "Start this service now? The backend must confirm that the remaining balance is recorded."
+            )) {
+                return;
+            }
+
+            if (action === "complete" && !window.confirm(
+                "Confirm that the service has been completed?"
+            )) {
+                return;
+            }
+
+            sendAction(action, button);
+        }
+
+        function rejectJob(button) {
+            const reason = window.prompt(
+                "Reason for rejecting this booking (optional):",
+                "Not available"
+            );
+
+            if (reason === null) return;
+
+            sendAction("reject", button, {
+                reason: reason.trim().slice(0, 500) || "Rejected by worker"
+            });
+        }
+
+        (function workerHeartbeat() {
+            const ping = () => {
+                if (document.visibilityState !== "visible" || !csrfToken) {
+                    return;
+                }
+
+                fetch("/worker/ping", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRFToken": csrfToken
+                    }
+                }).catch(() => {});
+            };
+
+            ping();
+            window.setInterval(ping, 60000);
+            document.addEventListener("visibilitychange", ping);
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>Service Details | Sivdhi</title>
+
+    <style>
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --blue: #566dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190,130,255,.20);
+            --green: #78e5b0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            min-height: 100%;
+            background: var(--bg);
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            color: var(--text);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background:
+                radial-gradient(ellipse at 0 0, rgba(255,67,140,.08), transparent 38%),
+                radial-gradient(ellipse at 100% 55%, rgba(115,67,255,.08), transparent 42%),
+                var(--bg);
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        button {
+            font: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid #d7a5ff;
+            outline-offset: 3px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 900px;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 0 24px 125px;
+        }
+
+        .header {
+            min-height: 74px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            border-bottom: 1px solid rgba(255,255,255,.065);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border-radius: 13px;
+            background: linear-gradient(135deg,var(--pink),var(--purple),var(--blue));
+            color: white;
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .brand-name {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -.7px;
+        }
+
+        .brand-name span {
+            color: #ff72b6;
+        }
+
+        .brand-caption {
+            display: block;
+            margin-top: 3px;
+            color: #9788a6;
+            font-size: 8px;
+            letter-spacing: 1.2px;
+        }
+
+        .back-link {
+            min-height: 39px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 0 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255,255,255,.025);
+            color: #e2cdf6;
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .intro {
+            padding: 26px 0 20px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: #e0acff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .eyebrow-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+        }
+
+        h1 {
+            margin: 10px 0 0;
+            font-size: clamp(27px,4vw,35px);
+            line-height: 1.23;
+            letter-spacing: -1px;
+            overflow-wrap: anywhere;
+        }
+
+        .intro-text {
+            margin: 9px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .schedule-fields {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 15px;
+        }
+        .schedule-field { min-width: 0; }
+        .schedule-field label {
+            display: block;
+            margin-bottom: 7px;
+            color: #eadcf8;
+            font-size: 11px;
+            font-weight: 750;
+        }
+        .schedule-field input,
+        .schedule-field textarea {
+            width: 100%;
+            min-height: 45px;
+            border: 1px solid rgba(190,130,255,.25);
+            border-radius: 12px;
+            padding: 12px;
+            background: #100c18;
+            color: #faf6ff;
+            color-scheme: dark;
+            font: inherit;
+            font-size: 12px;
+        }
+        .schedule-field textarea { min-height: 82px; resize: vertical; }
+        .schedule-help {
+            margin: 7px 0 0;
+            color: #ad9dbb;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+        @media(max-width:560px) {
+            .schedule-fields { grid-template-columns: 1fr; }
+        }
+
+        .service-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background:
+                radial-gradient(ellipse at 100% 0,rgba(164,77,255,.15),transparent 60%),
+                linear-gradient(145deg,#1d1628,#110d18);
+        }
+
+        .service-icon {
+            width: 53px;
+            height: 53px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(190,130,255,.20);
+            border-radius: 15px;
+            background: rgba(164,77,255,.10);
+            font-size: 26px;
+        }
+
+        .service-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .service-info strong {
+            display: block;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .service-info p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .mode-tag {
+            flex-shrink: 0;
+            padding: 7px 9px;
+            border: 1px solid rgba(190,130,255,.22);
+            border-radius: 10px;
+            background: rgba(164,77,255,.08);
+            color: #e7bbff;
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0,1fr) minmax(260px,.75fr);
+            align-items: start;
+            gap: 19px;
+            margin-top: 21px;
+        }
+
+        .main-column {
+            min-width: 0;
+        }
+
+        .section-card {
+            margin-bottom: 16px;
+            padding: 19px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: linear-gradient(145deg,rgba(29,21,40,.93),rgba(17,13,24,.96));
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .section-icon {
+            width: 35px;
+            height: 35px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(190,130,255,.18);
+            border-radius: 11px;
+            background: rgba(164,77,255,.09);
+            font-size: 16px;
+        }
+
+        .section-heading h2 {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: -.3px;
+        }
+
+        .section-heading p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .work-list {
+            display: grid;
+            gap: 11px;
+        }
+
+        .work-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            color: #e8e0f0;
+            font-size: 11px;
+            line-height: 1.8;
+            overflow-wrap: anywhere;
+        }
+
+        .work-symbol {
+            width: 21px;
+            height: 21px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+            border: 1px solid rgba(120,229,176,.22);
+            border-radius: 50%;
+            background: rgba(120,229,176,.07);
+            color: var(--green);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .excluded .work-symbol {
+            border-color: rgba(255,130,159,.22);
+            background: rgba(255,67,140,.06);
+            color: #ff98b5;
+        }
+
+        .work-fallback {
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.8;
+        }
+
+        .notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 11px;
+            margin-top: 16px;
+            padding: 14px;
+            border: 1px solid rgba(245,196,107,.18);
+            border-radius: 14px;
+            background: rgba(245,196,107,.045);
+        }
+
+        .notice-icon {
+            flex-shrink: 0;
+            font-size: 18px;
+        }
+
+        .notice strong {
+            display: block;
+            color: #f3d49a;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .notice p {
+            margin: 5px 0 0;
+            color: #b9a991;
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .summary-card {
+            position: sticky;
+            top: 18px;
+            padding: 20px;
+            border: 1px solid rgba(190,130,255,.24);
+            border-radius: 19px;
+            background:
+                radial-gradient(ellipse at 100% 0,rgba(164,77,255,.12),transparent 58%),
+                #15101e;
+        }
+
+        .summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .summary-header h2 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .summary-tag {
+            color: var(--green);
+            font-size: 9px;
+            font-weight: 750;
+        }
+
+        .selected-service {
+            margin-top: 15px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+
+        .selected-service strong {
+            display: block;
+            font-size: 12px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .selected-service p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .problem-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .problem-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            color: #d0c0df;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+        .problem-row span:first-child {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .problem-row span:last-child {
+            flex-shrink: 0;
+            color: #f1dfff;
+            font-weight: 700;
+        }
+
+        .price-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .price-row strong {
+            flex-shrink: 0;
+            color: #eee3f8;
+            font-size: 11px;
+            text-align: right;
+        }
+
+        .summary-divider {
+            height: 1px;
+            margin: 16px 0;
+            background: rgba(255,255,255,.09);
+        }
+
+        .total-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .total-row span {
+            color: #e1d0ef;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .total-row strong {
+            color: #ff9ccd;
+            font-size: 25px;
+            font-weight: 800;
+            letter-spacing: -.6px;
+            overflow-wrap: anywhere;
+        }
+
+        .summary-note {
+            margin: 10px 0 0;
+            color: #9f90ac;
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .continue-button {
+            width: 100%;
+            min-height: 51px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            margin-top: 18px;
+            padding: 13px;
+            border: 0;
+            border-radius: 14px;
+            background: linear-gradient(105deg,var(--pink),var(--purple) 60%,var(--blue));
+            box-shadow: 0 8px 24px rgba(164,77,255,.2);
+            color: white;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .continue-button:hover {
+            filter: brightness(1.08);
+        }
+
+        .bottom-nav {
+            position: fixed;
+            z-index: 5;
+            left: 50%;
+            bottom: max(9px,env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            width: min(490px,calc(100vw - 28px));
+            display: grid;
+            grid-template-columns: repeat(3,minmax(0,1fr));
+            gap: 4px;
+            padding: 7px;
+            border: 1px solid rgba(196,133,255,.22);
+            border-radius: 21px;
+            background: rgba(17,13,24,.96);
+            box-shadow: 0 15px 50px rgba(0,0,0,.45);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-item {
+            min-height: 47px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border-radius: 13px;
+            color: #9d90aa;
+            font-size: 18px;
+        }
+
+        .nav-item small {
+            font-size: 10px;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg,rgba(255,65,139,.13),rgba(139,69,255,.15));
+            color: #ff89c1;
+        }
+
+        @media (max-width: 760px) {
+            .app {
+                padding: 0 15px 140px;
+            }
+
+            .layout {
+                grid-template-columns: minmax(0,1fr);
+                gap: 0;
+            }
+
+            .summary-column {
+                order: -1;
+            }
+
+            .summary-card {
+                position: static;
+                margin-bottom: 16px;
+            }
+        }
+
+        @media (max-width: 430px) {
+            .header {
+                min-height: 67px;
+            }
+
+            .brand-icon {
+                width: 37px;
+                height: 37px;
+                border-radius: 12px;
+            }
+
+            .brand-name {
+                font-size: 20px;
+            }
+
+            .brand-caption {
+                font-size: 7px;
+            }
+
+            .back-link {
+                min-height: 36px;
+                padding: 0 10px;
+                font-size: 10px;
+            }
+
+            .intro {
+                padding-top: 22px;
+            }
+
+            .service-card {
+                gap: 10px;
+                padding: 12px;
+            }
+
+            .service-icon {
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                font-size: 22px;
+            }
+
+            .service-info strong {
+                font-size: 12px;
+            }
+
+            .mode-tag {
+                padding: 6px;
+                font-size: 8px;
+            }
+
+            .section-card {
+                padding: 14px;
+            }
+
+            .summary-card {
+                padding: 16px;
+            }
+
+            .total-row strong {
+                font-size: 23px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+    {% set mode = booking_mode|default('normal') %}
+    {% set service_name = service.get('display_name', service.get('name', 'Selected service')) %}
+    {% set service_icon = service.get('display_icon', service.get('icon', '✦')) %}
+    {% set service_category = category.get('name', service.get('display_category', service.get('category', 'Service'))) %}
+    {% set display_problems = selected_problems|default(problems|default([])) %}
+    {% set included_text = included_work|default(service.get('included_work', ''), true) %}
+    {% set excluded_text = excluded_work|default(service.get('excluded_work', ''), true) %}
+    {% set total_price = total_amount|default(0) %}
+    {% set visit_price = visit_fee|default(service.get('display_visit_fee', 0)) %}
+
+    <div class="app">
+        <header class="header">
+            <a class="brand" href="{{ url_for('customer.home') }}" aria-label="Sivdhi Home">
+                <div class="brand-icon">S</div>
+                <div>
+                    <div class="brand-name">Sivdhi<span>.</span></div>
+                    <span class="brand-caption">HOME SERVICES</span>
+                </div>
+            </a>
+
+            <a
+                class="back-link"
+                href="{{ url_for('customer.home', mode=mode) }}"
+            >
+                <span aria-hidden="true">←</span>
+                Home
+            </a>
+        </header>
+
+        <main>
+            <section class="intro">
+                <div class="eyebrow">
+                    <span class="eyebrow-dot"></span>
+                    Review service
+                </div>
+
+                <h1>Service Details</h1>
+
+                <p class="intro-text">
+                    Please review the work included and the applicable charges
+                    before continuing to payment.
+                </p>
+            </section>
+
+            <section class="service-card">
+                <div class="service-icon" aria-hidden="true">
+                    {{ service_icon }}
+                </div>
+
+                <div class="service-info">
+                    <strong>{{ service_name }}</strong>
+                    <p>{{ service_category }}</p>
+                </div>
+
+                <span class="mode-tag">
+                    {% if mode == 'full-day' %}
+                        FULL-DAY
+                    {% else %}
+                        NORMAL
+                    {% endif %}
+                </span>
+            </section>
+
+            <div class="layout">
+                <div class="main-column">
+
+                    {% if mode != 'full-day' %}
+                        <section class="section-card">
+                            <div class="section-heading">
+                                <div class="section-icon" aria-hidden="true">✓</div>
+                                <div>
+                                    <h2>Selected Service</h2>
+                                    <p>Review the configured subcategory price before booking.</p>
+                                </div>
+                            </div>
+
+                            <div class="price-row">
+                                <span>Normal service charge</span>
+                                <strong>₹{{ "%.2f"|format(service.get('display_price', service.get('price', 0))|float) }}</strong>
+                            </div>
+                        </section>
+                    {% else %}
+                        <section class="section-card">
+                            <div class="section-heading">
+                                <div class="section-icon" aria-hidden="true">☀</div>
+                                <div>
+                                    <h2>Full-Day Service</h2>
+                                    <p>Scheduled service from 9:00 AM to 5:00 PM.</p>
+                                </div>
+                            </div>
+
+                            <div class="work-list">
+                                <div class="work-item">
+                                    <span class="work-symbol">✓</span>
+                                    <span>
+                                        The service will follow the full-day scope
+                                        configured for this category by Sivdhi Admin.
+                                    </span>
+                                </div>
+                            </div>
+                        </section>
+                    {% endif %}
+
+                    <section class="section-card">
+                        <div class="section-heading">
+                            <div class="section-icon" aria-hidden="true">✓</div>
+                            <div>
+                                <h2>What's Included</h2>
+                                <p>Work covered by this service.</p>
+                            </div>
+                        </div>
+
+                        {% if included_text %}
+                            <div class="work-list">
+                                {% for item in included_text.splitlines() %}
+                                    {% if item.strip() %}
+                                        <div class="work-item">
+                                            <span class="work-symbol">✓</span>
+                                            <span>{{ item.strip() }}</span>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="work-fallback">
+                                Included work has not been configured yet.
+                                Please contact Sivdhi Admin before accepting
+                                this service if this information is required.
+                            </p>
+                        {% endif %}
+                    </section>
+
+                    <section class="section-card">
+                        <div class="section-heading">
+                            <div class="section-icon" aria-hidden="true">!</div>
+                            <div>
+                                <h2>What's Not Included</h2>
+                                <p>Work or materials that may cost extra.</p>
+                            </div>
+                        </div>
+
+                        {% if excluded_text %}
+                            <div class="work-list excluded">
+                                {% for item in excluded_text.splitlines() %}
+                                    {% if item.strip() %}
+                                        <div class="work-item">
+                                            <span class="work-symbol">!</span>
+                                            <span>{{ item.strip() }}</span>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="work-fallback">
+                                Exclusions have not been configured yet.
+                                Confirm any additional work and its charge
+                                before approving it.
+                            </p>
+                        {% endif %}
+
+                        <div class="notice">
+                            <div class="notice-icon" aria-hidden="true">ⓘ</div>
+                            <div>
+                                <strong>Extra work requires your approval</strong>
+                                <p>
+                                    The worker must explain the extra work and
+                                    its price. No additional charge should be
+                                    approved without your consent.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <aside class="summary-column">
+                    <section class="summary-card">
+                        <div class="summary-header">
+                            <h2>Price Summary</h2>
+                            <span class="summary-tag">ESTIMATE</span>
+                        </div>
+
+                        <div class="selected-service">
+                            <strong>{{ service_name }}</strong>
+                            <p>
+                                {% if mode == 'full-day' %}
+                                    Full-Day service · 9 AM – 5 PM
+                                {% else %}
+                                    Normal subcategory price
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        {% if mode == 'full-day' %}
+                            <div class="price-row">
+                                <span>Full-Day service charge</span>
+                                <strong>
+                                    ₹{{ "%.2f"|format(service.get('display_full_day_price', service.get('full_day_price', service.get('display_price', 0)) or 0)|float) }}
+                                </strong>
+                            </div>
+                        {% else %}
+                            <div class="price-row">
+                                <span>Normal service charge</span>
+                                <strong>
+                                    ₹{{ "%.2f"|format(service.get('display_price', service.get('price', 0))|float) }}
+                                </strong>
+                            </div>
+                        {% endif %}
+
+
+                        <div class="summary-divider"></div>
+
+                        <div class="total-row">
+                            <span>Estimated total</span>
+                            <strong>
+                                ₹{{ "%.2f"|format(total_price|float) }}
+                            </strong>
+                        </div>
+
+                        <p class="summary-note">
+                            Review the listed charges before payment.
+                            Any extra work must be approved by you separately.
+                        </p>
+
+                        <form
+                            method="POST"
+                            action="{{ url_for('customer.service_details') }}"
+                        >
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="schedule-fields" style="margin:18px 0 15px;">
+                                <div class="schedule-field">
+                                    <label for="booking_date">{% if mode == 'full-day' %}Full-Day service date{% else %}Service date{% endif %}</label>
+                                    <input id="booking_date" name="booking_date" type="date"
+                                           min="{{ min_booking_date }}" value="{{ booking_date }}" required>
+                                    {% if mode == 'full-day' %}
+                                        <p class="schedule-help">Full-Day service is fixed from 9:00 AM to 5:00 PM. Booking for today is available only before 7:00 AM.</p>
+                                    {% else %}
+                                        <p class="schedule-help">Choose today or a future date.</p>
+                                    {% endif %}
+                                </div>
+                                {% if mode != 'full-day' %}
+                                    <div class="schedule-field">
+                                        <label for="booking_time">Service time</label>
+                                        <input id="booking_time" name="booking_time" type="time" min="08:00" max="20:00" step="900" value="{{ booking_time }}" required>
+                                        <p class="schedule-help">Slots are 8:00 AM–8:00 PM and must be at least 2 hours from now for same-day bookings.</p>
+                                    </div>
+                                {% else %}
+                                    <input type="hidden" name="booking_time" value="09:00">
+                                {% endif %}
+                            </div>
+                            <div class="schedule-field" style="margin-bottom:16px;">
+                                <label for="description">Additional details (optional)</label>
+                                <textarea id="description" name="description" maxlength="1000" placeholder="Share a short note about the work, if needed.">{{ session.get('booking_description', '') }}</textarea>
+                            </div>
+                            <button class="continue-button" type="submit">
+                                Continue to Payment
+                                <span aria-hidden="true">→</span>
+                            </button>
+                        </form>
+                    </section>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a class="nav-item" href="{{ url_for('customer.home') }}">
+            <span aria-hidden="true">⌂</span>
+            <small>Home</small>
+        </a>
+
+        <a class="nav-item" href="/customer/bookings">
+            <span aria-hidden="true">▤</span>
+            <small>Bookings</small>
+        </a>
+
+        <a class="nav-item" href="/customer/profile">
+            <span aria-hidden="true">♙</span>
+            <small>Profile</small>
+        </a>
+    </nav>
+    <script>
+      (function () {
+        const dateInput = document.getElementById('booking_date');
+        const timeInput = document.getElementById('booking_time');
+        if (!dateInput || !timeInput) return;
+        const pad = value => String(value).padStart(2, '0');
+        function applyTimeLimits() {
+          timeInput.min = '08:00';
+          timeInput.max = '20:00';
+          const now = new Date();
+          const localDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+          if (dateInput.value === localDate) {
+            now.setMinutes(now.getMinutes() + 120);
+            now.setMinutes(Math.ceil(now.getMinutes()/15)*15, 0, 0);
+            const min = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+            if (min > timeInput.min && min < '20:00') timeInput.min = min;
+          }
+          if (timeInput.value && (timeInput.value < timeInput.min || timeInput.value > timeInput.max)) {
+            timeInput.value = '';
+          }
+        }
+        dateInput.addEventListener('change', applyTimeLimits);
+        applyTimeLimits();
+      })();
+    </script>
+</body>
+</html>

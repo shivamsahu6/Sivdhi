@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Edit Partner Profile</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Poppins, sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            padding-bottom: 40px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #0f172a);
+            padding: 30px;
+            color: white;
+            text-align: center;
+            border-radius: 0 0 25px 25px;
+        }
+
+        .card {
+            margin: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, .08);
+        }
+
+        .photo {
+            width: 120px;
+            height: 120px;
+            margin: auto;
+            margin-bottom: 15px;
+            border-radius: 50%;
+            background: #eee;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 45px;
+        }
+
+        .photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .file {
+            margin-bottom: 20px;
+        }
+
+        .input {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .input[readonly] {
+            background: #f3f4f6;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .flash {
+            margin: 16px 20px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+        .flash.success { background: #dcfce7; color: #166534; }
+        .flash.danger, .flash.error { background: #fee2e2; color: #991b1b; }
+        .flash.warning { background: #fef3c7; color: #92400e; }
+        .flash.info { background: #dbeafe; color: #1e40af; }
+
+        textarea {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            font-size: 15px;
+            resize: none;
+            height: 90px;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            background: #2563eb;
+            color: white;
+            font-size: 17px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+
+
+    <div class="header">
+
+        <h2>
+
+            Edit Profile
+
+        </h2>
+
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ category|e }}" role="status" aria-live="polite">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+
+        <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="photo">
+
+                {% if partner["profile_photo"] %}
+
+                <img src="{{ url_for('static', filename='uploads/' + partner['profile_photo']) }}">
+
+                {% else %}
+
+                🤝
+
+                {% endif %}
+
+            </div>
+
+            <input class="file" type="file" name="profile_photo">
+
+            <input class="input" type="text" name="company_name" value="{{ partner['company_name'] or '' }}" readonly>
+
+            <input class="input" type="text" name="fullname" value="{{ partner['fullname'] }}" required>
+
+            <label for="partner-email">Email (cannot be changed here)</label>
+            <input class="input" id="partner-email" type="email" name="email" value="{{ partner['email'] }}" readonly aria-readonly="true" tabindex="-1">
+
+            <label for="partner-mobile">Mobile Number (cannot be changed here)</label>
+            <input class="input" id="partner-mobile" type="text" name="mobile" value="{{ partner['mobile'] }}" readonly aria-readonly="true" tabindex="-1">
+
+            <textarea name="address" placeholder="Address">{{ partner["address"] or "" }}</textarea>
+
+            <!-- State dropdown: original styling retained -->
+            <select class="input" name="state" id="state" data-saved="{{ partner['state'] or '' }}" required>
+                <option value="">Select State / UT</option>
+            </select>
+
+            <!-- City dropdown depends on selected state -->
+            <select class="input" name="city" id="city" data-saved="{{ partner['city'] or '' }}" required disabled>
+                <option value="">Select City</option>
+            </select>
+
+            <input class="input" type="text" name="pincode" value="{{ partner['pincode'] or '' }}"
+                placeholder="Pincode">
+
+            <button>
+
+                💾 Save Changes
+
+            </button>
+
+        </form>
+
+    </div>
+
+    <script>
+        const stateCities = {
+
+            "Andhra Pradesh": [
+                "Visakhapatnam", "Vijayawada", "Guntur",
+                "Nellore", "Tirupati", "Kurnool"
+            ],
+
+            "Arunachal Pradesh": [
+                "Itanagar", "Naharlagun", "Pasighat", "Tawang"
+            ],
+
+            "Assam": [
+                "Guwahati", "Dibrugarh", "Silchar", "Jorhat", "Tezpur"
+            ],
+
+            "Bihar": [
+                "Patna", "Gaya", "Muzaffarpur", "Bhagalpur",
+                "Darbhanga", "Purnia"
+            ],
+
+            "Chhattisgarh": [
+                "Raipur", "Bhilai", "Bilaspur", "Korba", "Durg"
+            ],
+
+            "Goa": [
+                "Panaji", "Margao", "Vasco da Gama", "Mapusa"
+            ],
+
+            "Gujarat": [
+                "Ahmedabad", "Surat", "Vadodara", "Rajkot",
+                "Bhavnagar", "Jamnagar", "Gandhinagar"
+            ],
+
+            "Haryana": [
+                "Gurugram", "Faridabad", "Panipat", "Ambala",
+                "Hisar", "Rohtak", "Karnal"
+            ],
+
+            "Himachal Pradesh": [
+                "Shimla", "Dharamshala", "Mandi", "Solan", "Kullu"
+            ],
+
+            "Jharkhand": [
+                "Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Deoghar"
+            ],
+
+            "Karnataka": [
+                "Bengaluru", "Mysuru", "Mangaluru",
+                "Hubballi", "Belagavi", "Davanagere"
+            ],
+
+            "Kerala": [
+                "Thiruvananthapuram", "Kochi", "Kozhikode",
+                "Thrissur", "Kollam", "Kannur"
+            ],
+
+            "Madhya Pradesh": [
+                "Bhopal", "Indore", "Gwalior", "Jabalpur", "Ujjain", "Sagar"
+            ],
+
+            "Maharashtra": [
+                "Mumbai", "Pune", "Nagpur", "Nashik",
+                "Aurangabad", "Thane", "Kolhapur", "Solapur"
+            ],
+
+            "Manipur": [
+                "Imphal", "Thoubal", "Bishnupur", "Churachandpur"
+            ],
+
+            "Meghalaya": [
+                "Shillong", "Tura", "Jowai"
+            ],
+
+            "Mizoram": [
+                "Aizawl", "Lunglei", "Champhai"
+            ],
+
+            "Nagaland": [
+                "Kohima", "Dimapur", "Mokokchung"
+            ],
+
+            "Odisha": [
+                "Bhubaneswar", "Cuttack", "Rourkela",
+                "Puri", "Sambalpur", "Berhampur"
+            ],
+
+            "Punjab": [
+                "Amritsar", "Ludhiana", "Jalandhar",
+                "Patiala", "Bathinda", "Mohali"
+            ],
+
+            "Rajasthan": [
+                "Jaipur", "Jodhpur", "Udaipur", "Kota",
+                "Ajmer", "Bikaner", "Alwar"
+            ],
+
+            "Sikkim": [
+                "Gangtok", "Namchi", "Gyalshing"
+            ],
+
+            "Tamil Nadu": [
+                "Chennai", "Coimbatore", "Madurai", "Salem",
+                "Tiruchirappalli", "Tirunelveli", "Vellore"
+            ],
+
+            "Telangana": [
+                "Hyderabad", "Warangal", "Nizamabad",
+                "Karimnagar", "Khammam"
+            ],
+
+            "Tripura": [
+                "Agartala", "Udaipur", "Dharmanagar"
+            ],
+
+            "Uttar Pradesh": [
+                "Bareilly", "Lucknow", "Kanpur", "Agra",
+                "Varanasi", "Prayagraj", "Meerut", "Ghaziabad",
+                "Noida", "Moradabad", "Aligarh", "Gorakhpur",
+                "Mathura", "Firozabad", "Rampur", "Shahjahanpur",
+                "Pilibhit", "Budaun", "Sitapur", "Ayodhya"
+            ],
+
+            "Uttarakhand": [
+                "Dehradun", "Haridwar", "Haldwani",
+                "Nainital", "Roorkee", "Rudrapur"
+            ],
+
+            "West Bengal": [
+                "Kolkata", "Howrah", "Durgapur",
+                "Siliguri", "Asansol", "Darjeeling"
+            ],
+
+            "Andaman and Nicobar Islands": [
+                "Port Blair"
+            ],
+
+            "Chandigarh": [
+                "Chandigarh"
+            ],
+
+            "Dadra and Nagar Haveli and Daman and Diu": [
+                "Daman", "Diu", "Silvassa"
+            ],
+
+            "Delhi": [
+                "New Delhi", "Delhi"
+            ],
+
+            "Jammu and Kashmir": [
+                "Srinagar", "Jammu", "Anantnag", "Baramulla"
+            ],
+
+            "Ladakh": [
+                "Leh", "Kargil"
+            ],
+
+            "Lakshadweep": [
+                "Kavaratti"
+            ],
+
+            "Puducherry": [
+                "Puducherry", "Karaikal", "Mahe", "Yanam"
+            ]
+
+        };
+
+        const stateSelect = document.getElementById("state");
+        const citySelect = document.getElementById("city");
+
+        const savedState = stateSelect.dataset.saved || "";
+        const savedCity = citySelect.dataset.saved || "";
+
+        // Populate state and Union Territory dropdown.
+        Object.keys(stateCities).sort().forEach(function (state) {
+            const option = document.createElement("option");
+            option.value = state;
+            option.textContent = state;
+            stateSelect.appendChild(option);
+        });
+
+        // Preserve any existing state not included in the standard list.
+        if (
+            savedState &&
+            !Object.prototype.hasOwnProperty.call(stateCities, savedState)
+        ) {
+            const option = document.createElement("option");
+            option.value = savedState;
+            option.textContent = savedState;
+            stateSelect.appendChild(option);
+        }
+
+        function loadCities(selectedState, selectedCity = "") {
+            citySelect.innerHTML = '<option value="">Select City</option>';
+            citySelect.disabled = true;
+
+            if (!selectedState) {
+                return;
+            }
+
+            const cities = stateCities[selectedState] || [];
+
+            cities.forEach(function (city) {
+                const option = document.createElement("option");
+                option.value = city;
+                option.textContent = city;
+
+                if (city === selectedCity) {
+                    option.selected = true;
+                }
+
+                citySelect.appendChild(option);
+            });
+
+            // Preserve a previously saved city if it is not in this list.
+            if (selectedCity && !cities.includes(selectedCity)) {
+                const option = document.createElement("option");
+                option.value = selectedCity;
+                option.textContent = selectedCity;
+                option.selected = true;
+                citySelect.appendChild(option);
+            }
+
+            citySelect.disabled = false;
+        }
+
+        // When state changes, clear the old city and show cities for new state.
+        stateSelect.addEventListener("change", function () {
+            loadCities(this.value);
+        });
+
+        // Restore saved state and city when opening the profile.
+        if (savedState) {
+            stateSelect.value = savedState;
+            loadCities(savedState, savedCity);
+        }
+    </script>
+
+</body>
+
+</html>

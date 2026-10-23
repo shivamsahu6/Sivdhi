@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Language</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+background:#f4f7fb;
+padding:20px;
+padding-bottom:90px;
+}
+
+.header{
+text-align:center;
+margin-bottom:25px;
+}
+
+.header h2{
+font-size:30px;
+color:#2563eb;
+margin-bottom:5px;
+}
+
+.header p{
+color:#666;
+font-size:15px;
+}
+
+.card{
+background:#fff;
+border-radius:22px;
+padding:22px;
+box-shadow:0 8px 20px rgba(0,0,0,.08);
+}
+
+.option{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:18px;
+border:2px solid #edf2f7;
+border-radius:16px;
+margin-bottom:15px;
+cursor:pointer;
+transition:.3s;
+}
+
+.option:hover{
+border-color:#2563eb;
+background:#f8fbff;
+}
+
+.left{
+display:flex;
+align-items:center;
+gap:15px;
+}
+
+.flag{
+font-size:30px;
+}
+
+.lang{
+font-size:17px;
+font-weight:600;
+color:#111827;
+}
+
+.sub{
+font-size:13px;
+color:#777;
+margin-top:3px;
+}
+
+input[type=radio]{
+width:20px;
+height:20px;
+accent-color:#2563eb;
+}
+
+button{
+width:100%;
+padding:16px;
+margin-top:20px;
+border:none;
+border-radius:14px;
+background:#2563eb;
+color:#fff;
+font-size:17px;
+font-weight:bold;
+cursor:pointer;
+transition:.3s;
+}
+
+button:hover{
+background:#1d4ed8;
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="header">
+
+<h2>🌐 Language</h2>
+
+<p>Select your preferred language.</p>
+
+</div>
+
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<div class="card">
+
+<label class="option">
+
+<div class="left">
+
+<div class="flag">🇮🇳</div>
+
+<div>
+
+<div class="lang">Hindi</div>
+
+<div class="sub">हिन्दी</div>
+
+</div>
+
+</div>
+
+<input
+type="radio"
+name="language"
+value="Hindi"
+checked>
+
+</label>
+
+<label class="option">
+
+<div class="left">
+
+<div class="flag">🇬🇧</div>
+
+<div>
+
+<div class="lang">English</div>
+
+<div class="sub">English (India)</div>
+
+</div>
+
+</div>
+
+<input
+type="radio"
+name="language"
+value="English">
+
+</label>
+
+<button type="submit">
+
+Save Language
+
+</button>
+
+</div>
+
+</form>
+
+</body>
+
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Account Created | Sivdhi</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+
+height:100vh;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+background:linear-gradient(135deg,#2563eb,#0f172a);
+
+padding:20px;
+
+}
+
+.box{
+
+width:100%;
+max-width:420px;
+
+background:white;
+
+padding:40px;
+
+border-radius:25px;
+
+text-align:center;
+
+box-shadow:0 20px 40px rgba(0,0,0,.25);
+
+animation:pop .5s ease;
+
+}
+
+.icon{
+
+font-size:70px;
+
+margin-bottom:15px;
+
+animation:bounce 1s infinite;
+
+}
+
+h2{
+
+color:#0f172a;
+
+margin-bottom:10px;
+
+}
+
+p{
+
+color:#666;
+
+margin-bottom:20px;
+
+}
+
+.label{
+
+font-size:14px;
+
+color:#888;
+
+margin-top:15px;
+
+}
+
+.value{
+
+margin-top:8px;
+
+padding:15px;
+
+background:#eef4ff;
+
+border-radius:12px;
+
+font-size:24px;
+
+font-weight:bold;
+
+color:#2563eb;
+
+word-break:break-word;
+
+}
+
+.btn{
+
+margin-top:30px;
+
+width:100%;
+
+padding:15px;
+
+border:none;
+
+border-radius:12px;
+
+background:#2563eb;
+
+color:white;
+
+font-size:17px;
+
+font-weight:bold;
+
+cursor:pointer;
+
+transition:.3s;
+
+}
+
+.btn:hover{
+
+background:#1d4ed8;
+
+}
+
+@keyframes pop{
+
+from{
+
+transform:scale(.8);
+
+opacity:0;
+
+}
+
+to{
+
+transform:scale(1);
+
+opacity:1;
+
+}
+
+}
+
+@keyframes bounce{
+
+0%,100%{
+
+transform:translateY(0);
+
+}
+
+50%{
+
+transform:translateY(-8px);
+
+}
+
+}
+
+</style>
+
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+
+<div class="box">
+
+<div class="icon">
+
+✅
+
+</div>
+
+<h2>
+
+Account Created Successfully
+
+</h2>
+
+<p>
+
+Your account has been created successfully.
+
+</p>
+
+<div class="label">
+
+{% if role=="worker" %}
+
+Worker ID
+
+{% else %}
+
+Partner ID
+
+{% endif %}
+
+</div>
+
+<div class="value">
+
+{{ account_id }}
+
+</div>
+
+{% if role=="partner" %}
+
+<div class="label">
+
+Referral Code
+
+</div>
+
+<div class="value">
+
+{{ referral_code }}
+
+</div>
+
+{% endif %}
+
+<form action="/login" method="GET">
+
+<input
+type="hidden"
+name="role"
+value="{{ role }}">
+
+<button
+class="btn"
+type="submit">
+
+Continue to Login
+
+</button>
+
+</form>
+
+</div>
+
+</body>
+
+</html>

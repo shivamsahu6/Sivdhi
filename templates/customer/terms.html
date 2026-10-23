@@ -1,0 +1,751 @@
+<!-- templates/customer/terms.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6d28d9">
+
+    <title>Terms &amp; Conditions | Sivdhi</title>
+
+    <style>
+        :root {
+            --primary: #6d28d9;
+            --primary-light: #8b5cf6;
+            --background: #f7f7fb;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding-bottom: 85px;
+            color: var(--text);
+            background: var(--background);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         Roboto, Arial, sans-serif;
+        }
+
+        a {
+            color: var(--primary);
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.97);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .back-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            color: var(--text);
+            background: #fff;
+            text-decoration: none;
+            font-size: 24px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 19px;
+            font-weight: 750;
+        }
+
+        .topbar p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 22px 15px;
+        }
+
+        .hero {
+            padding: 25px 23px;
+            margin-bottom: 20px;
+            color: #fff;
+            background: linear-gradient(135deg, #5b21b6, #8b5cf6);
+            border-radius: 23px;
+        }
+
+        .hero-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 49px;
+            height: 49px;
+            margin-bottom: 17px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.17);
+            font-size: 25px;
+        }
+
+        .hero h2 {
+            margin: 0 0 9px;
+            font-size: 25px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero p {
+            max-width: 520px;
+            margin: 0;
+            color: #f3e8ff;
+            font-size: 13px;
+            line-height: 1.75;
+        }
+
+        .draft-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-radius: 16px;
+        }
+
+        .draft-notice .notice-icon {
+            flex-shrink: 0;
+            font-size: 21px;
+        }
+
+        .draft-notice strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #9a3412;
+            font-size: 13px;
+        }
+
+        .draft-notice p {
+            margin: 0;
+            color: #7c4a2d;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .toc {
+            padding: 19px;
+            margin-bottom: 20px;
+            background: #fff;
+            border: 1px solid #eeedf3;
+            border-radius: 18px;
+        }
+
+        .toc h3 {
+            margin: 0 0 13px;
+            font-size: 15px;
+        }
+
+        .toc-links {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+        }
+
+        .toc-links a {
+            display: block;
+            padding: 11px 12px;
+            color: #5b21b6;
+            background: #faf9ff;
+            border: 1px solid #f0ebff;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .toc-links a:hover {
+            background: #f0ebff;
+        }
+
+        .terms-card {
+            padding: 22px;
+            background: #fff;
+            border: 1px solid #eeedf3;
+            border-radius: 20px;
+            box-shadow: 0 5px 20px rgba(31, 41, 55, 0.025);
+        }
+
+        .terms-section {
+            padding: 0 0 22px;
+            margin-bottom: 22px;
+            border-bottom: 1px solid #f0f0f5;
+            scroll-margin-top: 85px;
+        }
+
+        .terms-section:last-child {
+            padding-bottom: 0;
+            margin-bottom: 0;
+            border-bottom: 0;
+        }
+
+        .terms-section h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 12px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .section-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 31px;
+            height: 31px;
+            flex-shrink: 0;
+            border-radius: 10px;
+            color: var(--primary);
+            background: #f0ebff;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .terms-section p {
+            margin: 0 0 11px;
+            color: #5b6472;
+            font-size: 13px;
+            line-height: 1.85;
+        }
+
+        .terms-section p:last-child {
+            margin-bottom: 0;
+        }
+
+        .terms-section ul {
+            display: grid;
+            gap: 9px;
+            padding-left: 20px;
+            margin: 10px 0 0;
+            color: #5b6472;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .terms-section li::marker {
+            color: var(--primary-light);
+        }
+
+        .contact-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 19px;
+            margin-top: 20px;
+            background: #fff;
+            border: 1px solid #e8e1fb;
+            border-radius: 18px;
+        }
+
+        .contact-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 47px;
+            height: 47px;
+            flex-shrink: 0;
+            border-radius: 15px;
+            color: var(--primary);
+            background: #f0ebff;
+            font-size: 23px;
+        }
+
+        .contact-content {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .contact-content h3 {
+            margin: 0 0 5px;
+            font-size: 14px;
+        }
+
+        .contact-content p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .contact-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 39px;
+            padding: 10px 13px;
+            flex-shrink: 0;
+            border-radius: 11px;
+            color: #fff;
+            background: var(--primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .contact-button:hover {
+            background: #5b21b6;
+        }
+
+        .footer-note {
+            padding: 17px 5px 5px;
+            color: var(--muted);
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 20;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+            background: rgba(255, 255, 255, 0.97);
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 48px;
+            color: #9ca3af;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+            line-height: 1.2;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        @media (max-width: 520px) {
+            .topbar {
+                padding: 13px 14px;
+            }
+
+            .page {
+                padding: 18px 12px;
+            }
+
+            .hero {
+                padding: 22px 18px;
+                border-radius: 20px;
+            }
+
+            .hero h2 {
+                font-size: 23px;
+            }
+
+            .toc-links {
+                grid-template-columns: 1fr;
+            }
+
+            .terms-card {
+                padding: 18px 15px;
+            }
+
+            .contact-card {
+                flex-wrap: wrap;
+                padding: 15px;
+            }
+
+            .contact-content {
+                flex-basis: calc(100% - 65px);
+            }
+
+            .contact-button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+
+    <header class="topbar">
+        <a href="{{ url_for('customer.settings') }}"
+           class="back-button"
+           aria-label="Back to settings">‹</a>
+
+        <div>
+            <h1>Terms &amp; Conditions</h1>
+            <p>Terms for using Sivdhi</p>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="hero">
+            <div class="hero-icon" aria-hidden="true">📄</div>
+            <h2>Terms &amp; Conditions</h2>
+            <p>
+                These terms describe the basic rules for using the Sivdhi
+                platform, requesting services and managing your account.
+            </p>
+        </section>
+
+        <aside class="draft-notice">
+            <span class="notice-icon" aria-hidden="true">⚠️</span>
+            <div>
+                <strong>Draft policy — review before publication</strong>
+                <p>
+                    This is a general website template, not a finalized legal
+                    agreement. The terms must be reviewed against Sivdhi's real
+                    service process, prices, refund rules and applicable laws.
+                </p>
+            </div>
+        </aside>
+
+        <nav class="toc" aria-label="Terms and conditions contents">
+            <h3>On this page</h3>
+
+            <div class="toc-links">
+                <a href="#acceptance">Acceptance of terms</a>
+                <a href="#eligibility">Account eligibility</a>
+                <a href="#services">Services provided</a>
+                <a href="#bookings">Bookings and availability</a>
+                <a href="#pricing">Prices and payments</a>
+                <a href="#cancellation">Cancellations and refunds</a>
+                <a href="#responsibilities">Customer responsibilities</a>
+                <a href="#privacy">Privacy and security</a>
+                <a href="#availability">Platform availability</a>
+                <a href="#changes">Changes to these terms</a>
+                <a href="#law">Applicable law</a>
+                <a href="#contact">Contact and support</a>
+            </div>
+        </nav>
+
+        <article class="terms-card">
+            <section class="terms-section" id="acceptance">
+                <h3>
+                    <span class="section-number">01</span>
+                    Acceptance of terms
+                </h3>
+
+                <p>
+                    By accessing or using Sivdhi, you agree to comply with
+                    the terms that apply to the features you use.
+                </p>
+
+                <p>
+                    Please read these terms before placing a booking. If you
+                    do not agree with the applicable terms, you should not
+                    use the relevant service.
+                </p>
+            </section>
+
+            <section class="terms-section" id="eligibility">
+                <h3>
+                    <span class="section-number">02</span>
+                    Account eligibility and security
+                </h3>
+
+                <p>
+                    You are responsible for providing accurate account
+                    information and keeping your sign-in credentials secure.
+                </p>
+
+                <ul>
+                    <li>Keep your account information reasonably up to date.</li>
+                    <li>Do not impersonate another person or submit misleading information.</li>
+                    <li>Do not share your password, OTP or other authentication credentials.</li>
+                    <li>Contact support if you suspect unauthorized access to your account.</li>
+                </ul>
+            </section>
+
+            <section class="terms-section" id="services">
+                <h3>
+                    <span class="section-number">03</span>
+                    Services provided
+                </h3>
+
+                <p>
+                    Sivdhi may provide access to service categories and
+                    subcategories shown on the website. The available services,
+                    descriptions and prices may vary according to the
+                    platform's current configuration.
+                </p>
+
+                <p>
+                    A booking request does not necessarily mean that a worker
+                    has been assigned or that a service has been completed.
+                    Check the booking status displayed on the platform.
+                </p>
+            </section>
+
+            <section class="terms-section" id="bookings">
+                <h3>
+                    <span class="section-number">04</span>
+                    Bookings and service availability
+                </h3>
+
+                <p>
+                    When placing a booking, you should provide an accurate
+                    service address, select the required service and review
+                    the booking details before submission.
+                </p>
+
+                <p>
+                    Assignment may depend on the availability of eligible
+                    workers, the service location and the operational rules
+                    used by Sivdhi.
+                </p>
+
+                <p>
+                    If a worker is not available, the booking may remain
+                    unassigned or require further action according to the
+                    actual booking process.
+                </p>
+            </section>
+
+            <section class="terms-section" id="pricing">
+                <h3>
+                    <span class="section-number">05</span>
+                    Prices and payments
+                </h3>
+
+                <p>
+                    Service prices and estimated totals should be displayed
+                    before the booking is submitted. Review the displayed
+                    amount and selected quantity carefully.
+                </p>
+
+                <p>
+                    Payment methods, payment confirmation and receipts depend
+                    on the methods actually enabled on the platform.
+                    A displayed payment status should reflect the real
+                    status recorded by the system.
+                </p>
+
+                <p>
+                    Do not make duplicate payments when a payment result is
+                    uncertain. Check the booking and payment status or contact
+                    support for assistance.
+                </p>
+            </section>
+
+            <section class="terms-section" id="cancellation">
+                <h3>
+                    <span class="section-number">06</span>
+                    Cancellations and refunds
+                </h3>
+
+                <p>
+                    Cancellation eligibility depends on the booking status
+                    and the cancellation process available on the website.
+                </p>
+
+                <p>
+                    Refund eligibility, processing timelines and any permitted
+                    deductions must follow the actual refund policy disclosed
+                    to customers.
+                </p>
+
+                <p>
+                    If a cancellation or payment dispute cannot be resolved
+                    through the booking page, contact the support team with
+                    the relevant booking reference.
+                </p>
+            </section>
+
+            <section class="terms-section" id="responsibilities">
+                <h3>
+                    <span class="section-number">07</span>
+                    Customer responsibilities
+                </h3>
+
+                <p>
+                    Customers should use the platform lawfully and provide
+                    information necessary to arrange the requested service.
+                </p>
+
+                <ul>
+                    <li>Provide a valid service address and accurate booking details.</li>
+                    <li>Use the platform only for lawful purposes.</li>
+                    <li>Treat service providers respectfully.</li>
+                    <li>Do not attempt to access another person's account or information.</li>
+                    <li>Report booking, service or payment problems through the available support process.</li>
+                </ul>
+            </section>
+
+            <section class="terms-section" id="privacy">
+                <h3>
+                    <span class="section-number">08</span>
+                    Privacy and personal information
+                </h3>
+
+                <p>
+                    Personal information should be collected and processed
+                    according to the platform's applicable privacy policy
+                    and legal obligations.
+                </p>
+
+                <p>
+                    The platform should limit access to personal information
+                    to authorized purposes. Customer and worker phone numbers
+                    should not be exposed on pages where they are not needed.
+                </p>
+
+                <p>
+                    Review the
+                    <a href="{{ url_for('customer.privacy') }}">Privacy Policy</a>
+                    for information about data handling.
+                </p>
+            </section>
+
+            <section class="terms-section" id="availability">
+                <h3>
+                    <span class="section-number">09</span>
+                    Platform availability
+                </h3>
+
+                <p>
+                    Sivdhi may need maintenance, updates or technical repairs.
+                    Access to some features may occasionally be interrupted.
+                </p>
+
+                <p>
+                    The platform should not represent a booking, payment,
+                    worker assignment or refund as successful unless the
+                    relevant result has been confirmed by the system.
+                </p>
+            </section>
+
+            <section class="terms-section" id="changes">
+                <h3>
+                    <span class="section-number">10</span>
+                    Changes to these terms
+                </h3>
+
+                <p>
+                    These terms may need to change when services, platform
+                    features or legal requirements change.
+                </p>
+
+                <p>
+                    Material changes should be communicated appropriately,
+                    and the published terms should identify the version or
+                    effective date.
+                </p>
+            </section>
+
+            <section class="terms-section" id="law">
+                <h3>
+                    <span class="section-number">11</span>
+                    Applicable law and disputes
+                </h3>
+
+                <p>
+                    Applicable law, consumer rights and dispute-resolution
+                    processes should be specified in the finalized terms
+                    after reviewing the platform's operating arrangements
+                    and legal obligations.
+                </p>
+
+                <p>
+                    Nothing in a website template should be treated as
+                    removing a right that cannot lawfully be excluded.
+                </p>
+            </section>
+
+            <section class="terms-section" id="contact">
+                <h3>
+                    <span class="section-number">12</span>
+                    Contact and support
+                </h3>
+
+                <p>
+                    For questions about bookings, payments, account access
+                    or these terms, use the Help &amp; Support page.
+                </p>
+
+                <p>
+                    When contacting support, include only the information
+                    needed to explain the issue. Do not include passwords,
+                    OTPs, PINs or full payment credentials.
+                </p>
+
+                <p>
+                    <a href="{{ url_for('customer.help') }}">
+                        Open Help &amp; Support →
+                    </a>
+                </p>
+            </section>
+        </article>
+
+        <section class="contact-card">
+            <div class="contact-icon" aria-hidden="true">💬</div>
+
+            <div class="contact-content">
+                <h3>Have a question?</h3>
+                <p>Contact support about these terms or your booking.</p>
+            </div>
+
+            <a href="{{ url_for('customer.help') }}"
+               class="contact-button">
+                Get help
+            </a>
+        </section>
+
+        <footer class="footer-note">
+            This is a draft template. Finalize the terms against Sivdhi's
+            real operating procedures and have them reviewed before publication.
+        </footer>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+        <a href="{{ url_for('customer.home') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>Home</span>
+        </a>
+
+        <a href="{{ url_for('customer.bookings') }}" class="nav-item">
+            <span class="nav-icon" aria-hidden="true">▣</span>
+            <span>Bookings</span>
+        </a>
+
+        <a href="{{ url_for('customer.profile') }}"
+           class="nav-item active"
+           aria-current="page">
+            <span class="nav-icon" aria-hidden="true">♙</span>
+            <span>Profile</span>
+        </a>
+    </nav>
+</body>
+</html>
