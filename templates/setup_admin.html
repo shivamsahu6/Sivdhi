@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sivdhi — One-time Admin Setup</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #f6f5fb;
+      font-family: Arial, sans-serif;
+      color: #201b2d;
+    }
+
+    .card {
+      width: min(100%, 460px);
+      background: #fff;
+      border: 1px solid #e8e3f2;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 18px 50px #30205b12;
+    }
+
+    h1 {
+      font-size: 25px;
+      margin: 0 0 8px;
+    }
+
+    p {
+      color: #6c6578;
+      line-height: 1.5;
+    }
+
+    .field {
+      display: block;
+      margin: 16px 0 6px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #d9d2e5;
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      background: #6d28d9;
+      color: white;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+
+    .error {
+      background: #fff0f0;
+      color: #a11b1b;
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .success {
+      background: #eefbf1;
+      color: #17652b;
+      padding: 14px;
+      border-radius: 10px;
+    }
+
+    .hint {
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="card">
+    {% if success %}
+
+      <h1>Admin account created</h1>
+
+      <div class="success">
+        Account saved.
+        Go to <a href="/admin/login">Admin Login</a>.
+      </div>
+
+      <p class="hint">
+        अब project से temporary /setup-admin route और यह HTML file
+        हटाकर दोबारा deploy करें। Render Environment से
+        ADMIN_SETUP_KEY भी हटा दें।
+      </p>
+
+    {% else %}
+
+      <h1>Sivdhi Admin Setup</h1>
+
+      <p>
+        Create the first admin account.
+        This page stops working once an admin exists.
+      </p>
+
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" autocomplete="off">
+        <input
+          type="hidden"
+          name="csrf_token"
+          value="{{ csrf_token() }}"
+        >
+
+        <label class="field" for="setup_key">
+          Setup Secret Key
+        </label>
+        <input
+          id="setup_key"
+          name="setup_key"
+          type="password"
+          required
+          autocomplete="off"
+        >
+
+        <label class="field" for="admin_id">
+          Admin ID
+        </label>
+        <input
+          id="admin_id"
+          name="admin_id"
+          maxlength="64"
+          required
+        >
+
+        <label class="field" for="fullname">
+          Full Name
+        </label>
+        <input
+          id="fullname"
+          name="fullname"
+          maxlength="100"
+          required
+        >
+
+        <label class="field" for="email">
+          Email
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          maxlength="254"
+          required
+        >
+
+        <label class="field" for="password">
+          Password
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          minlength="12"
+          required
+          autocomplete="new-password"
+        >
+
+        <label class="field" for="confirm_password">
+          Confirm Password
+        </label>
+        <input
+          id="confirm_password"
+          name="confirm_password"
+          type="password"
+          minlength="12"
+          required
+          autocomplete="new-password"
+        >
+
+        <p class="hint">
+          Password कम-से-कम 12 characters का हो और उसमें
+          कम-से-कम एक letter तथा एक number हो।
+        </p>
+
+        <button type="submit">
+          Create Admin Account
+        </button>
+      </form>
+
+    {% endif %}
+  </main>
+</body>
+</html>
