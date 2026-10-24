@@ -1,3 +1,11 @@
+import re
+import hmac
+import sqlite3
+from datetime import datetime
+
+from werkzeug.security import generate_password_hash
+from flask import render_template, abort, request
+
 import os
 from pathlib import Path
 
@@ -49,7 +57,98 @@ if trusted_proxy_hops:
 
 # CSRF protection for browser form submissions.
 csrf = CSRFProtect(app)
+@app.route("/setup-admin", methods=["GET", "POST"])
+def temporary_admin_setup():
+    """One-time, secret-protected admin bootstrap; remove after use."""
+    setup_key = os.getenv("ADMIN_SETUP_KEY", "").strip()
 
+    if len(setup_key) < 32:
+        abort(404)
+
+    conn = get_db()
+
+    try:
+        # केवल पहले Admin account के लिए।
+        if conn.execute(
+            "SELECT 1 FROM admin LIMIT 1"
+        ).fetchone():
+            abort(404)
+
+        error = ""
+
+        if request.method == "POST":
+            supplied_key = request.form.get("setup_key", "")
+            admin_id = request.form.get("admin_id", "").strip()
+            fullname = request.form.get("fullname", "").strip()
+            email = request.form.get("email", "").strip().lower()
+            password = request.form.get("password", "")
+            confirm = request.form.get("confirm_password", "")
+
+            if not hmac.compare_digest(supplied_key, setup_key):
+                error = "Setup key is incorrect."
+
+            elif not admin_id or len(admin_id) > 64:
+                error = "Admin ID is required (maximum 64 characters)."
+
+            elif not fullname or len(fullname) > 100:
+                error = "Full name is required (maximum 100 characters)."
+
+            elif (
+                not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email)
+                or len(email) > 254
+            ):
+                error = "Enter a valid email address."
+
+            elif (
+                len(password) < 12
+                or not re.search(r"[A-Za-z]", password)
+                or not re.search(r"\d", password)
+            ):
+                error = (
+                    "Password must be at least 12 characters "
+                    "and contain a letter and a number."
+                )
+
+            elif password != confirm:
+                error = "Passwords do not match."
+
+            else:
+                try:
+                    conn.execute(
+                        """
+                        INSERT INTO admin
+                        (admin_id, fullname, email, password, created_at)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            admin_id,
+                            fullname,
+                            email,
+                            generate_password_hash(password),
+                            datetime.now().isoformat(),
+                        ),
+                    )
+
+                    conn.commit()
+
+                    return render_template(
+                        "setup_admin.html",
+                        success=True,
+                        error="",
+                    )
+
+                except sqlite3.IntegrityError:
+                    conn.rollback()
+                    error = "Admin ID or email already exists."
+
+        return render_template(
+            "setup_admin.html",
+            success=False,
+            error=error,
+        )
+
+    finally:
+        conn.close()
 
 @app.get("/health")
 def health_check():
