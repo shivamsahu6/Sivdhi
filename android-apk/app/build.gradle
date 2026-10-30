@@ -6,6 +6,7 @@ android {
     namespace 'com.sivdhi.mobile'
     compileSdk 36
 
+    // AGP 9 defaults resValues to disabled; both product flavors use resValue for app_name.
     buildFeatures {
         resValues = true
     }
@@ -39,6 +40,31 @@ android {
         }
     }
 
+    // Release credentials are supplied only by GitHub Actions Secrets at build time.
+    // Never store a keystore or passwords in this repository.
+    def releaseStoreFilePath = System.getenv('SIVDHI_RELEASE_STORE_FILE')
+    def releaseStorePasswordValue = System.getenv('SIVDHI_RELEASE_STORE_PASSWORD')
+    def releaseKeyAliasValue = System.getenv('SIVDHI_RELEASE_KEY_ALIAS')
+    def releaseKeyPasswordValue = System.getenv('SIVDHI_RELEASE_KEY_PASSWORD')
+    def releaseSigningConfigured = [
+        releaseStoreFilePath,
+        releaseStorePasswordValue,
+        releaseKeyAliasValue,
+        releaseKeyPasswordValue
+    ].every { it != null && !it.trim().isEmpty() }
+
+    signingConfigs {
+        release {
+            if (releaseSigningConfigured) {
+                storeFile file(releaseStoreFilePath)
+                storeType 'PKCS12'
+                storePassword releaseStorePasswordValue
+                keyAlias releaseKeyAliasValue
+                keyPassword releaseKeyPasswordValue
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix '.debug'
@@ -47,6 +73,9 @@ android {
         release {
             minifyEnabled false
             shrinkResources false
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

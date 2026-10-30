@@ -9,7 +9,12 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -33,6 +38,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.net.http.SslError;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -52,6 +58,16 @@ public class MainActivity extends Activity {
     private WebView webView;
     private ProgressBar progressBar;
     private FrameLayout root;
+    private LinearLayout offlinePanel;
+    private TextView offlineTitle;
+    private TextView offlineMessage;
+    private Button offlineRetryButton;
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private boolean networkCallbackRegistered = false;
+    private boolean networkAvailable = false;
+    private boolean pageLoadFailed = false;
+    private String lastKnownUrl;
     private ValueCallback<Uri[]> fileCallback;
     private GeolocationPermissions.Callback pendingGeoCallback;
     private String pendingGeoOrigin;
@@ -66,14 +82,27 @@ public class MainActivity extends Activity {
         configureSystemBars();
         buildLayout();
         configureWebView();
+        configureNetworkMonitoring();
+        networkAvailable = hasValidatedInternet();
 
         if (savedInstanceState != null) {
             Bundle webState = savedInstanceState.getBundle("sivdhi.webview.state");
             if (webState != null && webView.restoreState(webState) != null) {
+                lastKnownUrl = webView.getUrl();
+                if (!networkAvailable) {
+                    showOfflinePanel(false);
+                }
                 return;
             }
         }
-        webView.loadUrl(startUrl);
+
+        if (networkAvailable) {
+            lastKnownUrl = startUrl;
+            webView.loadUrl(startUrl);
+        } else {
+            pageLoadFailed = true;
+            showOfflinePanel(false);
+        }
     }
 
     private void readAppConfiguration() {
@@ -127,8 +156,82 @@ public class MainActivity extends Activity {
         FrameLayout.LayoutParams progressParams = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(3), Gravity.TOP);
         root.addView(progressBar, progressParams);
+        buildOfflinePanel();
 
         setContentView(root);
+    }
+
+    private void buildOfflinePanel() {
+        offlinePanel = new LinearLayout(this);
+        offlinePanel.setOrientation(LinearLayout.VERTICAL);
+        offlinePanel.setGravity(Gravity.CENTER);
+        offlinePanel.setPadding(dp(28), dp(28), dp(28), dp(28));
+        offlinePanel.setBackgroundColor(Color.rgb(250, 249, 252));
+        offlinePanel.setVisibility(View.GONE);
+        offlinePanel.setClickable(true);
+        offlinePanel.setFocusable(true);
+
+        TextView mark = new TextView(this);
+        mark.setText("SIVDHI");
+        mark.setTextColor(themeColor);
+        mark.setTextSize(14);
+        mark.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        mark.setLetterSpacing(0.12f);
+        mark.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams markParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        markParams.bottomMargin = dp(20);
+        offlinePanel.addView(mark, markParams);
+
+        offlineTitle = new TextView(this);
+        offlineTitle.setText("You're offline");
+        offlineTitle.setTextColor(Color.rgb(30, 27, 41));
+        offlineTitle.setTextSize(23);
+        offlineTitle.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        offlineTitle.setGravity(Gravity.CENTER);
+        offlinePanel.addView(offlineTitle, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        offlineMessage = new TextView(this);
+        offlineMessage.setTextColor(Color.rgb(91, 87, 103));
+        offlineMessage.setTextSize(15);
+        offlineMessage.setGravity(Gravity.CENTER);
+        offlineMessage.setLineSpacing(dp(4), 1.0f);
+        LinearLayout.LayoutParams messageParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        messageParams.topMargin = dp(14);
+        messageParams.bottomMargin = dp(24);
+        offlinePanel.addView(offlineMessage, messageParams);
+
+        offlineRetryButton = new Button(this);
+        offlineRetryButton.setText("Try again");
+        offlineRetryButton.setTextColor(Color.WHITE);
+        offlineRetryButton.setTextSize(15);
+        offlineRetryButton.setAllCaps(false);
+        offlineRetryButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        GradientDrawable buttonBackground = new GradientDrawable();
+        buttonBackground.setColor(themeColor);
+        buttonBackground.setCornerRadius(dp(14));
+        offlineRetryButton.setBackground(buttonBackground);
+        offlineRetryButton.setPadding(dp(28), dp(10), dp(28), dp(10));
+        offlineRetryButton.setOnClickListener(v -> retryFromOfflinePanel());
+        offlinePanel.addView(offlineRetryButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        TextView safetyNote = new TextView(this);
+        safetyNote.setText("Bookings, payments and worker assignments need a live connection. Sivdhi will not submit or confirm them while offline.");
+        safetyNote.setTextColor(Color.rgb(112, 108, 123));
+        safetyNote.setTextSize(12);
+        safetyNote.setGravity(Gravity.CENTER);
+        safetyNote.setLineSpacing(dp(3), 1.0f);
+        LinearLayout.LayoutParams noteParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        noteParams.topMargin = dp(22);
+        offlinePanel.addView(safetyNote, noteParams);
+
+        FrameLayout.LayoutParams offlineParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        root.addView(offlinePanel, offlineParams);
     }
 
     @SuppressWarnings("SetJavaScriptEnabled")
@@ -170,22 +273,47 @@ public class MainActivity extends Activity {
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
                 progressBar.setVisibility(View.VISIBLE);
                 progressBar.setProgress(5);
+                if (isTrustedUrl(url)) {
+                    lastKnownUrl = url;
+                }
+                pageLoadFailed = false;
+                if (networkAvailable && offlinePanel != null) {
+                    offlinePanel.setVisibility(View.GONE);
+                }
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 progressBar.setProgress(100);
                 progressBar.setVisibility(View.GONE);
+                if (isTrustedUrl(url)) {
+                    lastKnownUrl = url;
+                }
+                if (!pageLoadFailed && networkAvailable && offlinePanel != null) {
+                    offlinePanel.setVisibility(View.GONE);
+                }
                 CookieManager.getInstance().flush();
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 if (request.isForMainFrame()) {
+                    pageLoadFailed = true;
                     progressBar.setVisibility(View.GONE);
-                    Toast.makeText(MainActivity.this,
-                            "Connection problem. Please check your internet and retry.",
-                            Toast.LENGTH_LONG).show();
+                    showOfflinePanel(false);
+                }
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request,
+                                            android.webkit.WebResourceResponse errorResponse) {
+                if (request.isForMainFrame() && errorResponse != null) {
+                    int statusCode = errorResponse.getStatusCode();
+                    if (statusCode >= 500 || statusCode == 408 || statusCode == 429) {
+                        pageLoadFailed = true;
+                        progressBar.setVisibility(View.GONE);
+                        showOfflinePanel(false);
+                    }
                 }
             }
 
@@ -269,6 +397,125 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "Could not start download.", Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    private void configureNetworkMonitoring() {
+        connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                refreshNetworkState();
+            }
+
+            @Override
+            public void onLost(Network network) {
+                refreshNetworkState();
+            }
+
+            @Override
+            public void onCapabilitiesChanged(Network network, NetworkCapabilities capabilities) {
+                refreshNetworkState();
+            }
+        };
+    }
+
+    private boolean hasValidatedInternet() {
+        if (connectivityManager == null) {
+            connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        }
+        if (connectivityManager == null) return false;
+        Network activeNetwork = connectivityManager.getActiveNetwork();
+        if (activeNetwork == null) return false;
+        NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(activeNetwork);
+        return capabilities != null &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+    }
+
+    private void refreshNetworkState() {
+        boolean available = hasValidatedInternet();
+        runOnUiThread(() -> applyNetworkState(available));
+    }
+
+    private void applyNetworkState(boolean available) {
+        networkAvailable = available;
+        if (!available) {
+            showOfflinePanel(false);
+            return;
+        }
+
+        if (offlinePanel != null && offlinePanel.getVisibility() == View.VISIBLE) {
+            if (pageLoadFailed || webView == null || webView.getUrl() == null) {
+                showOfflinePanel(true);
+            } else {
+                offlinePanel.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    private void showOfflinePanel(boolean connectionRestored) {
+        if (offlinePanel == null) return;
+        progressBar.setVisibility(View.GONE);
+        if (connectionRestored) {
+            offlineTitle.setText("Connection restored");
+            offlineMessage.setText("Your internet connection is back. Tap below to safely reload Sivdhi. Any interrupted booking or payment was not automatically resubmitted.");
+            offlineRetryButton.setText("Reload Sivdhi");
+        } else if (!networkAvailable) {
+            offlineTitle.setText("You're offline");
+            offlineMessage.setText("Connect to Wi-Fi or mobile data to use Sivdhi. The app can open without internet, but live account information and services need a connection.");
+            offlineRetryButton.setText("Try again");
+        } else {
+            offlineTitle.setText("Couldn't reach Sivdhi");
+            offlineMessage.setText("Your device appears to be online, but Sivdhi did not respond. Please retry. If this continues, the website server may be temporarily unavailable.");
+            offlineRetryButton.setText("Retry Sivdhi");
+        }
+        offlinePanel.setVisibility(View.VISIBLE);
+    }
+
+    private void retryFromOfflinePanel() {
+        if (!hasValidatedInternet()) {
+            networkAvailable = false;
+            showOfflinePanel(false);
+            Toast.makeText(this, "No validated internet connection yet.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        networkAvailable = true;
+        pageLoadFailed = false;
+        String target = isTrustedUrl(lastKnownUrl) ? lastKnownUrl : startUrl;
+        offlinePanel.setVisibility(View.GONE);
+        progressBar.setVisibility(View.VISIBLE);
+        webView.loadUrl(target);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (connectivityManager == null) {
+            configureNetworkMonitoring();
+        }
+        if (!networkCallbackRegistered && connectivityManager != null && networkCallback != null) {
+            try {
+                connectivityManager.registerDefaultNetworkCallback(networkCallback);
+                networkCallbackRegistered = true;
+            } catch (RuntimeException ignored) {
+                // The initial connectivity snapshot still works if callback registration is unavailable.
+            }
+        }
+        applyNetworkState(hasValidatedInternet());
+    }
+
+    @Override
+    protected void onStop() {
+        if (networkCallbackRegistered && connectivityManager != null && networkCallback != null) {
+            try {
+                connectivityManager.unregisterNetworkCallback(networkCallback);
+            } catch (RuntimeException ignored) {
+                // Ignore an already-unregistered callback during lifecycle transitions.
+            }
+            networkCallbackRegistered = false;
+        }
+        super.onStop();
     }
 
     private boolean routeUrl(String rawUrl) {
@@ -395,6 +642,14 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (networkCallbackRegistered && connectivityManager != null && networkCallback != null) {
+            try {
+                connectivityManager.unregisterNetworkCallback(networkCallback);
+            } catch (RuntimeException ignored) {
+                // Callback may already have been removed in onStop.
+            }
+            networkCallbackRegistered = false;
+        }
         if (fileCallback != null) fileCallback.onReceiveValue(null);
         if (pendingGeoCallback != null) pendingGeoCallback.invoke(pendingGeoOrigin, false, false);
         if (pendingMediaRequest != null) pendingMediaRequest.deny();

@@ -2,13 +2,31 @@ name: Build Sivdhi Android APKs
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: APK type to build
+        required: true
+        type: choice
+        options:
+          - debug
+          - release
+        default: debug
   push:
     paths:
       - 'android-apk/**'
       - '.github/workflows/build-sivdhi-android-apks.yml'
+      - 'CREATE_SIVDHI_RELEASE_KEY.ps1'
+      - 'ANDROID_RELEASE_OFFLINE_GUIDE.md'
 
 permissions:
   contents: read
+
+concurrency:
+  group: sivdhi-android-apks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: ${{ github.event.inputs.build_type || 'debug' }}
 
 jobs:
   build-apks:
@@ -33,33 +51,104 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
+          # sdkmanager expects whitespace-separated package IDs, not a comma-separated list.
           packages: 'platforms;android-36 build-tools;36.0.0'
+
+      - name: Prepare release signing key
+        if: env.BUILD_TYPE == 'release'
+        shell: bash
+        env:
+          SIVDHI_RELEASE_KEYSTORE_BASE64: ${{ secrets.SIVDHI_RELEASE_KEYSTORE_BASE64 }}
+          SIVDHI_RELEASE_STORE_PASSWORD: ${{ secrets.SIVDHI_RELEASE_STORE_PASSWORD }}
+          SIVDHI_RELEASE_KEY_ALIAS: ${{ secrets.SIVDHI_RELEASE_KEY_ALIAS }}
+          SIVDHI_RELEASE_KEY_PASSWORD: ${{ secrets.SIVDHI_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for secret_name in \
+            SIVDHI_RELEASE_KEYSTORE_BASE64 \
+            SIVDHI_RELEASE_STORE_PASSWORD \
+            SIVDHI_RELEASE_KEY_ALIAS \
+            SIVDHI_RELEASE_KEY_PASSWORD; do
+            if [[ -z "${!secret_name:-}" ]]; then
+              echo "::error::Missing repository Actions secret: ${secret_name}"
+              exit 1
+            fi
+          done
+
+          KEYSTORE_PATH="$RUNNER_TEMP/sivdhi-release.p12"
+          printf '%s' "$SIVDHI_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+
+          keytool -list \
+            -keystore "$KEYSTORE_PATH" \
+            -storetype PKCS12 \
+            -storepass "$SIVDHI_RELEASE_STORE_PASSWORD" \
+            -alias "$SIVDHI_RELEASE_KEY_ALIAS" >/dev/null
+
+          {
+            echo "SIVDHI_RELEASE_STORE_FILE=$KEYSTORE_PATH"
+            echo "SIVDHI_RELEASE_STORE_PASSWORD=$SIVDHI_RELEASE_STORE_PASSWORD"
+            echo "SIVDHI_RELEASE_KEY_ALIAS=$SIVDHI_RELEASE_KEY_ALIAS"
+            echo "SIVDHI_RELEASE_KEY_PASSWORD=$SIVDHI_RELEASE_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
 
       - name: Build both APKs
         working-directory: android-apk
-        run: |
-          gradle --no-daemon --stacktrace \
-            :app:assembleCustomerDebug \
-            :app:assembleWorkpartnerDebug
-
-      - name: Verify and collect APKs
         shell: bash
         run: |
           set -euo pipefail
+          case "$BUILD_TYPE" in
+            debug)
+              gradle --no-daemon --stacktrace \
+                :app:assembleCustomerDebug \
+                :app:assembleWorkpartnerDebug
+              ;;
+            release)
+              gradle --no-daemon --stacktrace \
+                :app:assembleCustomerRelease \
+                :app:assembleWorkpartnerRelease
+              ;;
+            *)
+              echo "::error::Unsupported BUILD_TYPE: $BUILD_TYPE"
+              exit 1
+              ;;
+          esac
+
+      - name: Verify and collect APKs
+        shell: bash
+        env:
+          ANDROID_BUILD_TYPE: ${{ env.BUILD_TYPE }}
+        run: |
+          set -euo pipefail
           mkdir -p android-apk/dist
-          CUSTOMER="$(find android-apk/app/build/outputs/apk -path '*/customer/debug/*.apk' -type f | head -n 1)"
-          WORKPARTNER="$(find android-apk/app/build/outputs/apk -path '*/workpartner/debug/*.apk' -type f | head -n 1)"
+
+          CUSTOMER="$(find android-apk/app/build/outputs/apk -path "*/customer/${ANDROID_BUILD_TYPE}/*.apk" -type f -print -quit)"
+          WORKPARTNER="$(find android-apk/app/build/outputs/apk -path "*/workpartner/${ANDROID_BUILD_TYPE}/*.apk" -type f -print -quit)"
+
           test -s "$CUSTOMER"
           test -s "$WORKPARTNER"
+
           cp "$CUSTOMER" android-apk/dist/Sivdhi-Customer.apk
           cp "$WORKPARTNER" android-apk/dist/Sivdhi-Worker-Partner.apk
+
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose android-apk/dist/Sivdhi-Customer.apk
+          "$APKSIGNER" verify --verbose android-apk/dist/Sivdhi-Worker-Partner.apk
+
+          if [[ "$ANDROID_BUILD_TYPE" == "release" ]]; then
+            "$APKSIGNER" verify --print-certs android-apk/dist/Sivdhi-Customer.apk
+            "$APKSIGNER" verify --print-certs android-apk/dist/Sivdhi-Worker-Partner.apk
+          fi
+
           sha256sum android-apk/dist/*.apk | tee android-apk/dist/SHA256SUMS.txt
+          printf 'Build type: %s\n' "$ANDROID_BUILD_TYPE" > android-apk/dist/BUILD_TYPE.txt
           ls -lh android-apk/dist
 
       - name: Upload installable APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Sivdhi-Android-APKs
+          name: Sivdhi-Android-APKs-${{ env.BUILD_TYPE }}
           path: android-apk/dist/*
           if-no-files-found: error
           retention-days: 30
