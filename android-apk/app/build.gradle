@@ -1,0 +1,53 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.sivdhi.mobile'
+    compileSdk 36
+
+    defaultConfig {
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    flavorDimensions += 'audience'
+
+    productFlavors {
+        customer {
+            dimension 'audience'
+            applicationId 'com.sivdhi.customer'
+            manifestPlaceholders = [
+                startUrl: 'https://sivdhi.duckdns.org/customer/login'
+            ]
+            resValue 'string', 'app_name', 'Sivdhi Customer'
+        }
+
+        workpartner {
+            dimension 'audience'
+            applicationId 'com.sivdhi.workpartner'
+            manifestPlaceholders = [
+                startUrl: 'https://sivdhi.duckdns.org/login'
+            ]
+            resValue 'string', 'app_name', 'Sivdhi Worker & Partner'
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
