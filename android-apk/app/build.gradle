@@ -6,6 +6,10 @@ android {
     namespace 'com.sivdhi.mobile'
     compileSdk 36
 
+    buildFeatures {
+        resValues = true
+    }
+
     defaultConfig {
         minSdk 24
         targetSdk 36
