@@ -1131,7 +1131,7 @@ def accept_job(
     seen_conn = get_db()
     try:
         ensure_finance_schema(seen_conn)
-        from utils.assignment_monitor import ensure_assignment_monitor_schema, _now_ist
+        from utils.assignment_monitor import _now_ist
         ensure_assignment_monitor_schema(seen_conn)
         now_text = _now_ist().isoformat(timespec="seconds")
         seen_conn.execute("""
