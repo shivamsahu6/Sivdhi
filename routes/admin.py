@@ -13,6 +13,8 @@ from werkzeug.security import check_password_hash
 
 from database import get_db
 from routes.decorators import admin_required
+from utils.sivdhi_finance import ensure_finance_schema, money as finance_money, add_finance_ledger_entry
+from utils.assignment_monitor import ensure_assignment_monitor_schema
 from utils.login_security import is_login_allowed, record_login_failure, clear_login_failures
 
 
@@ -1179,7 +1181,10 @@ def admin_booking_details(booking_id):
 
     conn = get_db()
 
+    refund_paid_total = 0.0
     try:
+        ensure_finance_schema(conn)
+        conn.commit()
         booking = conn.execute("""
             SELECT
                 b.*,
@@ -1192,6 +1197,28 @@ def admin_booking_details(booking_id):
             LEFT JOIN services s ON b.service_id = s.id
             WHERE b.id = ?
         """, (booking_id,)).fetchone()
+        if booking:
+            refund_paid_total = finance_money(booking["advance_paid_amount"]) + finance_money(booking["balance_paid_amount"])
+            if refund_paid_total <= 0:
+                try:
+                    row = conn.execute("""
+                        SELECT COALESCE(SUM(amount),0) FROM customer_payment_records
+                        WHERE CAST(booking_id AS TEXT)=CAST(? AS TEXT)
+                          AND UPPER(COALESCE(status,'')) IN ('PAID','SUCCESS','DEMO_PAID','COLLECTED','COMPLETED')
+                    """, (booking["booking_id"],)).fetchone()
+                    refund_paid_total = finance_money(row[0] if row else 0)
+                except sqlite3.Error:
+                    pass
+            if refund_paid_total <= 0 and "payment_id" in booking.keys() and booking["payment_id"]:
+                try:
+                    row = conn.execute("""
+                        SELECT amount FROM payments WHERE transaction_id=?
+                          AND UPPER(COALESCE(status,'')) IN ('PAID','SUCCESS','DEMO_PAID','COLLECTED','COMPLETED')
+                        ORDER BY id DESC LIMIT 1
+                    """, (str(booking["payment_id"]),)).fetchone()
+                    refund_paid_total = finance_money(row[0] if row else 0)
+                except sqlite3.Error:
+                    pass
     finally:
         conn.close()
 
@@ -1202,6 +1229,7 @@ def admin_booking_details(booking_id):
     return render_template(
         "admin/booking_details.html",
         booking=booking,
+        refund_paid_total=refund_paid_total,
     )
 
 
@@ -1211,91 +1239,184 @@ def admin_booking_details(booking_id):
 )
 @admin_required
 def admin_update_booking_status(booking_id):
-
-    status = request.form.get("status", "").strip()
-
+    status = request.form.get("status", "").strip().lower()
     allowed_statuses = {
-        "pending",
-        "confirmed",
-        "assigned",
-        "in_progress",
-        "completed",
-        "cancelled",
+        "pending", "confirmed", "assigned", "in_progress", "completed", "cancelled",
     }
-
     if status not in allowed_statuses:
         flash("Invalid booking status.", "danger")
         return redirect(f"/admin/booking/{booking_id}")
 
+    reason = (request.form.get("cancellation_reason") or "Cancelled by Sivdhi Admin").strip()[:500]
     conn = get_db()
-
     try:
+        ensure_finance_schema(conn)
+        ensure_assignment_monitor_schema(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
         booking = conn.execute("""
-            SELECT booking_id, customer_id, worker_id,
-                   assigned_worker_id, partner_id, assigned_partner_id
-            FROM bookings WHERE id = ?
+            SELECT booking_id, customer_id, worker_id, assigned_worker_id,
+                   partner_id, assigned_partner_id, advance_paid_amount,
+                   balance_paid_amount,
+                   COALESCE(NULLIF(booking_status,''), NULLIF(status,''), 'pending') AS old_status
+            FROM bookings WHERE id=? LIMIT 1
         """, (booking_id,)).fetchone()
-
         if not booking:
+            conn.rollback()
             flash("Booking not found.", "danger")
             return redirect("/admin/bookings")
 
+        old_status = str(booking["old_status"] or "").lower()
+        cancellation_paid_amount = (
+            finance_money(booking["advance_paid_amount"])
+            + finance_money(booking["balance_paid_amount"])
+        )
         conn.execute("""
             UPDATE bookings
-            SET status = ?, booking_status = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        """, (status, status, booking_id))
+            SET status=?, booking_status=?,
+                cancellation_reason=CASE WHEN ?='cancelled' THEN ? ELSE cancellation_reason END,
+                refund_status=CASE WHEN ?='cancelled' AND ?>0 THEN 'pending_admin' WHEN ?='cancelled' THEN 'not_required' ELSE refund_status END,
+                refund_amount=CASE WHEN ?='cancelled' THEN ? ELSE refund_amount END,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        """, (
+            status, status, status, reason,
+            status, cancellation_paid_amount, status,
+            status, cancellation_paid_amount, booking_id,
+        ))
 
-        recipients = []
-
-        if booking["worker_id"] is not None:
-            recipients.append(("worker", str(booking["worker_id"])))
-        elif booking["assigned_worker_id"] is not None:
-            recipients.append((
-                "worker",
-                str(booking["assigned_worker_id"]),
-            ))
-
-        partner_id = (
-            booking["assigned_partner_id"]
-            or booking["partner_id"]
-        )
-
+        internal_recipients = []
+        worker_id = booking["worker_id"] or booking["assigned_worker_id"]
+        partner_id = booking["assigned_partner_id"] or booking["partner_id"]
+        if worker_id:
+            internal_recipients.append(("worker", str(worker_id)))
         if partner_id:
-            recipients.append(("partner", str(partner_id)))
+            internal_recipients.append(("partner", str(partner_id)))
 
-        if booking["customer_id"]:
-            recipients.append((
-                "customer",
-                str(booking["customer_id"]),
+        for user_type, user_id in internal_recipients:
+            conn.execute("""
+                INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
+                VALUES(?,?,?,?,0,CURRENT_TIMESTAMP)
+            """, (
+                user_type, user_id,
+                "Booking Cancelled by Admin" if status == "cancelled" else "Booking Status Updated",
+                f"Booking {booking['booking_id']} status is now {status.replace('_',' ').title()}.",
             ))
 
-        for user_type, user_id in recipients:
+        # Customer receives only the cancellation notice here; assignment and
+        # intermediate lifecycle events remain internal to worker/partner.
+        if status == "cancelled" and old_status not in {"cancelled", "canceled"} and booking["customer_id"]:
             conn.execute("""
-                INSERT INTO notifications
-                    (user_type, user_id, title, message, is_read, created_at)
-                VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+                INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
+                VALUES('customer',?,?,?,0,CURRENT_TIMESTAMP)
             """, (
-                user_type,
-                user_id,
-                "Booking Status Updated",
-                f"Booking {booking['booking_id']} status changed to "
-                f"{status.replace('_', ' ').title()} by admin.",
+                str(booking["customer_id"]), "Booking Cancelled",
+                f"Your Sivdhi booking {booking['booking_id']} has been cancelled. {reason}"
+                " If you have paid an amount, Admin will record the bank refund after the transfer is completed.",
             ))
 
         conn.commit()
-
-    except sqlite3.Error as error:
+        flash("Booking status updated successfully.", "success")
+    except Exception as error:
         conn.rollback()
         print("ADMIN BOOKING STATUS ERROR:", error)
         flash("Booking status could not be updated.", "danger")
-        return redirect(f"/admin/booking/{booking_id}")
-
     finally:
         conn.close()
+    return redirect(f"/admin/booking/{booking_id}")
 
-    flash("Booking status updated successfully.", "success")
+
+@admin_bp.route("/admin/booking/<int:booking_id>/refund", methods=["POST"])
+@admin_required
+def admin_process_booking_refund(booking_id):
+    """Record a manual bank refund only after Admin has sent the money."""
+    reference = (request.form.get("refund_reference") or "").strip()[:120]
+    conn = get_db()
+    try:
+        ensure_finance_schema(conn)
+        ensure_assignment_monitor_schema(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        booking = conn.execute("SELECT * FROM bookings WHERE id=? LIMIT 1", (booking_id,)).fetchone()
+        if not booking:
+            conn.rollback()
+            flash("Booking not found.", "danger")
+            return redirect("/admin/bookings")
+        booking_status = str(booking["booking_status"] or booking["status"] or "").lower()
+        if booking_status not in {"cancelled", "canceled"}:
+            conn.rollback()
+            flash("Cancel the booking before recording its refund.", "warning")
+            return redirect(f"/admin/booking/{booking_id}")
+        if str(booking["refund_status"] or "").lower() == "refunded":
+            conn.rollback()
+            flash("This booking's refund has already been recorded.", "info")
+            return redirect(f"/admin/booking/{booking_id}")
+
+        refund_amount = finance_money(booking["advance_paid_amount"]) + finance_money(booking["balance_paid_amount"])
+        if refund_amount <= 0:
+            # Support older payment rows whose totals were saved only in the
+            # payment-record table; include successful payments only.
+            try:
+                payment_total = conn.execute("""
+                    SELECT COALESCE(SUM(amount),0) FROM customer_payment_records
+                    WHERE CAST(booking_id AS TEXT)=CAST(? AS TEXT)
+                      AND UPPER(COALESCE(status,'')) IN ('PAID','SUCCESS','DEMO_PAID','COLLECTED','COMPLETED')
+                """, (booking["booking_id"],)).fetchone()
+                refund_amount = finance_money(payment_total[0] if payment_total else 0)
+            except sqlite3.Error:
+                refund_amount = 0.0
+        if refund_amount <= 0 and "payment_id" in booking.keys() and booking["payment_id"]:
+            try:
+                legacy_payment = conn.execute("""
+                    SELECT amount FROM payments
+                    WHERE transaction_id=?
+                      AND UPPER(COALESCE(status,'')) IN ('PAID','SUCCESS','DEMO_PAID','COLLECTED','COMPLETED')
+                    ORDER BY id DESC LIMIT 1
+                """, (str(booking["payment_id"]),)).fetchone()
+                refund_amount = finance_money(legacy_payment[0] if legacy_payment else 0)
+            except sqlite3.Error:
+                refund_amount = 0.0
+        refund_amount = finance_money(refund_amount)
+        if refund_amount <= 0:
+            conn.rollback()
+            flash("No successfully paid amount was found. There is nothing to refund.", "warning")
+            return redirect(f"/admin/booking/{booking_id}")
+
+        conn.execute("""
+            UPDATE bookings
+            SET refund_status='refunded', refund_amount=?, refund_reference=?,
+                refund_processed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+            WHERE id=? AND LOWER(COALESCE(refund_status,'not_required'))<>'refunded'
+        """, (refund_amount, reference or None, booking_id))
+        add_finance_ledger_entry(
+            conn,
+            booking["booking_id"],
+            "customer_refund",
+            refund_amount,
+            "manual_recorded",
+            "manual_bank_transfer",
+            reference or None,
+            "Admin recorded the manual customer bank refund after transferring funds.",
+        )
+        if booking["customer_id"]:
+            message = (
+                f"Your refund of ₹{refund_amount:.2f} for cancelled booking {booking['booking_id']} "
+                "has been recorded by Sivdhi Admin as a completed bank transfer."
+            )
+            if reference:
+                message += f" Bank transaction reference: {reference}."
+            conn.execute("""
+                INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
+                VALUES('customer',?,?,?,0,CURRENT_TIMESTAMP)
+            """, (str(booking["customer_id"]), "Refund Processed", message))
+        conn.commit()
+        flash(f"Manual refund of ₹{refund_amount:.2f} recorded. Customer notification and email have been queued.", "success")
+    except Exception as error:
+        conn.rollback()
+        print("ADMIN BOOKING REFUND ERROR:", error)
+        flash("Refund could not be recorded. No refund status was changed.", "danger")
+    finally:
+        conn.close()
     return redirect(f"/admin/booking/{booking_id}")
 
 

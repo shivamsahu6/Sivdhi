@@ -354,7 +354,7 @@ select.input {
     <div class="location-box" style="background:#f8fafc;border-color:#e2e8f0;">
         <div class="location-title">🚗 How far can you travel for work?</div>
         <div class="location-sub">
-            Customers will be matched only with workers who can travel to their location.
+            Customers will be matched only with workers who can travel to their location. Maximum supported work range is 30 km.
             If the nearest worker rejects a booking, Sivdhi will try the next nearest
             eligible worker in the same range.
         </div>
@@ -370,9 +370,6 @@ select.input {
             <option value="20" {% if saved_radius == 20 %}selected{% endif %}>Up to 20 km</option>
             <option value="25" {% if saved_radius == 25 %}selected{% endif %}>Up to 25 km</option>
             <option value="30" {% if saved_radius == 30 %}selected{% endif %}>Up to 30 km</option>
-            <option value="50" {% if saved_radius == 50 %}selected{% endif %}>Up to 50 km</option>
-            <option value="75" {% if saved_radius == 75 %}selected{% endif %}>Up to 75 km</option>
-            <option value="100" {% if saved_radius == 100 %}selected{% endif %}>Up to 100 km</option>
         </select>
     </div>
 

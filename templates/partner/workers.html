@@ -109,14 +109,15 @@ margin-bottom:12px;
 }
 
 .buttons{
-
-display:flex;
-
-gap:10px;
-
-margin-top:10px;
-
+	display:flex;
+	gap:10px;
+	margin-top:10px;
 }
+
+.availability-form{margin-top:12px;}
+.availability-form button{width:100%;font-weight:600;}
+.availability-form .make-online{background:#15803d;color:#fff;}
+.availability-form .make-offline{background:#475569;color:#fff;}
 
 .buttons a{
 
@@ -274,9 +275,9 @@ placeholder="Search Worker">
 
 </div>
 
-<div class="status">
+<div class="status" style="{% if worker['is_online'] %}background:#dcfce7;color:#166534;{% else %}background:#fee2e2;color:#991b1b;{% endif %}">
 
-{{ worker["status"] }}
+{{ 'Online' if worker['is_online'] else 'Offline' }}
 
 </div>
 
@@ -303,6 +304,17 @@ View Profile
 </a>
 
 </div>
+
+<form class="availability-form" method="post" action="/partner/worker/{{ worker['worker_id'] }}/availability">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if worker['is_online'] %}
+    <input type="hidden" name="availability" value="offline">
+    <button type="submit" class="make-offline">Set Offline</button>
+    {% else %}
+    <input type="hidden" name="availability" value="online">
+    <button type="submit" class="make-online">Set Online</button>
+    {% endif %}
+</form>
 
 </div>
 

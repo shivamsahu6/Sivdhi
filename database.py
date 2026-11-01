@@ -723,7 +723,8 @@ def create_tables():
             ("service_radius_km", "REAL DEFAULT 10"),
             ("work_type", "TEXT DEFAULT 'both'"),
             ("last_seen_at", "TEXT"),
-            ("is_online", "INTEGER DEFAULT 0")
+            ("is_online", "INTEGER DEFAULT 0"),
+            ("partner_availability_override", "INTEGER DEFAULT NULL")
         ]
 
         for column, column_type in worker_columns:

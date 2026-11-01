@@ -324,7 +324,7 @@ def test_critical_assignment_email_is_queued_even_if_general_email_alerts_are_of
         conn.close()
 
 
-def test_deadline_finalizer_cancels_booking_and_records_demo_refund(monkeypatch):
+def test_deadline_finalizer_cancels_booking_and_marks_manual_refund_pending(monkeypatch):
     from utils.assignment_monitor import _finalize_unassigned_booking
 
     monkeypatch.setenv("SIVDHI_PAYMENT_MODE", "demo")
@@ -358,13 +358,14 @@ def test_deadline_finalizer_cancels_booking_and_records_demo_refund(monkeypatch)
         """)
         booking = conn.execute("SELECT * FROM bookings WHERE id=1").fetchone()
         _finalize_unassigned_booking(conn, booking)
-        updated = conn.execute("SELECT booking_status,payment_status,advance_payment_status FROM bookings WHERE id=1").fetchone()
+        updated = conn.execute("SELECT booking_status,payment_status,advance_payment_status,refund_status,refund_amount FROM bookings WHERE id=1").fetchone()
         assert updated["booking_status"] == "cancelled"
-        assert updated["payment_status"] == "REFUNDED"
-        assert updated["advance_payment_status"] == "REFUNDED"
-        ledger = conn.execute("SELECT amount,status FROM sivdhi_finance_ledger WHERE booking_id='SIV-TEST-1'").fetchone()
-        assert ledger["amount"] == 25
-        assert ledger["status"] == "refunded"
+        assert updated["payment_status"] == "REFUND_PENDING"
+        assert updated["advance_payment_status"] == "REFUND_PENDING"
+        assert updated["refund_status"] == "pending_admin"
+        assert updated["refund_amount"] == 25
+        ledger = conn.execute("SELECT amount,status FROM sivdhi_finance_ledger WHERE booking_id='SIV-TEST-1' AND entry_type='customer_refund'").fetchone()
+        assert ledger is None
     finally:
         conn.close()
 

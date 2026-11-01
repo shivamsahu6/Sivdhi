@@ -57,6 +57,10 @@ def ensure_finance_schema(conn) -> None:
         "platform_commission_amount": "REAL NOT NULL DEFAULT 0",
         "worker_earning_amount": "REAL NOT NULL DEFAULT 0",
         "commission_settled_at": "TEXT",
+        "refund_status": "TEXT DEFAULT 'not_required'",
+        "refund_amount": "REAL NOT NULL DEFAULT 0",
+        "refund_reference": "TEXT",
+        "refund_processed_at": "TEXT",
     })
 
     conn.execute("""

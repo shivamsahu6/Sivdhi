@@ -965,7 +965,8 @@ def worker_ping():
     try:
         conn.execute("""
             UPDATE workers
-            SET last_seen_at=CURRENT_TIMESTAMP, is_online=1
+            SET last_seen_at=CURRENT_TIMESTAMP,
+                is_online=CASE WHEN COALESCE(partner_availability_override,1)=0 THEN 0 ELSE 1 END
             WHERE id=? AND COALESCE(is_deleted,0)=0
         """, (worker_db_id,))
         conn.commit()
@@ -1305,6 +1306,32 @@ def worker_arrived(job_id):
             conn.rollback()
             return jsonify({"success": False, "message": "Accept the booking before marking arrival."}), 400
 
+        # Arrival is enabled only one hour after the customer's scheduled slot.
+        scheduled_date = row["preferred_date"] or row["booking_date"]
+        scheduled_time = row["preferred_time"] or row["booking_time"]
+        if scheduled_date and scheduled_time:
+            try:
+                from utils.booking_schedule import india_now
+                scheduled_at = datetime.fromisoformat(
+                    str(scheduled_date).strip()[:10] + "T" + str(scheduled_time).strip()[:5]
+                )
+                now = india_now()
+                if scheduled_at.tzinfo is None and now.tzinfo is not None:
+                    scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
+                elif scheduled_at.tzinfo is not None and now.tzinfo is None:
+                    now = now.replace(tzinfo=scheduled_at.tzinfo)
+                arrival_allowed_at = scheduled_at + timedelta(hours=1)
+                if now < arrival_allowed_at:
+                    conn.rollback()
+                    return jsonify({
+                        "success": False,
+                        "message": "Arrive option will be available one hour after the customer's booked time.",
+                        "available_at": arrival_allowed_at.isoformat(timespec="minutes"),
+                    }), 400
+            except (TypeError, ValueError):
+                conn.rollback()
+                return jsonify({"success": False, "message": "Booking date/time is invalid; contact support."}), 400
+
         total = finance_money(
             row["total_amount"] if row["total_amount"] is not None else row["amount"]
         )
@@ -1347,14 +1374,6 @@ def worker_arrived(job_id):
                     if balance_due > 0
                     else "No remaining balance is due."
                 )
-            )
-            conn.execute(
-                """
-                INSERT INTO notifications
-                    (user_type, user_id, title, message, is_read, created_at)
-                VALUES ('customer', ?, 'Worker Arrived', ?, 0, CURRENT_TIMESTAMP)
-                """,
-                (str(customer_id), message),
             )
             conn.execute(
                 "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('worker',?,'Arrival Recorded',?,0,CURRENT_TIMESTAMP)",
@@ -1438,10 +1457,16 @@ def start_job(job_id):
                     "message": "The customer's booking date/time is invalid. Please contact support before starting this service."
                 }), 400
 
-        if current and finance_money(current["advance_amount"]) > 0:
+        if current:
             if not current["worker_arrived_at"]:
-                return jsonify({"success": False, "message": "Mark arrival and record the remaining balance first."}), 400
-            if str(current["balance_payment_status"] or "").upper() not in {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}:
+                return jsonify({"success": False, "message": "Mark arrival before starting the service."}), 400
+            total_amount = finance_money(current["total_amount"] if current["total_amount"] is not None else current["amount"])
+            advance_paid = finance_money(current["advance_paid_amount"])
+            balance_paid = finance_money(current["balance_paid_amount"])
+            saved_due = finance_money(current["balance_due_amount"])
+            remaining_due = saved_due if saved_due > 0 else finance_money(max(0.0, total_amount - advance_paid - balance_paid))
+            paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
+            if remaining_due > 0 and str(current["balance_payment_status"] or "").upper() not in paid_states:
                 return jsonify({"success": False, "message": "The customer must pay/record the remaining balance from My Bookings after arrival before the service can start."}), 400
     finally:
         conn.close()
@@ -1457,8 +1482,6 @@ def start_job(job_id):
     finally:
         conn.close()
 
-    create_notification("customer", booking["customer_id"], "Booking Started",
-                        "Work has started for your booking " + str(booking["booking_id"]) + ".")
     create_notification("worker", get_current_worker_db_id(), "Service Start Recorded",
                         "You started service for booking " + str(booking["booking_id"]) + ".")
     try:
@@ -1501,14 +1524,20 @@ def complete_job(job_id):
         if status not in {"in_progress", "started"}:
             conn.rollback()
             return jsonify({"success": False, "message": "Job must be in progress before completion."}), 400
-        if finance_money(current["advance_amount"]) > 0:
-            if not current["worker_arrived_at"]:
-                conn.rollback()
-                return jsonify({"success": False, "message": "Arrival has not been recorded."}), 400
-            paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
-            if str(current["advance_payment_status"] or "").upper() not in paid_states or str(current["balance_payment_status"] or "").upper() not in paid_states:
-                conn.rollback()
-                return jsonify({"success": False, "message": "Advance and remaining balance must both be recorded before completion."}), 400
+        if not current["worker_arrived_at"]:
+            conn.rollback()
+            return jsonify({"success": False, "message": "Arrival has not been recorded."}), 400
+        total_amount = finance_money(current["total_amount"] if current["total_amount"] is not None else current["amount"])
+        advance_paid = finance_money(current["advance_paid_amount"])
+        balance_paid = finance_money(current["balance_paid_amount"])
+        saved_due = finance_money(current["balance_due_amount"])
+        remaining_due = saved_due if saved_due > 0 else finance_money(max(0.0, total_amount - advance_paid - balance_paid))
+        paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
+        advance_status = str(current["advance_payment_status"] or current["payment_status"] or "").upper()
+        balance_status = str(current["balance_payment_status"] or "").upper()
+        if (finance_money(current["advance_amount"]) > 0 and advance_status not in paid_states) or (remaining_due > 0 and balance_status not in paid_states):
+            conn.rollback()
+            return jsonify({"success": False, "message": "Advance and remaining balance must both be recorded before completion."}), 400
 
         conn.execute("UPDATE bookings SET booking_status='completed', status='completed', updated_at=CURRENT_TIMESTAMP WHERE id=?", (booking["id"],))
         ok, message = settle_completed_booking(conn, booking["id"])
@@ -1523,8 +1552,6 @@ def complete_job(job_id):
     finally:
         conn.close()
 
-    create_notification("customer", booking["customer_id"], "Booking Completed",
-                        "Your service booking " + str(booking["booking_id"]) + " has been completed.")
     create_notification("worker", get_current_worker_db_id(), "Booking Completed",
                         "Booking " + str(booking["booking_id"]) + " is complete and settlement has been recorded.")
     try:
@@ -2046,9 +2073,9 @@ def edit_profile():
                 "/worker/edit-profile"
             )
 
-        if service_radius_km < 1 or service_radius_km > 100:
+        if service_radius_km < 1 or service_radius_km > 30:
             flash(
-                "Work distance must be between 1 and 100 km.",
+                "Work distance must be between 1 and 30 km.",
                 "danger"
             )
             return redirect("/worker/edit-profile")

@@ -16,6 +16,8 @@ from utils.otp_security import reserve_otp_request
 from utils.pending_changes import issue_pending_change, refresh_pending_change, verify_pending_change, delete_pending_change
 from routes.decorators import partner_required
 from utils.assignment_monitor import ensure_assignment_monitor_schema, reassign_booking
+from utils.sivdhi_finance import ensure_finance_schema, money as finance_money, settle_completed_booking
+from utils.booking_schedule import india_now
 
 import os
 import random
@@ -60,6 +62,73 @@ partner_bp = Blueprint(
     "partner",
     __name__
 )
+
+
+def _ensure_partner_worker_controls_schema(conn):
+    """Add the one additive field needed for partner-managed availability."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(workers)").fetchall()}
+    if "partner_availability_override" not in columns:
+        conn.execute("ALTER TABLE workers ADD COLUMN partner_availability_override INTEGER DEFAULT NULL")
+
+
+def _partner_booking_for_action(conn, booking_id, partner_id):
+    """Return a booking only when it belongs to this partner and its assigned worker is theirs."""
+    scope = _partner_booking_scope_sql()
+    row = conn.execute(f"""
+        SELECT b.*,
+               COALESCE(NULLIF(b.booking_status,''), NULLIF(b.status,''), 'pending') AS current_status
+        FROM bookings b
+        WHERE b.id=? AND {scope}
+        LIMIT 1
+    """, (booking_id, partner_id, partner_id, partner_id)).fetchone()
+    if not row:
+        return None, None
+
+    assigned_value = row["worker_id"] or row["assigned_worker_id"]
+    if not assigned_value:
+        return row, None
+
+    worker = conn.execute("""
+        SELECT w.id, w.worker_id, w.fullname
+        FROM workers w
+        JOIN partner_workers pw
+          ON CAST(pw.worker_id AS TEXT)=CAST(w.worker_id AS TEXT)
+          OR CAST(pw.worker_id AS TEXT)=CAST(w.id AS TEXT)
+        WHERE w.id=? AND CAST(pw.partner_id AS TEXT)=CAST(? AS TEXT)
+          AND COALESCE(w.is_deleted,0)=0
+        LIMIT 1
+    """, (assigned_value, partner_id)).fetchone()
+    if not worker:
+        # Compatibility with older rows that stored the worker's public ID.
+        worker = conn.execute("""
+            SELECT w.id, w.worker_id, w.fullname
+            FROM workers w
+            JOIN partner_workers pw
+              ON CAST(pw.worker_id AS TEXT)=CAST(w.worker_id AS TEXT)
+              OR CAST(pw.worker_id AS TEXT)=CAST(w.id AS TEXT)
+            WHERE CAST(w.worker_id AS TEXT)=CAST(? AS TEXT)
+              AND CAST(pw.partner_id AS TEXT)=CAST(? AS TEXT)
+              AND COALESCE(w.is_deleted,0)=0
+            LIMIT 1
+        """, (assigned_value, partner_id)).fetchone()
+    return row, worker
+
+
+def _partner_booking_balance_due(booking):
+    total = finance_money(booking["total_amount"] if booking["total_amount"] is not None else booking["amount"])
+    advance_paid = finance_money(booking["advance_paid_amount"])
+    balance_paid = finance_money(booking["balance_paid_amount"])
+    saved_due = finance_money(booking["balance_due_amount"])
+    return saved_due if saved_due > 0 else finance_money(max(0.0, total - advance_paid - balance_paid))
+
+
+def _partner_internal_notice(conn, worker_db_id, partner_id, title, message):
+    for user_type, user_id in (("worker", worker_db_id), ("partner", partner_id)):
+        if user_id:
+            conn.execute("""
+                INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
+                VALUES(?,?,?,?,0,CURRENT_TIMESTAMP)
+            """, (user_type, str(user_id), title[:160], message[:1000]))
 
 INDIAN_BANKS = [
     "State Bank of India", "HDFC Bank", "ICICI Bank", "Axis Bank",
@@ -129,6 +198,7 @@ def partner_home():
             FROM partner_workers pw
             JOIN workers w
               ON CAST(w.worker_id AS TEXT)=CAST(pw.worker_id AS TEXT)
+              OR CAST(w.id AS TEXT)=CAST(pw.worker_id AS TEXT)
             WHERE CAST(pw.partner_id AS TEXT)=CAST(? AS TEXT)
               AND COALESCE(w.is_deleted,0)=0
         """, (session["user_id"],))
@@ -189,15 +259,21 @@ def partner_home():
 def workers():
     conn = get_db()
     try:
+        _ensure_partner_worker_controls_schema(conn)
+        conn.commit()
         workers = conn.execute("""
             SELECT
                 w.worker_id,
                 w.fullname,
                 w.mobile,
-                w.status
+                w.status,
+                COALESCE(w.is_online,0) AS is_online,
+                w.last_seen_at,
+                w.partner_availability_override
             FROM partner_workers pw
             JOIN workers w
               ON CAST(pw.worker_id AS TEXT)=CAST(w.worker_id AS TEXT)
+              OR CAST(pw.worker_id AS TEXT)=CAST(w.id AS TEXT)
             WHERE CAST(pw.partner_id AS TEXT)=CAST(? AS TEXT)
               AND COALESCE(w.is_deleted,0)=0
             ORDER BY pw.id DESC
@@ -206,6 +282,53 @@ def workers():
         return render_template("partner/workers.html", workers=workers)
     finally:
         conn.close()
+
+
+@partner_bp.route("/partner/worker/<worker_id>/availability", methods=["POST"])
+@partner_required
+def update_worker_availability(worker_id):
+    desired = (request.form.get("availability") or "").strip().lower()
+    if desired not in {"online", "offline"}:
+        flash("Invalid worker availability status.", "danger")
+        return redirect("/partner/workers")
+
+    partner_id = session["user_id"]
+    is_online = 1 if desired == "online" else 0
+    conn = get_db()
+    try:
+        _ensure_partner_worker_controls_schema(conn)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(workers)").fetchall()}
+        worker = conn.execute("""
+            SELECT w.id, w.fullname
+            FROM workers w
+            JOIN partner_workers pw
+              ON CAST(pw.worker_id AS TEXT)=CAST(w.worker_id AS TEXT)
+              OR CAST(pw.worker_id AS TEXT)=CAST(w.id AS TEXT)
+            WHERE CAST(pw.partner_id AS TEXT)=CAST(? AS TEXT)
+              AND CAST(w.worker_id AS TEXT)=CAST(? AS TEXT)
+              AND COALESCE(w.is_deleted,0)=0
+            LIMIT 1
+        """, (partner_id, worker_id)).fetchone()
+        if not worker:
+            flash("Worker not found in your partner account.", "danger")
+            return redirect("/partner/workers")
+
+        updates = ["is_online=?", "partner_availability_override=?"]
+        params = [is_online, is_online]
+        if "is_available" in columns:
+            updates.append("is_available=?")
+            params.append(is_online)
+        params.append(worker["id"])
+        conn.execute(f"UPDATE workers SET {', '.join(updates)} WHERE id=?", params)
+        conn.commit()
+        flash(f"{worker['fullname']} is now {desired.title()}.", "success")
+    except Exception as error:
+        conn.rollback()
+        print("PARTNER WORKER AVAILABILITY ERROR:", error)
+        flash("Worker availability could not be updated.", "danger")
+    finally:
+        conn.close()
+    return redirect("/partner/workers")
 
 
 # ======================================
@@ -267,8 +390,12 @@ def _partner_booking_scope_sql():
                 FROM partner_workers pw
                 JOIN workers w
                   ON CAST(w.worker_id AS TEXT)=CAST(pw.worker_id AS TEXT)
+                  OR CAST(w.id AS TEXT)=CAST(pw.worker_id AS TEXT)
                 WHERE CAST(pw.partner_id AS TEXT)=CAST(? AS TEXT)
-                  AND w.id=COALESCE(b.worker_id,b.assigned_worker_id)
+                  AND (
+                    CAST(w.id AS TEXT)=CAST(COALESCE(b.worker_id,b.assigned_worker_id) AS TEXT)
+                    OR CAST(w.worker_id AS TEXT)=CAST(COALESCE(b.worker_id,b.assigned_worker_id) AS TEXT)
+                  )
             )
         )
     """
@@ -334,37 +461,26 @@ def job_details(job_ref):
     partner_id = session["user_id"]
     conn = get_db()
     try:
+        ensure_finance_schema(conn)
+        conn.commit()
         scope = _partner_booking_scope_sql()
         job = conn.execute(f"""
             SELECT
-                b.id,
-                b.booking_id,
+                b.*,
                 b.booking_id AS job_id,
-                b.category,
-                COALESCE(b.service,b.category) AS service,
-                COALESCE(b.description,b.notes,'') AS description,
-                b.preferred_date AS booking_date,
-                b.preferred_time AS booking_time,
-                COALESCE(b.total_amount,b.amount,0) AS amount,
-                b.payment_status,
-                COALESCE(b.booking_status,b.status,'pending') AS job_status,
-                b.customer_id,
+                COALESCE(NULLIF(b.service,''),b.category) AS partner_service,
+                COALESCE(b.description,b.notes,'') AS partner_description,
+                COALESCE(NULLIF(b.preferred_date,''),b.booking_date) AS partner_booking_date,
+                COALESCE(NULLIF(b.preferred_time,''),b.booking_time) AS partner_booking_time,
+                COALESCE(b.total_amount,b.amount,0) AS partner_amount,
+                COALESCE(NULLIF(b.booking_status,''),b.status,'pending') AS job_status,
                 COALESCE(c.fullname,'Customer') AS customer_name,
                 '' AS customer_mobile,
                 b.address AS customer_address,
-                b.city,
-                b.state,
-                b.pincode,
-                b.worker_id,
-                b.assigned_worker_id,
-                b.partner_id,
-                b.assigned_partner_id,
-                b.cancellation_reason,
-                b.partner_acknowledged_at,
-                b.created_at,
-                b.updated_at
+                w.fullname AS assigned_worker_name
             FROM bookings b
             LEFT JOIN customers c ON c.id=b.customer_id
+            LEFT JOIN workers w ON w.id=COALESCE(b.worker_id,b.assigned_worker_id)
             WHERE (CAST(b.id AS TEXT)=CAST(? AS TEXT)
                    OR CAST(b.booking_id AS TEXT)=CAST(? AS TEXT))
               AND {scope}
@@ -380,89 +496,252 @@ def job_details(job_ref):
         flash("Job not found.", "danger")
         return redirect("/partner/jobs")
 
-    return render_template("partner/job_details.html", job=job)
+    status = str(job["job_status"] or "pending").lower()
+    now = india_now()
+    arrive_available_at = None
+    can_arrive = False
+    schedule_date = job["preferred_date"] or job["booking_date"]
+    schedule_time = job["preferred_time"] or job["booking_time"]
+    if schedule_date and schedule_time:
+        try:
+            scheduled_at = datetime.fromisoformat(str(schedule_date).strip()[:10] + "T" + str(schedule_time).strip()[:5])
+            if scheduled_at.tzinfo is None and now.tzinfo is not None:
+                scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
+            arrive_available_at = scheduled_at + timedelta(hours=1)
+            can_arrive = now >= arrive_available_at
+        except (TypeError, ValueError):
+            can_arrive = False
+    else:
+        can_arrive = False
+
+    balance_due = _partner_booking_balance_due(job)
+    balance_status = str(job["balance_payment_status"] or "DUE").upper()
+    paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
+    balance_paid = balance_due <= 0 or balance_status in paid_states
+    return render_template(
+        "partner/job_details.html", job=job,
+        can_arrive=can_arrive,
+        arrive_available_at=arrive_available_at,
+        balance_due=balance_due,
+        balance_paid=balance_paid,
+    )
 
 
 @partner_bp.route("/partner/job/<int:booking_id>/accept", methods=["POST"])
 @partner_required
 def accept_job(booking_id):
-    """Let the partner acknowledge/escalate an assignment without overriding worker consent.
-
-    Partner acknowledgement must not set booking_status='accepted'; only the
-    assigned worker can accept the job. Otherwise the worker's Accept action
-    would be rejected by the worker route's status guard.
-    """
+    """Partner can accept an assigned booking on behalf of their own worker."""
     partner_id = session["user_id"]
     conn = get_db()
     try:
         ensure_assignment_monitor_schema(conn)
+        ensure_finance_schema(conn)
         conn.commit()
         conn.execute("BEGIN IMMEDIATE")
-        scope = _partner_booking_scope_sql()
-        row = conn.execute(f"""
-            SELECT b.*,
-                   COALESCE(b.booking_status,b.status,'pending') AS current_status
-            FROM bookings b
-            WHERE b.id=? AND {scope}
-            LIMIT 1
-        """, (booking_id, partner_id, partner_id, partner_id)).fetchone()
-
-        if not row:
+        row, worker = _partner_booking_for_action(conn, booking_id, partner_id)
+        if not row or not worker:
             conn.rollback()
-            flash("Job not found or not assigned to your partner account.", "danger")
+            flash("Job or assigned worker was not found in your partner account.", "danger")
             return redirect("/partner/jobs")
-
-        current = str(row["current_status"] or "pending").lower()
-        if current not in {"assigned", "pending"}:
+        status = str(row["current_status"] or "pending").lower()
+        if status == "accepted":
             conn.rollback()
-            flash("This booking is no longer waiting for worker response.", "warning")
+            flash("This worker has already accepted the booking.", "info")
+            return redirect(f"/partner/job/{booking_id}")
+        if status not in {"assigned", "pending"}:
+            conn.rollback()
+            flash("Only an assigned or pending booking can be accepted.", "warning")
             return redirect(f"/partner/job/{booking_id}")
 
-        worker_id = row["worker_id"] or row["assigned_worker_id"]
-        if not worker_id:
-            conn.rollback()
-            flash("No worker is assigned yet. The system must find a worker before partner acknowledgement.", "warning")
-            return redirect(f"/partner/job/{booking_id}")
-
-        already_acknowledged = bool(row["partner_acknowledged_at"])
         conn.execute("""
             UPDATE bookings
-            SET partner_id=COALESCE(NULLIF(partner_id,''),?),
+            SET booking_status='accepted', status='accepted',
+                partner_id=COALESCE(NULLIF(partner_id,''),?),
                 assigned_partner_id=COALESCE(NULLIF(assigned_partner_id,''),?),
                 partner_acknowledged_at=COALESCE(partner_acknowledged_at,CURRENT_TIMESTAMP),
+                assigned_at=COALESCE(assigned_at,CURRENT_TIMESTAMP),
                 updated_at=CURRENT_TIMESTAMP
             WHERE id=?
-              AND LOWER(COALESCE(NULLIF(booking_status,''), NULLIF(status,''), 'pending'))
-                  IN ('assigned','pending')
         """, (partner_id, partner_id, booking_id))
-
-        if not already_acknowledged:
+        try:
             conn.execute("""
-                INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
-                VALUES('worker',?,?,?,0,CURRENT_TIMESTAMP)
-            """, (
-                str(worker_id), "Partner Follow-up",
-                f"Your partner has acknowledged booking {row['booking_id']}. Please accept or reject it promptly.",
-            ))
-            if row["customer_id"]:
-                conn.execute("""
-                    INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
-                    VALUES('customer',?,?,?,0,CURRENT_TIMESTAMP)
-                """, (
-                    str(row["customer_id"]), "Partner Is Following Up",
-                    f"The partner is following up with the assigned worker for booking {row['booking_id']}.",
-                ))
-
+                UPDATE booking_assignment_offers
+                SET status=CASE WHEN worker_id=? THEN 'accepted' ELSE 'cancelled' END,
+                    responded_at=CURRENT_TIMESTAMP
+                WHERE booking_db_id=? AND status='offered'
+            """, (worker["id"], booking_id))
+        except sqlite3.Error:
+            pass
+        _partner_internal_notice(
+            conn, worker["id"], partner_id, "Booking Accepted by Partner",
+            f"Your partner accepted booking {row['booking_id']} on your behalf. Follow the scheduled time and job steps.",
+        )
         conn.commit()
-        flash("Partner acknowledgement recorded. The assigned worker still needs to accept or reject. If there is no response, Sivdhi will reassign automatically.", "success")
-        return redirect(f"/partner/job/{booking_id}")
-    except sqlite3.Error as error:
+        flash("Booking accepted successfully for your worker.", "success")
+    except Exception as error:
         conn.rollback()
-        print("PARTNER ACKNOWLEDGEMENT ERROR:", error)
-        flash("Unable to acknowledge this job right now.", "danger")
-        return redirect(f"/partner/job/{booking_id}")
+        print("PARTNER ACCEPT ERROR:", error)
+        flash("Unable to accept this job right now.", "danger")
     finally:
         conn.close()
+    return redirect(f"/partner/job/{booking_id}")
+
+
+@partner_bp.route("/partner/job/<int:booking_id>/arrive", methods=["POST"])
+@partner_required
+def partner_arrive_job(booking_id):
+    partner_id = session["user_id"]
+    conn = get_db()
+    try:
+        ensure_finance_schema(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        row, worker = _partner_booking_for_action(conn, booking_id, partner_id)
+        if not row or not worker:
+            conn.rollback()
+            flash("Job or assigned worker was not found in your partner account.", "danger")
+            return redirect("/partner/jobs")
+        if str(row["current_status"] or "").lower() != "accepted":
+            conn.rollback()
+            flash("Accept the booking before marking arrival.", "warning")
+            return redirect(f"/partner/job/{booking_id}")
+        schedule_date = row["preferred_date"] or row["booking_date"]
+        schedule_time = row["preferred_time"] or row["booking_time"]
+        if not schedule_date or not schedule_time:
+            conn.rollback()
+            flash("The booking date/time is missing. Contact support before marking arrival.", "danger")
+            return redirect(f"/partner/job/{booking_id}")
+        try:
+            scheduled_at = datetime.fromisoformat(str(schedule_date).strip()[:10] + "T" + str(schedule_time).strip()[:5])
+            now = india_now()
+            if scheduled_at.tzinfo is None and now.tzinfo is not None:
+                scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
+            allowed_at = scheduled_at + timedelta(hours=1)
+        except (TypeError, ValueError):
+            conn.rollback()
+            flash("The customer's booking date/time is invalid.", "danger")
+            return redirect(f"/partner/job/{booking_id}")
+        if now < allowed_at:
+            conn.rollback()
+            flash("Arrive will be available one hour after the customer's booked time.", "warning")
+            return redirect(f"/partner/job/{booking_id}")
+        conn.execute("UPDATE bookings SET worker_arrived_at=COALESCE(worker_arrived_at,CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE id=?", (booking_id,))
+        _partner_internal_notice(conn, worker["id"], partner_id, "Worker Arrival Recorded", f"Arrival was recorded for booking {row['booking_id']} by the partner.")
+        conn.commit()
+        flash("Arrival recorded. The customer can now pay any remaining balance from My Bookings.", "success")
+    except Exception as error:
+        conn.rollback()
+        print("PARTNER ARRIVE ERROR:", error)
+        flash("Arrival could not be recorded.", "danger")
+    finally:
+        conn.close()
+    return redirect(f"/partner/job/{booking_id}")
+
+
+@partner_bp.route("/partner/job/<int:booking_id>/start", methods=["POST"])
+@partner_required
+def partner_start_job(booking_id):
+    partner_id = session["user_id"]
+    conn = get_db()
+    try:
+        ensure_finance_schema(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        row, worker = _partner_booking_for_action(conn, booking_id, partner_id)
+        if not row or not worker:
+            conn.rollback()
+            flash("Job or assigned worker was not found in your partner account.", "danger")
+            return redirect("/partner/jobs")
+        if str(row["current_status"] or "").lower() != "accepted":
+            conn.rollback()
+            flash("Only an accepted booking can be started.", "warning")
+            return redirect(f"/partner/job/{booking_id}")
+        if not row["worker_arrived_at"]:
+            conn.rollback()
+            flash("Record worker arrival before starting the job.", "warning")
+            return redirect(f"/partner/job/{booking_id}")
+        schedule_date = row["preferred_date"] or row["booking_date"]
+        schedule_time = row["preferred_time"] or row["booking_time"]
+        if schedule_date and schedule_time:
+            try:
+                scheduled_at = datetime.fromisoformat(str(schedule_date).strip()[:10] + "T" + str(schedule_time).strip()[:5])
+                now = india_now()
+                if scheduled_at.tzinfo is None and now.tzinfo is not None:
+                    scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
+                if now < scheduled_at + timedelta(hours=1):
+                    conn.rollback()
+                    flash("Start Job is available only after the scheduled time plus one hour.", "warning")
+                    return redirect(f"/partner/job/{booking_id}")
+            except (TypeError, ValueError):
+                conn.rollback()
+                flash("The customer's booking date/time is invalid.", "danger")
+                return redirect(f"/partner/job/{booking_id}")
+        due = _partner_booking_balance_due(row)
+        paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
+        if due > 0 and str(row["balance_payment_status"] or "").upper() not in paid_states:
+            conn.rollback()
+            flash(f"Customer must pay the remaining ₹{due:.2f} before the job can start.", "warning")
+            return redirect(f"/partner/job/{booking_id}")
+        conn.execute("UPDATE bookings SET booking_status='in_progress', status='in_progress', updated_at=CURRENT_TIMESTAMP WHERE id=?", (booking_id,))
+        _partner_internal_notice(conn, worker["id"], partner_id, "Job Started by Partner", f"Booking {row['booking_id']} was started by your partner account.")
+        conn.commit()
+        flash("Job started successfully.", "success")
+    except Exception as error:
+        conn.rollback()
+        print("PARTNER START ERROR:", error)
+        flash("Job could not be started.", "danger")
+    finally:
+        conn.close()
+    return redirect(f"/partner/job/{booking_id}")
+
+
+@partner_bp.route("/partner/job/<int:booking_id>/complete", methods=["POST"])
+@partner_required
+def partner_complete_job(booking_id):
+    partner_id = session["user_id"]
+    conn = get_db()
+    try:
+        ensure_finance_schema(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        row, worker = _partner_booking_for_action(conn, booking_id, partner_id)
+        if not row or not worker:
+            conn.rollback()
+            flash("Job or assigned worker was not found in your partner account.", "danger")
+            return redirect("/partner/jobs")
+        if str(row["current_status"] or "").lower() not in {"in_progress", "started"}:
+            conn.rollback()
+            flash("The job must be in progress before completion.", "warning")
+            return redirect(f"/partner/job/{booking_id}")
+        if not row["worker_arrived_at"]:
+            conn.rollback()
+            flash("Arrival has not been recorded.", "warning")
+            return redirect(f"/partner/job/{booking_id}")
+        due = _partner_booking_balance_due(row)
+        paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
+        advance_amount = finance_money(row["advance_amount"])
+        advance_status = str(row["advance_payment_status"] or row["payment_status"] or "").upper()
+        balance_status = str(row["balance_payment_status"] or "").upper()
+        if (advance_amount > 0 and advance_status not in paid_states) or (due > 0 and balance_status not in paid_states):
+            conn.rollback()
+            flash("Advance and remaining balance must both be paid before completion.", "warning")
+            return redirect(f"/partner/job/{booking_id}")
+        conn.execute("UPDATE bookings SET booking_status='completed', status='completed', updated_at=CURRENT_TIMESTAMP WHERE id=?", (booking_id,))
+        ok, message = settle_completed_booking(conn, booking_id)
+        if not ok:
+            conn.rollback()
+            flash(message, "danger")
+            return redirect(f"/partner/job/{booking_id}")
+        _partner_internal_notice(conn, worker["id"], partner_id, "Job Completed", f"Booking {row['booking_id']} was completed by your partner account; settlement was recorded.")
+        conn.commit()
+        flash("Job completed and Worker/Partner/Sivdhi settlement recorded.", "success")
+    except Exception as error:
+        conn.rollback()
+        print("PARTNER COMPLETE ERROR:", error)
+        flash("Job could not be completed or settled.", "danger")
+    finally:
+        conn.close()
+    return redirect(f"/partner/job/{booking_id}")
 
 
 @partner_bp.route("/partner/job/<int:booking_id>/reject", methods=["POST"])

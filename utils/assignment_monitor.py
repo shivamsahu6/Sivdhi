@@ -19,8 +19,6 @@ from utils.push_notifications import process_push_outbox_once
 from utils.sivdhi_finance import (
     ensure_finance_schema,
     find_partner_for_worker,
-    add_finance_ledger_entry,
-    is_demo_mode,
 )
 from utils.email_sender import send_email
 
@@ -491,31 +489,24 @@ def _finalize_unassigned_booking(conn, booking) -> None:
         except Exception:
             amount = 0.0
     current_payment = str(booking["payment_status"] if "payment_status" in booking.keys() else "pending").upper()
-    paid = current_payment in {"PAID", "SUCCESS", "DEMO_PAID", "PAID_DEMO", "COLLECTED", "COMPLETED", "PARTIALLY_PAID", "PARTIALLY_PAID_DEMO"}
-    demo = is_demo_mode()
-    refund_status = "REFUNDED" if (paid and demo) else ("REFUND_PENDING" if paid else current_payment)
+    paid = current_payment in {"PAID", "SUCCESS", "DEMO_PAID", "PAID_DEMO", "COLLECTED", "COMPLETED", "PARTIALLY_PAID", "PARTIALLY_PAID_DEMO"} or amount > 0
+    # Refunds are not automatically marked complete. Admin must transfer the
+    # money to the customer's bank first, then explicitly record the refund.
+    refund_status = "REFUND_PENDING" if paid else current_payment
     conn.execute(
         "UPDATE bookings SET booking_status='cancelled', status='cancelled', worker_id=NULL, assigned_worker_id=NULL, "
         "partner_id=NULL, assigned_partner_id=NULL, cancellation_reason=?, payment_status=?, "
-        "advance_payment_status=CASE WHEN ? THEN ? ELSE advance_payment_status END, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-        ("No eligible worker accepted within the 60-minute assignment window.", refund_status, int(paid), refund_status, booking_db_id),
+        "refund_status=?, refund_amount=?, "
+        "advance_payment_status=CASE WHEN ? THEN 'REFUND_PENDING' ELSE advance_payment_status END, "
+        "updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        ("No eligible worker accepted within the 60-minute assignment window.", refund_status,
+         "pending_admin" if paid and amount > 0 else "not_required", amount,
+         int(paid), booking_db_id),
     )
     conn.execute(
         "UPDATE booking_assignment_offers SET status='cancelled', responded_at=? WHERE booking_db_id=? AND status='offered'",
         (_now_ist().isoformat(timespec="seconds"), booking_db_id),
     )
-    if paid and amount > 0:
-        reference = f"SIV-REFUND-{booking_ref}"
-        try:
-            add_finance_ledger_entry(
-                conn, booking_ref, "customer_refund", amount,
-                "refunded" if demo else "refund_pending",
-                "demo" if demo else str(booking["payment_method"] if "payment_method" in booking.keys() else "unknown"),
-                reference,
-                "Automatic refund record after no worker accepted within one hour; live payment provider action may be required."
-            )
-        except Exception:
-            LOGGER.exception("Could not create refund ledger entry for booking %s", booking_ref)
     current_worker_id = (
         booking["worker_id"] if "worker_id" in booking.keys() else None
     ) or (
@@ -543,13 +534,11 @@ def _finalize_unassigned_booking(conn, booking) -> None:
         )
 
     message = (
-        f"No worker accepted booking {booking_ref} within one hour. "
-        + ("The demo payment has been marked refunded." if paid and demo else
-           "Your refund is pending provider processing; this app cannot transfer money to a bank without a connected payment gateway." if paid else
-           "No paid amount was found, so no refund transaction was created.")
+        f"Your booking {booking_ref} has been cancelled because no worker accepted it within one hour. "
+        + (f"A refund of ₹{amount:.2f} is pending Admin bank transfer. You will receive a separate confirmation after the transfer is completed." if paid and amount > 0 else
+           "No paid amount was found, so no refund is due.")
     )
-    _notify(conn, "customer", customer_id, "Worker Not Found", message)
-    _queue_email(conn, "customer", customer_id, "Sivdhi: Worker Not Found / Refund Update", message)
+    _notify(conn, "customer", customer_id, "Booking Cancelled", message)
 
 
 def _worker_attempt_status(
@@ -1410,14 +1399,6 @@ def _process_one_booking(booking_db_id: int, now: datetime) -> str:
                     "Worker Response Needed" if reminder_stage == 1 else "Final Worker Response Reminder",
                     partner_message,
                 )
-
-            if reminder_stage == 1:
-                customer_message = (
-                    f"Your booking {booking_ref} is still awaiting worker confirmation. "
-                    "Sivdhi has reminded the worker and partner and will try the next "
-                    "eligible worker automatically if no response arrives in time."
-                )
-                _notify(conn, "customer", customer_id, "Booking Confirmation Pending", customer_message)
 
             conn.commit()
             return "reminded"

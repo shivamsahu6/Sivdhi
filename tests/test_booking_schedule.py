@@ -73,6 +73,18 @@ class BookingScheduleTests(unittest.TestCase):
             None,
         )
 
+    def test_normal_minimum_date_moves_to_tomorrow_at_six_pm(self):
+        from utils.booking_schedule import minimum_booking_date
+        now = datetime(2026, 10, 12, 18, 0, tzinfo=IST)
+        self.assertEqual(minimum_booking_date("normal", now), "2026-10-13")
+        _, _, error = validate_customer_booking_slot("normal", "2026-10-12", "20:00", now)
+        self.assertIn("closed for today", error.lower())
+
+    def test_normal_minimum_date_is_today_before_six_pm(self):
+        from utils.booking_schedule import minimum_booking_date
+        now = datetime(2026, 10, 12, 17, 59, tzinfo=IST)
+        self.assertEqual(minimum_booking_date("normal", now), "2026-10-12")
+
 
 if __name__ == "__main__":
     unittest.main()

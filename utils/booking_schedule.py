@@ -18,7 +18,11 @@ def normalise_booking_mode(value):
 
 def minimum_booking_date(mode="normal", now=None):
     now = now or india_now()
-    if normalise_booking_mode(mode) == "full-day" and now.time() > time(7, 0):
+    if normalise_booking_mode(mode) == "full-day":
+        if now.time() > time(7, 0):
+            return (now.date() + timedelta(days=1)).isoformat()
+        return now.date().isoformat()
+    if now.time() >= time(18, 0):
         return (now.date() + timedelta(days=1)).isoformat()
     return now.date().isoformat()
 
@@ -36,7 +40,7 @@ def validate_customer_booking_slot(mode, date_value, time_value="", now=None):
         earliest = now.date() if now.time() <= time(7, 0) else now.date() + timedelta(days=1)
         if selected_date < earliest:
             if earliest == now.date():
-                message = "Full-Day service can be booked for today only before 7:00 AM."
+                message = "Full-Day service can be booked for today only up to 7:00 AM."
             else:
                 message = "After 7:00 AM, Full-Day bookings start tomorrow."
             return None, None, message
@@ -44,6 +48,9 @@ def validate_customer_booking_slot(mode, date_value, time_value="", now=None):
 
     if selected_date < now.date():
         return None, None, "Past dates cannot be booked."
+    # Normal same-day booking closes at 6 PM; later bookings start tomorrow.
+    if selected_date == now.date() and now.time() >= time(18, 0):
+        return None, None, "Normal bookings are closed for today after 6:00 PM. Please choose tomorrow or a later date."
     try:
         selected_time = time.fromisoformat(str(time_value or "").strip())
     except (TypeError, ValueError):

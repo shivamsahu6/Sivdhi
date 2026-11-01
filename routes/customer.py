@@ -957,10 +957,20 @@ def _worker_is_active(worker, columns, allow_offline=False):
             if value not in {"1", "true", "active", "available", "yes"}:
                 return False
 
-    # Normal bookings must target a recently connected worker. Full-Day
-    # bookings are scheduled ahead (including at night), so an active worker
-    # can be assigned for the future and reminded when the service day starts.
-    if "last_seen_at" in columns and not allow_offline:
+    # A partner can explicitly turn an assigned worker Online/Offline.
+    # An explicit Offline override always excludes the worker, even for Full-Day.
+    partner_override = (
+        safe_int(worker["partner_availability_override"], -1)
+        if "partner_availability_override" in columns
+        else -1
+    )
+    if partner_override == 0:
+        return False
+
+    # Self-managed workers remain eligible for 3 days after their last heartbeat.
+    # A partner's explicit Online override also supports workers without a
+    # smartphone/app session; an explicit Offline override is handled above.
+    if "last_seen_at" in columns and partner_override != 1:
         last_seen = worker["last_seen_at"]
         if not last_seen:
             return False
@@ -968,7 +978,7 @@ def _worker_is_active(worker, columns, allow_offline=False):
             raw = str(last_seen).strip().replace("Z", "")
             seen = datetime.fromisoformat(raw[:19])
             current = datetime.utcnow()
-            if (current - seen).total_seconds() > 15 * 60:
+            if (current - seen).total_seconds() > 3 * 24 * 60 * 60:
                 return False
             if seen > current + timedelta(minutes=2):
                 return False
@@ -983,7 +993,7 @@ def find_nearest_worker(
     exclude_booking_id=None, mode="normal", preferred_date=None,
     preferred_time=None,
 ):
-    """Pick the nearest eligible worker within 10 km first, then extended radius."""
+    """Pick nearest eligible worker: Normal 5 km then up to 15 km; Full-day 10 km then up to 30 km."""
     if not table_exists(conn, "workers") or latitude is None or longitude is None:
         return None
 
@@ -1038,15 +1048,20 @@ def find_nearest_worker(
         distance = calculate_distance(latitude, longitude, worker_lat, worker_lon)
         if distance is None:
             continue
-        radius = safe_float(worker[radius_col], 10.0) if radius_col else 10.0
+        full_day_mode = normalise_booking_mode(mode) == "full-day"
+        default_radius = 30.0 if full_day_mode else 15.0
+        radius = safe_float(worker[radius_col], default_radius) if radius_col else default_radius
         if radius is None:
-            radius = 10.0
-        if distance > max(0.0, radius):
+            radius = default_radius
+        # Enforce the product's maximum radius even if an old profile stores more.
+        radius = min(max(0.0, radius), 30.0 if full_day_mode else 15.0)
+        if distance > radius:
             continue
         if _worker_has_schedule_conflict(conn, worker_db_id, preferred_date, preferred_time, mode, exclude_booking_id):
             continue
-        # Priority 0: first-mile search within 10 km; priority 1: radius extension.
-        stage = 0 if distance <= 10.0 else 1
+        # First search the inner radius, then extend to the booking mode maximum.
+        first_radius = 10.0 if full_day_mode else 5.0
+        stage = 0 if distance <= first_radius else 1
         candidates.append((stage, distance, worker, public_id, radius))
 
     if not candidates:
@@ -1060,7 +1075,7 @@ def find_nearest_worker(
         "worker_name": str(chosen[name_col]) if name_col and chosen[name_col] else "Professional",
         "distance": distance,
         "distance_km": round(distance, 2),
-        "search_stage": "within_10_km" if stage == 0 else "extended_radius",
+        "search_stage": ("within_10_km" if stage == 0 else "extended_radius") if normalise_booking_mode(mode) == "full-day" else ("within_5_km" if stage == 0 else "extended_radius"),
         "service_radius_km": radius,
     }
 
@@ -1105,10 +1120,12 @@ def count_eligible_workers(
         distance = calculate_distance(latitude, longitude, worker_lat, worker_lon)
         if distance is None:
             continue
-        radius = safe_float(worker[radius_col], 10.0) if radius_col else 10.0
+        default_radius = 30.0 if full_day else 15.0
+        radius = safe_float(worker[radius_col], default_radius) if radius_col else default_radius
         if radius is None:
-            radius = 10.0
-        if distance > max(0.0, radius):
+            radius = default_radius
+        radius = min(max(0.0, radius), 30.0 if full_day else 15.0)
+        if distance > radius:
             continue
         if _worker_has_schedule_conflict(
             conn, worker_db_id, preferred_date, preferred_time, mode, exclude_booking_id
@@ -2777,17 +2794,6 @@ def pay_booking_balance(booking_ref):
                 ),
             )
 
-        db.execute(
-            """
-            INSERT INTO notifications (user_type, user_id, title, message, is_read, created_at)
-            VALUES ('customer', ?, ?, ?, 0, CURRENT_TIMESTAMP)
-            """,
-            (
-                str(customer_row["id"]),
-                "Remaining Balance Recorded (Demo)",
-                f"₹{balance_due:.2f} was recorded in demo mode for booking {booking['booking_id']}. This is a simulation; no real money was collected.",
-            ),
-        )
         partner_id = booking["assigned_partner_id"] or booking["partner_id"]
         if not partner_id and worker_id:
             partner_id = find_partner_for_worker(db, int(worker_id))

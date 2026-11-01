@@ -478,6 +478,11 @@ Cancelled
 
 </select>
 
+<label style="margin-top:16px;">Cancellation reason (used when status is Cancelled)</label>
+<input type="text" name="cancellation_reason" maxlength="500"
+       value="{{ booking['cancellation_reason'] or '' }}"
+       placeholder="Reason for cancellation"
+       style="width:100%;padding:13px;border:1px solid #e2e8f0;border-radius:10px;">
 
 <button type="submit">
 
@@ -492,6 +497,53 @@ Update Status
 
 </div>
 
+{% set refund_status = (booking['refund_status'] or 'not_required')|lower %}
+{% set paid_total = refund_paid_total|float %}
+<div class="card">
+    <h2>💸 Customer Bank Refund</h2>
+    <div class="row">
+        <span class="label">Refund Status</span>
+        <span class="value">{{ refund_status.replace('_',' ')|title }}</span>
+    </div>
+    <div class="row">
+        <span class="label">Paid Amount Eligible for Refund</span>
+        <span class="value">₹{{ '%.2f'|format(paid_total) }}</span>
+    </div>
+    {% if booking['refund_processed_at'] %}
+    <div class="row">
+        <span class="label">Refund Recorded At</span>
+        <span class="value">{{ booking['refund_processed_at'] }}</span>
+    </div>
+    {% endif %}
+    {% if booking['refund_reference'] %}
+    <div class="row">
+        <span class="label">Bank Reference</span>
+        <span class="value">{{ booking['refund_reference'] }}</span>
+    </div>
+    {% endif %}
+    {% if booking['status']|lower == 'cancelled' or booking['booking_status']|lower == 'cancelled' %}
+        {% if refund_status != 'refunded' and paid_total > 0 %}
+        <p style="margin:14px 0;padding:12px;border-radius:10px;background:#fff7ed;color:#9a3412;line-height:1.5;font-size:14px;">
+            Transfer ₹{{ '%.2f'|format(paid_total) }} to the customer's bank account first. Click the button only after the bank transfer is complete. This action records the refund and sends the customer an email and notification; it does not transfer money.
+        </p>
+        <form method="post" action="/admin/booking/{{ booking['id'] }}/refund"
+              onsubmit="return confirm('Have you already transferred ₹{{ '%.2f'|format(paid_total) }} to the customer bank account? Only confirm after the transfer is complete.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="refund_reference">Bank transaction reference (optional)</label>
+            <input id="refund_reference" type="text" name="refund_reference" maxlength="120"
+                   placeholder="UPI / NEFT / IMPS transaction reference"
+                   style="width:100%;padding:13px;border:1px solid #e2e8f0;border-radius:10px;margin-top:8px;">
+            <button type="submit" style="background:#15803d;">Refund Transferred — Record & Notify Customer</button>
+        </form>
+        {% elif refund_status == 'refunded' %}
+        <p style="margin-top:14px;color:#166534;font-weight:600;">Refund has already been recorded. Duplicate refund is blocked.</p>
+        {% elif paid_total <= 0 %}
+        <p style="margin-top:14px;color:#64748b;">No successfully paid amount is available to refund.</p>
+        {% endif %}
+    {% else %}
+    <p style="margin-top:14px;color:#64748b;">Cancel this booking before recording a manual bank refund.</p>
+    {% endif %}
+</div>
 
 </div>
 
