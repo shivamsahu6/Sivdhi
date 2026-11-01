@@ -1,14 +1,17 @@
-# Local environment and secrets
+﻿# Local environment and secrets
 .env
 .env.*
 !.env.example
 .secret_key
+*.pem
+*.key
 
-# Python runtimes/caches
+# Python runtimes and caches
 __pycache__/
 *.py[cod]
+!routes/_auth_recovered.pyc
 .pytest_cache/
-.venv/
+.venv*/
 venv/
 
 # Private databases and SQLite sidecars
@@ -16,12 +19,26 @@ venv/
 *.db-wal
 *.db-shm
 *.sqlite
-*.sqlite3
 *.sqlite-wal
 *.sqlite-shm
+*.sqlite3
 instance/
 
 # User uploads and local logs
 static/uploads/*
 !static/uploads/.gitkeep
 *.log
+
+# Local/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+# Android generated files and local SDK configuration
+**/.gradle/
+**/build/
+android-apk/local.properties
+*.bak
+# Firebase server credentials - NEVER commit
+*firebase-admin*.json
+*service-account*.json

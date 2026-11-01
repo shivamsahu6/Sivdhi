@@ -15,6 +15,7 @@ from datetime import datetime, date, time as clock_time, timedelta
 from zoneinfo import ZoneInfo
 
 from database import get_db
+from utils.push_notifications import process_push_outbox_once
 from utils.sivdhi_finance import (
     ensure_finance_schema,
     find_partner_for_worker,
@@ -1534,6 +1535,10 @@ def _monitor_loop(app=None) -> None:
                 or report.get("errors")
             ):
                 LOGGER.info("Sivdhi assignment monitor: %s", report)
+
+            push_report = process_push_outbox_once()
+            if push_report.get("sent") or push_report.get("errors"):
+                LOGGER.info("Sivdhi push dispatcher: %s", push_report)
 
         except Exception:
             LOGGER.exception(

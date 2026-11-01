@@ -2,9 +2,8 @@ import re
 import hmac
 import sqlite3
 from datetime import datetime
-
 from werkzeug.security import generate_password_hash
-from flask import render_template, abort, request
+from flask import render_template, abort
 
 import os
 from pathlib import Path
@@ -18,6 +17,8 @@ load_dotenv(Path(__file__).resolve().parent / ".env", override=False)
 
 from config import Config
 from database import create_tables, get_db
+from routes.push import push_bp
+from utils.push_notifications import ensure_push_schema
 
 # ==========================
 # Blueprints
@@ -57,6 +58,8 @@ if trusted_proxy_hops:
 
 # CSRF protection for browser form submissions.
 csrf = CSRFProtect(app)
+
+
 @app.route("/setup-admin", methods=["GET", "POST"])
 def temporary_admin_setup():
     """One-time, secret-protected admin bootstrap; remove after use."""
@@ -68,7 +71,7 @@ def temporary_admin_setup():
     conn = get_db()
 
     try:
-        # केवल पहले Admin account के लिए।
+        # ÓñòÓÑçÓñÁÓñ▓ Óñ¬Óñ╣Óñ▓ÓÑç Admin account ÓñòÓÑç Óñ▓Óñ┐ÓñÅÓÑñ
         if conn.execute(
             "SELECT 1 FROM admin LIMIT 1"
         ).fetchone():
@@ -236,6 +239,14 @@ app.secret_key = Config.SECRET_KEY
 # Create base tables first.
 create_tables()
 
+# Add push-token and transactional outbox tables without altering existing users.
+_push_schema_conn = get_db()
+try:
+    ensure_push_schema(_push_schema_conn)
+    _push_schema_conn.commit()
+finally:
+    _push_schema_conn.close()
+
 # Upgrade legacy service/category tables before any page tries to query them.
 # This migration adds missing columns and preserves existing records.
 _catalog_conn = get_db()
@@ -301,6 +312,7 @@ app.register_blueprint(worker_bp)
 app.register_blueprint(partner_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(customer_bp)
+app.register_blueprint(push_bp)
 
 
 # ==========================

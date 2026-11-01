@@ -45,6 +45,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.messaging.FirebaseMessaging;
+
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -54,6 +58,7 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 4101;
     private static final int GEO_PERMISSION_REQUEST = 4102;
     private static final int MEDIA_PERMISSION_REQUEST = 4103;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 4104;
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -79,16 +84,23 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         readAppConfiguration();
+        String notificationTarget = notificationUrlFromIntent(getIntent());
+        if (notificationTarget != null) startUrl = notificationTarget;
         configureSystemBars();
         buildLayout();
         configureWebView();
         configureNetworkMonitoring();
         networkAvailable = hasValidatedInternet();
+        requestNotificationPermissionIfNeeded();
 
         if (savedInstanceState != null) {
             Bundle webState = savedInstanceState.getBundle("sivdhi.webview.state");
             if (webState != null && webView.restoreState(webState) != null) {
                 lastKnownUrl = webView.getUrl();
+                if (notificationTarget != null) {
+                    lastKnownUrl = notificationTarget;
+                    if (networkAvailable) webView.loadUrl(notificationTarget);
+                }
                 if (!networkAvailable) {
                     showOfflinePanel(false);
                 }
@@ -289,10 +301,12 @@ public class MainActivity extends Activity {
                 if (isTrustedUrl(url)) {
                     lastKnownUrl = url;
                 }
-                if (!pageLoadFailed && networkAvailable && offlinePanel != null) {
+                pageLoadFailed = false;
+                if (networkAvailable && offlinePanel != null) {
                     offlinePanel.setVisibility(View.GONE);
                 }
                 CookieManager.getInstance().flush();
+                if (isTrustedUrl(url)) syncPushTokenWithCurrentSession();
             }
 
             @Override
@@ -301,19 +315,6 @@ public class MainActivity extends Activity {
                     pageLoadFailed = true;
                     progressBar.setVisibility(View.GONE);
                     showOfflinePanel(false);
-                }
-            }
-
-            @Override
-            public void onReceivedHttpError(WebView view, WebResourceRequest request,
-                                            android.webkit.WebResourceResponse errorResponse) {
-                if (request.isForMainFrame() && errorResponse != null) {
-                    int statusCode = errorResponse.getStatusCode();
-                    if (statusCode >= 500 || statusCode == 408 || statusCode == 429) {
-                        pageLoadFailed = true;
-                        progressBar.setVisibility(View.GONE);
-                        showOfflinePanel(false);
-                    }
                 }
             }
 
@@ -397,6 +398,79 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "Could not start download.", Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQUEST
+            );
+        }
+    }
+
+    private String notificationUrlFromIntent(Intent intent) {
+        if (intent == null) return null;
+        String route = intent.getStringExtra("sivdhi_notification_route");
+        if (route == null || !route.startsWith("/") || route.startsWith("//") ||
+                route.contains("\\") || route.contains("..")) return null;
+        String target = "https://" + TRUSTED_HOST + route;
+        return isTrustedUrl(target) ? target : null;
+    }
+
+    private void syncPushTokenWithCurrentSession() {
+        if (webView == null || !isTrustedUrl(webView.getUrl())) return;
+
+        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+            if (!task.isSuccessful() || task.getResult() == null) return;
+            try {
+                JSONObject payload = new JSONObject();
+                payload.put("token", task.getResult());
+                payload.put("app_package", getPackageName());
+                String serialized = payload.toString();
+                String javascript = "(function(){try{" +
+                        "const p=JSON.parse(" + JSONObject.quote(serialized) + ");" +
+                        "const csrf=document.querySelector('meta[name=\"csrf-token\"]')?.content||'';" +
+                        "if(!csrf)return;" +
+                        "const loginPage=/\\/login(?:\\?|$)/.test(location.pathname);" +
+                        "if(!loginPage&&sessionStorage.getItem('sivdhi_fcm_token')===p.token)return;" +
+                        "fetch('/api/push/register',{method:'POST',credentials:'same-origin'," +
+                        "headers:{'Content-Type':'application/json','X-CSRFToken':csrf}," +
+                        "body:JSON.stringify(p),cache:'no-store'})" +
+                        ".then(r=>{if(r.ok)sessionStorage.setItem('sivdhi_fcm_token',p.token);" +
+                        "else if(r.status===401)sessionStorage.removeItem('sivdhi_fcm_token');})" +
+                        ".catch(()=>{});" +
+                        "}catch(e){}})();";
+                runOnUiThread(() -> {
+                    if (webView != null && isTrustedUrl(webView.getUrl())) {
+                        webView.evaluateJavascript(javascript, null);
+                    }
+                });
+            } catch (Exception ignored) {
+                // A transient token/JSON failure is retried on the next trusted page load.
+            }
+        });
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String target = notificationUrlFromIntent(intent);
+        if (target != null && webView != null) {
+            if (hasValidatedInternet()) {
+                networkAvailable = true;
+                pageLoadFailed = false;
+                lastKnownUrl = target;
+                offlinePanel.setVisibility(View.GONE);
+                webView.loadUrl(target);
+            } else {
+                lastKnownUrl = target;
+                networkAvailable = false;
+                showOfflinePanel(false);
+            }
+        }
     }
 
     private void configureNetworkMonitoring() {
