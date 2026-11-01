@@ -1809,6 +1809,20 @@ def worker_notification_center():
     unread_count = 0
 
     try:
+        open_id = request.args.get("open_id", type=int)
+        if open_id:
+            conn.execute(
+                """
+                UPDATE notifications
+                SET is_read = 1
+                WHERE id = ?
+                  AND user_type = 'worker'
+                  AND user_id IN (?, ?)
+                """,
+                (open_id, *notification_ids),
+            )
+            conn.commit()
+
         unread_count = conn.execute(
             """
             SELECT COUNT(*)
@@ -1831,20 +1845,6 @@ def worker_notification_center():
             """,
             notification_ids,
         ).fetchall()
-
-        # Opening the notification center marks only this worker's records
-        # (in either legacy ID format) as read. Other users remain untouched.
-        conn.execute(
-            """
-            UPDATE notifications
-            SET is_read = 1
-            WHERE user_type = 'worker'
-              AND user_id IN (?, ?)
-              AND COALESCE(is_read, 0) = 0
-            """,
-            notification_ids,
-        )
-        conn.commit()
 
     except Exception as error:
         conn.rollback()

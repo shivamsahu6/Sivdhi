@@ -3828,7 +3828,19 @@ def notifications():
             identifiers = [str(customer_row["id"])]
             if "customer_id" in customer_row.keys() and customer_row["customer_id"]:
                 identifiers.append(str(customer_row["customer_id"]))
+
+            open_id = request.args.get("open_id", type=int)
             placeholders = ",".join("?" for _ in identifiers)
+
+            if open_id:
+                db.execute(
+                    f"UPDATE notifications SET is_read=1 "
+                    f"WHERE id=? AND LOWER(COALESCE(user_type,''))='customer' "
+                    f"AND CAST(user_id AS TEXT) IN ({placeholders})",
+                    [open_id, *identifiers],
+                )
+                db.commit()
+
             items = db.execute(
                 f"SELECT id,title,message,is_read,created_at FROM notifications WHERE LOWER(COALESCE(user_type,''))='customer' AND CAST(user_id AS TEXT) IN ({placeholders}) ORDER BY id DESC LIMIT 50",
                 identifiers,

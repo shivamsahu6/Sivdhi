@@ -899,6 +899,7 @@
                             {% endif %}
 
                             <article
+                                id="notification-{{ notification['id'] }}"
                                 class="notification-card{% if is_unread %} unread{% endif %}"
                                 data-notification-id="{{ notification['id'] }}"
                                 data-unread="{{ 'true' if is_unread else 'false' }}"

@@ -586,6 +586,17 @@ def notifications():
 def notification_inbox():
     conn = get_db()
     try:
+        open_id = request.args.get("open_id", type=int)
+        if open_id:
+            conn.execute("""
+                UPDATE notifications
+                SET is_read = 1
+                WHERE id = ?
+                  AND LOWER(COALESCE(user_type, '')) = 'partner'
+                  AND CAST(user_id AS TEXT) = CAST(? AS TEXT)
+            """, (open_id, session["user_id"]))
+            conn.commit()
+
         notifications = conn.execute("""
             SELECT id, title, message, is_read, created_at
             FROM notifications

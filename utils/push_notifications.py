@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sqlite3
 from datetime import timedelta
 from pathlib import Path
@@ -165,12 +166,48 @@ def _firebase_app():
             return None
 
 
-def _notification_route(user_type: str) -> str:
-    return {
+def _notification_route(user_type: str, notification_id: int | None = None) -> str:
+    """Open the recipient's actual notification inbox and target one item."""
+    routes = {
         "customer": "/customer/notifications",
-        "worker": "/worker/notifications",
-        "partner": "/partner/notifications",
-    }.get((user_type or "").lower(), "/")
+        "worker": "/worker/notification-center",
+        "partner": "/partner/notification",
+    }
+    base = routes.get((user_type or "").lower(), "/")
+    if not notification_id or base == "/":
+        return base
+    return f"{base}?open_id={int(notification_id)}#notification-{int(notification_id)}"
+
+
+def _safe_push_text(value: Any, fallback: str, limit: int = 180) -> str:
+    """Keep notification context while hiding phone numbers and money amounts."""
+    text = " ".join(str(value or "").split())
+
+    text = re.sub(
+        r"(?<!\d)(?:\+?91[\s().-]?)?[6-9](?:[\s().-]?\d){9}(?!\d)",
+        "[phone hidden]",
+        text,
+    )
+    text = re.sub(
+        r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b",
+        "[email hidden]",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\b(?:customer\s+)?address\s*[:=-]\s*[^;\n]+",
+        "[address hidden]",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"(?:\u20b9|INR\b|Rs\.?)\s*[\d,]+(?:\.\d{1,2})?",
+        "[amount hidden]",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    return (text[:limit].strip() or fallback)
 
 
 def _canonical_owner_id(conn, user_type: str, user_id: str) -> str | None:
@@ -262,7 +299,7 @@ def process_push_outbox_once(batch_size: int = 30) -> dict[str, Any]:
         conn.execute("BEGIN IMMEDIATE")
         claimed = conn.execute(
             """
-            SELECT id, user_type, user_id, attempts
+            SELECT id, notification_id, user_type, user_id, attempts
             FROM push_notification_outbox
             WHERE (
                 status='pending' AND next_attempt_at <= CURRENT_TIMESTAMP
@@ -303,6 +340,23 @@ def process_push_outbox_once(batch_size: int = 30) -> dict[str, Any]:
                 _set_outbox_state(conn, row_id, "skipped", "No recipient or app notifications disabled")
                 continue
 
+            # Read the exact notification belonging to this outbox recipient.
+            notification = conn.execute(
+                """
+                SELECT title, message
+                FROM notifications
+                WHERE id = ?
+                  AND LOWER(COALESCE(user_type, '')) = ?
+                  AND CAST(user_id AS TEXT) = ?
+                LIMIT 1
+                """,
+                (int(item["notification_id"]), user_type, user_id),
+            ).fetchone()
+
+            if not notification:
+                _set_outbox_state(conn, row_id, "skipped", "Notification record missing")
+                continue
+
             tokens = conn.execute(
                 """SELECT id, token FROM push_device_tokens
                    WHERE user_type=? AND user_id=? AND is_active=1""",
@@ -319,15 +373,22 @@ def process_push_outbox_once(batch_size: int = 30) -> dict[str, Any]:
                 try:
                     message = messaging.Message(
                         data={
-                            # Deliberately generic: no customer details, phone numbers,
-                            # booking amounts, or job contents are exposed on lock screens.
-                            "title": {
-                                "customer": "Booking update",
-                                "worker": "Job update",
-                                "partner": "Partner update",
-                            }.get(user_type, "Sivdhi update"),
-                            "body": "Open Sivdhi to view your latest notification.",
-                            "route": _notification_route(user_type),
+                            # Show the actual reason, while redacting private details.
+                            "title": _safe_push_text(
+                                notification["title"],
+                                {
+                                    "customer": "Sivdhi booking update",
+                                    "worker": "Sivdhi job update",
+                                    "partner": "Sivdhi partner update",
+                                }.get(user_type, "Sivdhi update"),
+                            ),
+                            "body": _safe_push_text(
+                                notification["message"],
+                                "Open Sivdhi to view your notification.",
+                            ),
+                            "route": _notification_route(
+                                user_type, int(item["notification_id"])
+                            ),
                         },
                         token=str(token_row["token"]),
                         android=messaging.AndroidConfig(

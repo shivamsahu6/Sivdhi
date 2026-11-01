@@ -309,7 +309,9 @@
 
             {% for notification in notifications %}
 
-            <article class="notice {% if not notification['is_read'] %}unread{% endif %}">
+            <article
+                id="notification-{{ notification['id'] }}"
+                class="notice {% if not notification['is_read'] %}unread{% endif %}">
 
                 <div class="notice-icon" aria-hidden="true">
                     {% if notification['is_read'] %}

@@ -28,7 +28,7 @@ android {
             manifestPlaceholders = [
                 startUrl: 'https://sivdhi.duckdns.org/customer/login'
             ]
-            resValue 'string', 'app_name', 'Sivdhi Customer'
+            resValue 'string', 'app_name', 'Sivdhi'
         }
 
         workpartner {
@@ -37,7 +37,7 @@ android {
             manifestPlaceholders = [
                 startUrl: 'https://sivdhi.duckdns.org/login'
             ]
-            resValue 'string', 'app_name', 'Sivdhi Worker & Partner'
+            resValue 'string', 'app_name', 'Sivdhi WP'
         }
     }
 
