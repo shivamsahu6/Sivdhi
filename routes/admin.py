@@ -1,4 +1,7 @@
 import sqlite3
+import os
+import re
+import time
 
 from flask import (
     Blueprint,
@@ -7,6 +10,7 @@ from flask import (
     redirect,
     flash,
     session,
+    url_for,
 )
 
 from werkzeug.security import check_password_hash
@@ -16,9 +20,76 @@ from routes.decorators import admin_required
 from utils.sivdhi_finance import ensure_finance_schema, money as finance_money, add_finance_ledger_entry
 from utils.assignment_monitor import ensure_assignment_monitor_schema
 from utils.login_security import is_login_allowed, record_login_failure, clear_login_failures
+from utils.admin_mfa import (
+    ADMIN_MFA_PENDING_SECONDS,
+    complete_admin_mfa_enrollment,
+    consume_admin_recovery_code,
+    ensure_admin_security_record,
+    get_admin_security_state,
+    get_or_create_pending_totp_secret,
+    is_admin_authorized,
+    totp_provisioning_uri,
+    verify_and_consume_totp,
+)
 
 
-admin_bp = Blueprint("admin", __name__)
+# A non-public route prefix adds a discovery barrier, but authentication and
+# authorization remain the actual security boundary. Production must configure
+# a unique 32+ character path in the server environment.
+_ADMIN_PATH_RE = re.compile(r"^[A-Za-z0-9_-]{32,96}$")
+ADMIN_PANEL_PATH = os.getenv("ADMIN_PANEL_PATH", "").strip().strip("/")
+_APP_ENV = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "development")).strip().lower()
+if (
+    not _ADMIN_PATH_RE.fullmatch(ADMIN_PANEL_PATH)
+    or ADMIN_PANEL_PATH.lower().startswith(("replace-", "change-me"))
+):
+    if _APP_ENV == "production":
+        raise RuntimeError(
+            "Production requires ADMIN_PANEL_PATH: 32-96 random letters, numbers, _ or -."
+        )
+    # Development-only fallback. Never use this value on a public server.
+    ADMIN_PANEL_PATH = "dev-only-admin-entry-do-not-deploy"
+ADMIN_PANEL_BASE = "/" + ADMIN_PANEL_PATH
+
+ADMIN_IDLE_TIMEOUT_SECONDS = 30 * 60
+ADMIN_ABSOLUTE_TIMEOUT_SECONDS = 8 * 60 * 60
+
+admin_bp = Blueprint("admin", __name__, url_prefix=ADMIN_PANEL_BASE)
+
+
+def _admin_session_is_expired(now, login_at, last_seen_at):
+    try:
+        login_at = int(login_at)
+        last_seen_at = int(last_seen_at)
+    except (TypeError, ValueError):
+        return True
+    return (
+        login_at <= 0
+        or last_seen_at <= 0
+        or now - last_seen_at > ADMIN_IDLE_TIMEOUT_SECONDS
+        or now - login_at > ADMIN_ABSOLUTE_TIMEOUT_SECONDS
+        or last_seen_at < login_at
+    )
+
+
+@admin_bp.before_request
+def _enforce_admin_session_policy():
+    """Apply short website-only Admin sessions to every Admin endpoint."""
+    if session.get("role") != "admin":
+        return None
+
+    now = int(time.time())
+    if _admin_session_is_expired(
+        now,
+        session.get("admin_login_at"),
+        session.get("admin_last_seen_at"),
+    ) or not is_admin_authorized(session.get("admin_id")):
+        session.clear()
+        flash("Admin session expired or access was revoked. Please sign in again.", "danger")
+        return redirect(url_for("admin.admin_login"))
+
+    session["admin_last_seen_at"] = now
+    return None
 
 
 # =========================================================
@@ -158,7 +229,7 @@ def _admin_catalog_money(raw, field_label, default=0.0):
 
 
 def _catalog_redirect(tab="category", extra=""):
-    url = "/admin/settings"
+    url = ADMIN_PANEL_BASE + "/admin/settings"
 
     if extra:
         url += "?" + extra
@@ -170,78 +241,214 @@ def _catalog_redirect(tab="category", extra=""):
 # ADMIN LOGIN
 # =========================================================
 
+def _admin_mfa_pending_context():
+    admin_id = session.get("admin_mfa_pending_id")
+    started = session.get("admin_mfa_pending_at")
+    try:
+        started = int(started)
+    except (TypeError, ValueError):
+        started = 0
+
+    if not admin_id or started <= 0 or int(time.time()) - started > ADMIN_MFA_PENDING_SECONDS:
+        session.clear()
+        flash("Your verification session expired. Please sign in again.", "danger")
+        return None, None
+
+    state = get_admin_security_state(str(admin_id))
+    if not state or not int(state["is_active"] or 0):
+        session.clear()
+        flash("Admin access is unavailable. Please contact the site operator.", "danger")
+        return None, None
+
+    return str(admin_id), state
+
+
+def _start_admin_mfa_pending(admin_id):
+    session.clear()
+    session.permanent = True
+    session["admin_mfa_pending_id"] = str(admin_id)
+    session["admin_mfa_pending_at"] = int(time.time())
+
+
+def _establish_admin_session(admin_id):
+    """Create the full Admin website session only after successful MFA."""
+    if not is_admin_authorized(str(admin_id)):
+        session.clear()
+        return False
+
+    conn = get_db()
+    try:
+        admin = conn.execute(
+            "SELECT admin_id, fullname FROM admin WHERE admin_id=? LIMIT 1",
+            (str(admin_id),),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not admin:
+        session.clear()
+        return False
+
+    session.clear()
+    session.permanent = True
+    session["admin_id"] = admin["admin_id"]
+    session["admin_name"] = admin["fullname"]
+    session["role"] = "admin"
+    now = int(time.time())
+    session["admin_login_at"] = now
+    session["admin_last_seen_at"] = now
+    return True
+
+
+def _record_admin_mfa_failure(admin_id, client_ip):
+    record_login_failure("admin_mfa", str(admin_id), client_ip)
+
+
 @admin_bp.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
-
     if session.get("role") == "admin":
-        return redirect("/admin/dashboard")
+        return redirect(ADMIN_PANEL_BASE + "/admin/dashboard")
+
+    pending_id = session.get("admin_mfa_pending_id")
+    if pending_id:
+        checked_id, state = _admin_mfa_pending_context()
+        if checked_id and state:
+            target = "setup" if not int(state["totp_enabled"] or 0) else "verify"
+            return redirect(ADMIN_PANEL_BASE + "/admin/mfa/" + target)
 
     if request.method == "POST":
-        admin_id = request.form.get(
-            "admin_id", ""
-        ).strip()
-
+        admin_id = request.form.get("admin_id", "").strip()
         password = request.form.get("password", "")
 
         if not admin_id or not password:
-            flash(
-                "Please enter Admin ID and Password.",
-                "danger",
-            )
-            return redirect("/admin/login")
+            flash("Please enter Admin ID and Password.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/login")
 
         client_ip = request.remote_addr or "unknown"
         if not is_login_allowed("admin", admin_id, client_ip):
             flash("Too many failed login attempts. Please try again later.", "danger")
-            return redirect("/admin/login")
+            return redirect(ADMIN_PANEL_BASE + "/admin/login")
 
         conn = get_db()
-
         try:
-            admin = conn.execute("""
-                SELECT *
-                FROM admin
-                WHERE admin_id = ?
-                LIMIT 1
-            """, (admin_id,)).fetchone()
+            admin = conn.execute(
+                "SELECT admin_id, fullname, password FROM admin WHERE admin_id=? LIMIT 1",
+                (admin_id,),
+            ).fetchone()
         finally:
             conn.close()
 
-        if not admin:
-            record_login_failure("admin", admin_id, client_ip)
-            flash(
-                "Invalid Admin ID or Password.",
-                "danger",
-            )
-            return redirect("/admin/login")
-
-        try:
-            password_valid = check_password_hash(
-                admin["password"],
-                password,
-            )
-        except Exception:
-            password_valid = False
+        password_valid = False
+        if admin:
+            try:
+                password_valid = check_password_hash(admin["password"], password)
+            except Exception:
+                password_valid = False
 
         if not password_valid:
             record_login_failure("admin", admin_id, client_ip)
-            flash(
-                "Invalid Admin ID or Password.",
-                "danger",
-            )
-            return redirect("/admin/login")
+            flash("Invalid Admin ID or Password.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/login")
 
-        clear_login_failures("admin", admin_id, client_ip)
-        session.clear()
-        session.permanent = True
-        session["admin_id"] = admin["admin_id"]
-        session["admin_name"] = admin["fullname"]
-        session["role"] = "admin"
+        state = ensure_admin_security_record(admin["admin_id"])
+        if not state or not int(state["is_active"] or 0):
+            record_login_failure("admin", admin_id, client_ip)
+            flash("Invalid Admin ID or Password.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/login")
 
-        flash("Admin Login Successful.", "success")
-        return redirect("/admin/dashboard")
+        _start_admin_mfa_pending(admin["admin_id"])
+        if not int(state["totp_enabled"] or 0):
+            return redirect(ADMIN_PANEL_BASE + "/admin/mfa/setup")
+        return redirect(ADMIN_PANEL_BASE + "/admin/mfa/verify")
 
     return render_template("admin/login.html")
+
+
+@admin_bp.route("/admin/mfa/setup", methods=["GET", "POST"])
+def admin_mfa_setup():
+    # A browser refresh/back-navigation after enrollment must not clear the
+    # newly established full Admin session. Recovery codes were rendered once.
+    if session.get("role") == "admin":
+        return redirect(ADMIN_PANEL_BASE + "/admin/dashboard")
+
+    admin_id, state = _admin_mfa_pending_context()
+    if not admin_id:
+        return redirect(ADMIN_PANEL_BASE + "/admin/login")
+    if int(state["totp_enabled"] or 0):
+        return redirect(ADMIN_PANEL_BASE + "/admin/mfa/verify")
+
+    secret = get_or_create_pending_totp_secret(admin_id)
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT email FROM admin WHERE admin_id=? LIMIT 1", (admin_id,)).fetchone()
+    finally:
+        conn.close()
+    provisioning_uri = totp_provisioning_uri(admin_id, row["email"] if row else admin_id, secret)
+
+    if request.method == "POST":
+        client_ip = request.remote_addr or "unknown"
+        if not is_login_allowed("admin_mfa", admin_id, client_ip):
+            session.clear()
+            flash("Too many verification attempts. Please try again after 15 minutes.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/login")
+
+        recovery_codes = complete_admin_mfa_enrollment(admin_id, request.form.get("code", ""))
+        if not recovery_codes:
+            _record_admin_mfa_failure(admin_id, client_ip)
+            flash("The verification code is incorrect or expired. Try the current 6-digit code.", "danger")
+            return render_template("admin/mfa_setup.html", secret=secret, provisioning_uri=provisioning_uri)
+
+        clear_login_failures("admin", admin_id, client_ip)
+        clear_login_failures("admin_mfa", admin_id, client_ip)
+        if not _establish_admin_session(admin_id):
+            session.clear()
+            flash("Admin access could not be established. Please sign in again.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/login")
+        return render_template("admin/mfa_recovery_codes.html", recovery_codes=recovery_codes)
+
+    return render_template("admin/mfa_setup.html", secret=secret, provisioning_uri=provisioning_uri)
+
+
+@admin_bp.route("/admin/mfa/verify", methods=["GET", "POST"])
+def admin_mfa_verify():
+    # Keep an authenticated session intact if the browser revisits this URL.
+    if session.get("role") == "admin":
+        return redirect(ADMIN_PANEL_BASE + "/admin/dashboard")
+
+    admin_id, state = _admin_mfa_pending_context()
+    if not admin_id:
+        return redirect(ADMIN_PANEL_BASE + "/admin/login")
+    if not int(state["totp_enabled"] or 0):
+        return redirect(ADMIN_PANEL_BASE + "/admin/mfa/setup")
+
+    if request.method == "POST":
+        client_ip = request.remote_addr or "unknown"
+        if not is_login_allowed("admin_mfa", admin_id, client_ip):
+            session.clear()
+            flash("Too many verification attempts. Please try again after 15 minutes.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/login")
+
+        supplied_code = request.form.get("code", "").strip()
+        verified = verify_and_consume_totp(admin_id, supplied_code)
+        if not verified:
+            verified = consume_admin_recovery_code(admin_id, supplied_code)
+
+        if not verified:
+            _record_admin_mfa_failure(admin_id, client_ip)
+            flash("Invalid or already-used verification code.", "danger")
+            return render_template("admin/mfa_verify.html")
+
+        clear_login_failures("admin", admin_id, client_ip)
+        clear_login_failures("admin_mfa", admin_id, client_ip)
+        if not _establish_admin_session(admin_id):
+            session.clear()
+            flash("Admin access could not be established. Please sign in again.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/login")
+
+        flash("Admin verification successful.", "success")
+        return redirect(ADMIN_PANEL_BASE + "/admin/dashboard")
+
+    return render_template("admin/mfa_verify.html")
 
 
 # =========================================================
@@ -307,7 +514,7 @@ def admin_search():
                 "type": row["type"],
                 "name": row["name"],
                 "id": row["public_id"],
-                "url": f"/admin/worker/{row['id']}",
+                "url": f"{ADMIN_PANEL_BASE}/admin/worker/{row['id']}",
             })
 
         for row in partners:
@@ -315,7 +522,7 @@ def admin_search():
                 "type": row["type"],
                 "name": row["name"],
                 "id": row["public_id"],
-                "url": f"/admin/partner/{row['id']}",
+                "url": f"{ADMIN_PANEL_BASE}/admin/partner/{row['id']}",
             })
 
         for row in jobs:
@@ -323,7 +530,7 @@ def admin_search():
                 "type": row["type"],
                 "name": row["name"] or "Job",
                 "id": row["public_id"],
-                "url": f"/admin/job/{row['id']}",
+                "url": f"{ADMIN_PANEL_BASE}/admin/job/{row['id']}",
             })
 
         return {"results": results[:12]}
@@ -475,7 +682,7 @@ def admin_partner_details(partner_id):
 
     if not partner:
         flash("Partner not found.", "danger")
-        return redirect("/admin/partners")
+        return redirect(ADMIN_PANEL_BASE + "/admin/partners")
 
     return render_template(
         "admin/partner_details.html",
@@ -499,7 +706,7 @@ def suspend_partner(id):
         conn.close()
 
     flash("Partner suspended successfully.", "success")
-    return redirect(f"/admin/partner/{id}")
+    return redirect(f"{ADMIN_PANEL_BASE}/admin/partner/{id}")
 
 
 @admin_bp.route("/admin/partner/<int:id>/activate", methods=["POST"])
@@ -518,7 +725,7 @@ def activate_partner(id):
         conn.close()
 
     flash("Partner activated successfully.", "success")
-    return redirect(f"/admin/partner/{id}")
+    return redirect(f"{ADMIN_PANEL_BASE}/admin/partner/{id}")
 
 
 @admin_bp.route("/admin/partner/delete/<partner_id>", methods=["POST"])
@@ -538,7 +745,7 @@ def delete_partner(partner_id):
         conn.close()
 
     flash("Partner moved to Deleted Accounts.", "success")
-    return redirect("/admin/partners")
+    return redirect(ADMIN_PANEL_BASE + "/admin/partners")
 
 
 # =========================================================
@@ -579,7 +786,7 @@ def admin_worker_details(worker_id):
 
     if not worker:
         flash("Worker not found.", "danger")
-        return redirect("/admin/workers")
+        return redirect(ADMIN_PANEL_BASE + "/admin/workers")
 
     return render_template(
         "admin/worker_details.html",
@@ -606,7 +813,7 @@ def suspend_worker(worker_id):
         conn.close()
 
     flash("Worker account suspended successfully.", "success")
-    return redirect(f"/admin/worker/{worker_id}")
+    return redirect(f"{ADMIN_PANEL_BASE}/admin/worker/{worker_id}")
 
 
 @admin_bp.route(
@@ -628,7 +835,7 @@ def activate_worker(worker_id):
         conn.close()
 
     flash("Worker account activated successfully.", "success")
-    return redirect(f"/admin/worker/{worker_id}")
+    return redirect(f"{ADMIN_PANEL_BASE}/admin/worker/{worker_id}")
 
 
 @admin_bp.route("/admin/worker/delete/<worker_id>", methods=["POST"])
@@ -647,7 +854,7 @@ def delete_worker(worker_id):
         conn.close()
 
     flash("Worker moved to Deleted Accounts.", "success")
-    return redirect("/admin/workers")
+    return redirect(ADMIN_PANEL_BASE + "/admin/workers")
 
 
 # =========================================================
@@ -705,7 +912,7 @@ def restore_customer(customer_id):
     finally:
         conn.close()
     flash("Customer account restored." if cur.rowcount else "Deleted customer not found.", "success" if cur.rowcount else "danger")
-    return redirect("/admin/deleted-accounts")
+    return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
 
 
 @admin_bp.route(
@@ -726,17 +933,17 @@ def permanent_delete_customer(customer_id):
             ).fetchone()
             if related_booking:
                 flash("This customer has booking history. The account remains in Deleted Accounts to preserve records.", "danger")
-                return redirect("/admin/deleted-accounts")
+                return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
         cur = conn.execute("DELETE FROM customers WHERE id=? AND is_deleted=1", (customer_id,))
         conn.commit()
     except sqlite3.IntegrityError:
         conn.rollback()
         flash("Customer has related records and cannot be permanently deleted. Keep it in Deleted Accounts instead.", "danger")
-        return redirect("/admin/deleted-accounts")
+        return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
     finally:
         conn.close()
     flash("Customer permanently deleted." if cur.rowcount else "Deleted customer not found.", "success" if cur.rowcount else "danger")
-    return redirect("/admin/deleted-accounts")
+    return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
 
 
 @admin_bp.route(
@@ -757,7 +964,7 @@ def restore_worker(worker_id):
         conn.close()
 
     flash("Worker account restored successfully.", "success")
-    return redirect("/admin/deleted-accounts")
+    return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
 
 
 @admin_bp.route(
@@ -778,7 +985,7 @@ def restore_partner(partner_id):
         conn.close()
 
     flash("Partner account restored successfully.", "success")
-    return redirect("/admin/deleted-accounts")
+    return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
 
 
 @admin_bp.route(
@@ -800,7 +1007,7 @@ def permanent_delete_worker(worker_id):
         conn.close()
 
     flash("Worker permanently deleted.", "success")
-    return redirect("/admin/deleted-accounts")
+    return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
 
 
 @admin_bp.route(
@@ -822,7 +1029,7 @@ def permanent_delete_partner(partner_id):
         conn.close()
 
     flash("Partner permanently deleted.", "success")
-    return redirect("/admin/deleted-accounts")
+    return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
 
 
 # =========================================================
@@ -919,7 +1126,7 @@ def admin_job_details(job_id):
 
     if not job:
         flash("Job not found.", "danger")
-        return redirect("/admin/jobs")
+        return redirect(ADMIN_PANEL_BASE + "/admin/jobs")
 
     return render_template("admin/job_details.html", job=job)
 
@@ -1089,7 +1296,7 @@ def admin_customer_details(customer_id):
         conn.close()
     if not customer:
         flash("Customer not found or moved to Deleted Accounts.", "danger")
-        return redirect("/admin/customers")
+        return redirect(ADMIN_PANEL_BASE + "/admin/customers")
     return render_template("admin/customer_details.html", customer=customer)
 
 
@@ -1107,7 +1314,7 @@ def suspend_customer(customer_id):
     finally:
         conn.close()
     flash("Customer account suspended." if cur.rowcount else "Customer not found.", "success" if cur.rowcount else "danger")
-    return redirect(f"/admin/customer/{customer_id}" if cur.rowcount else "/admin/customers")
+    return redirect(f"{ADMIN_PANEL_BASE}/admin/customer/{customer_id}" if cur.rowcount else ADMIN_PANEL_BASE + "/admin/customers")
 
 
 @admin_bp.route("/admin/customer/<int:customer_id>/activate", methods=["POST"])
@@ -1124,7 +1331,7 @@ def activate_customer(customer_id):
     finally:
         conn.close()
     flash("Customer account activated." if cur.rowcount else "Customer not found.", "success" if cur.rowcount else "danger")
-    return redirect(f"/admin/customer/{customer_id}" if cur.rowcount else "/admin/customers")
+    return redirect(f"{ADMIN_PANEL_BASE}/admin/customer/{customer_id}" if cur.rowcount else ADMIN_PANEL_BASE + "/admin/customers")
 
 
 @admin_bp.route("/admin/customer/delete/<int:customer_id>", methods=["POST"])
@@ -1141,7 +1348,7 @@ def delete_customer(customer_id):
     finally:
         conn.close()
     flash("Customer moved to Deleted Accounts." if cur.rowcount else "Customer not found.", "success" if cur.rowcount else "danger")
-    return redirect("/admin/customers")
+    return redirect(ADMIN_PANEL_BASE + "/admin/customers")
 
 
 # =========================================================
@@ -1224,7 +1431,7 @@ def admin_booking_details(booking_id):
 
     if not booking:
         flash("Booking not found.", "danger")
-        return redirect("/admin/bookings")
+        return redirect(ADMIN_PANEL_BASE + "/admin/bookings")
 
     return render_template(
         "admin/booking_details.html",
@@ -1245,7 +1452,7 @@ def admin_update_booking_status(booking_id):
     }
     if status not in allowed_statuses:
         flash("Invalid booking status.", "danger")
-        return redirect(f"/admin/booking/{booking_id}")
+        return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
 
     reason = (request.form.get("cancellation_reason") or "Cancelled by Sivdhi Admin").strip()[:500]
     conn = get_db()
@@ -1264,7 +1471,7 @@ def admin_update_booking_status(booking_id):
         if not booking:
             conn.rollback()
             flash("Booking not found.", "danger")
-            return redirect("/admin/bookings")
+            return redirect(ADMIN_PANEL_BASE + "/admin/bookings")
 
         old_status = str(booking["old_status"] or "").lower()
         cancellation_paid_amount = (
@@ -1323,7 +1530,7 @@ def admin_update_booking_status(booking_id):
         flash("Booking status could not be updated.", "danger")
     finally:
         conn.close()
-    return redirect(f"/admin/booking/{booking_id}")
+    return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
 
 
 @admin_bp.route("/admin/booking/<int:booking_id>/refund", methods=["POST"])
@@ -1341,16 +1548,16 @@ def admin_process_booking_refund(booking_id):
         if not booking:
             conn.rollback()
             flash("Booking not found.", "danger")
-            return redirect("/admin/bookings")
+            return redirect(ADMIN_PANEL_BASE + "/admin/bookings")
         booking_status = str(booking["booking_status"] or booking["status"] or "").lower()
         if booking_status not in {"cancelled", "canceled"}:
             conn.rollback()
             flash("Cancel the booking before recording its refund.", "warning")
-            return redirect(f"/admin/booking/{booking_id}")
+            return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
         if str(booking["refund_status"] or "").lower() == "refunded":
             conn.rollback()
             flash("This booking's refund has already been recorded.", "info")
-            return redirect(f"/admin/booking/{booking_id}")
+            return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
 
         refund_amount = finance_money(booking["advance_paid_amount"]) + finance_money(booking["balance_paid_amount"])
         if refund_amount <= 0:
@@ -1380,7 +1587,7 @@ def admin_process_booking_refund(booking_id):
         if refund_amount <= 0:
             conn.rollback()
             flash("No successfully paid amount was found. There is nothing to refund.", "warning")
-            return redirect(f"/admin/booking/{booking_id}")
+            return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
 
         conn.execute("""
             UPDATE bookings
@@ -1417,7 +1624,7 @@ def admin_process_booking_refund(booking_id):
         flash("Refund could not be recorded. No refund status was changed.", "danger")
     finally:
         conn.close()
-    return redirect(f"/admin/booking/{booking_id}")
+    return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
 
 
 # =========================================================
@@ -1427,7 +1634,7 @@ def admin_process_booking_refund(booking_id):
 @admin_bp.route("/admin/services")
 @admin_required
 def admin_services():
-    return redirect("/admin/settings#subcategory")
+    return redirect(ADMIN_PANEL_BASE + "/admin/settings#subcategory")
 
 
 @admin_bp.route("/admin/services/add", methods=["GET", "POST"])
@@ -1435,7 +1642,7 @@ def admin_services():
 def admin_add_service():
 
     if request.method == "GET":
-        return redirect("/admin/settings#subcategory")
+        return redirect(ADMIN_PANEL_BASE + "/admin/settings#subcategory")
 
     conn = get_db()
 
@@ -2020,7 +2227,7 @@ def admin_withdrawal_status(withdrawal_id):
 
     if new_status not in allowed:
         flash("Invalid withdrawal status.", "danger")
-        return redirect("/admin/withdrawals")
+        return redirect(ADMIN_PANEL_BASE + "/admin/withdrawals")
 
     conn = get_db()
 
@@ -2035,7 +2242,7 @@ def admin_withdrawal_status(withdrawal_id):
         if not withdrawal:
             conn.rollback()
             flash("Withdrawal request not found.", "danger")
-            return redirect("/admin/withdrawals")
+            return redirect(ADMIN_PANEL_BASE + "/admin/withdrawals")
 
         old_status = str(
             withdrawal["status"] or "Pending"
@@ -2047,7 +2254,7 @@ def admin_withdrawal_status(withdrawal_id):
                 "This withdrawal request is already final.",
                 "warning",
             )
-            return redirect("/admin/withdrawals")
+            return redirect(ADMIN_PANEL_BASE + "/admin/withdrawals")
 
         conn.execute("""
             UPDATE withdraw_requests
@@ -2090,7 +2297,7 @@ def admin_withdrawal_status(withdrawal_id):
     finally:
         conn.close()
 
-    return redirect("/admin/withdrawals")
+    return redirect(ADMIN_PANEL_BASE + "/admin/withdrawals")
 
 
 # =========================================================
@@ -2210,7 +2417,7 @@ def admin_mark_notification_read(notification_id):
     finally:
         conn.close()
 
-    return redirect("/admin/notifications")
+    return redirect(ADMIN_PANEL_BASE + "/admin/notifications")
 
 
 # =========================================================
@@ -2814,4 +3021,4 @@ def admin_logout():
     session.clear()
     flash("Admin logged out successfully.", "success")
 
-    return redirect("/admin/login")
+    return redirect(ADMIN_PANEL_BASE + "/admin/login")

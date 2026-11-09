@@ -1045,7 +1045,7 @@ def accept_job(
             """, (current_worker_id, current_worker_id, partner_id, partner_id, now.isoformat(timespec="seconds"), booking["id"], current_worker_id, current_worker_id))
             if cursor.rowcount != 1:
                 conn.rollback()
-                return jsonify({"success": False, "message": "Another worker has already accepted this booking."}), 409
+                return jsonify({"success": False, "message": "Sorry, this booking has already been assigned to another worker."}), 409
             conn.execute("UPDATE booking_assignment_offers SET status='accepted', responded_at=? WHERE id=?", (now.isoformat(timespec="seconds"), offer["id"]))
             conn.execute("UPDATE booking_assignment_offers SET status='cancelled', responded_at=? WHERE booking_db_id=? AND worker_id<>? AND status='offered'", (now.isoformat(timespec="seconds"), booking["id"], current_worker_id))
             conn.commit()
@@ -1126,7 +1126,10 @@ def accept_job(
     )
 
     if not success:
-        return jsonify({"success": False, "message": message}), 400
+        return jsonify({
+            "success": False,
+            "message": "Sorry, this booking has already been assigned to another worker."
+        }), 409
 
     seen_conn = get_db()
     try:
@@ -1206,15 +1209,34 @@ def reject_job(job_id):
                 assigned_now = int((current_assignment["worker_id"] or current_assignment["assigned_worker_id"]) or 0)
             except (TypeError, ValueError):
                 assigned_now = 0
-            if assigned_now != int(worker_db_id):
-                from utils.assignment_monitor import _now_ist
-                conn.execute("UPDATE booking_assignment_offers SET status='rejected', responded_at=? WHERE id=? AND status='offered'", (_now_ist().isoformat(timespec="seconds"), offered["id"]))
-                conn.commit()
-                create_notification("worker", worker_db_id, "Booking Request Declined", "You declined booking " + str(visible_booking["booking_id"]) + ". The customer will not be notified of this internal decision.")
-                partner_id = offered["partner_id"]
-                if partner_id:
-                    create_notification("partner", partner_id, "Worker Declined Request", "A worker declined booking " + str(visible_booking["booking_id"]) + ". Sivdhi will continue matching until the original deadline.")
-                return jsonify({"success": True, "message": "Request declined. The booking remains available to other eligible workers.", "reassigned": False})
+            from utils.assignment_monitor import _now_ist
+            now_text = _now_ist().isoformat(timespec="seconds")
+            conn.execute(
+                "UPDATE booking_assignment_offers SET status='rejected', responded_at=? WHERE id=? AND status='offered'",
+                (now_text, offered["id"]),
+            )
+            # Older bookings may have put this worker directly on the booking
+            # before live offer batches existed. Clear that legacy pointer so
+            # the next scheduled batch, rather than a one-worker reassignment,
+            # continues matching.
+            if assigned_now == int(worker_db_id):
+                conn.execute(
+                    """
+                    UPDATE bookings
+                    SET worker_id=NULL, assigned_worker_id=NULL,
+                        partner_id=NULL, assigned_partner_id=NULL,
+                        booking_status='pending', status='pending',
+                        assignment_retry_after=NULL, updated_at=CURRENT_TIMESTAMP
+                    WHERE id=?
+                    """,
+                    (visible_booking["id"],),
+                )
+            conn.commit()
+            create_notification("worker", worker_db_id, "Booking Request Declined", "You declined booking " + str(visible_booking["booking_id"]) + ". The customer will not be notified of this internal decision.")
+            partner_id = offered["partner_id"]
+            if partner_id:
+                create_notification("partner", partner_id, "Worker Declined Request", "A worker declined booking " + str(visible_booking["booking_id"]) + ". Sivdhi will continue matching until the original deadline.")
+            return jsonify({"success": True, "message": "Request declined. The booking remains available to other eligible workers.", "reassigned": False})
         booking = conn.execute(
             "SELECT * FROM bookings WHERE id=? LIMIT 1", (visible_booking["id"],)
         ).fetchone()

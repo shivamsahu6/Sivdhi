@@ -321,7 +321,7 @@ tr:hover{
 
 
     <a
-        href="/admin/dashboard"
+        href="{{ admin_base_path }}/admin/dashboard"
         class="back"
     >
         ← Dashboard
@@ -345,7 +345,7 @@ tr:hover{
 
         <div class="count">
             Total Customers: {{ customers|length }}
-            · <a href="/admin/deleted-accounts" style="color:#2563eb;font-weight:700">Deleted Accounts</a>
+            · <a href="{{ admin_base_path }}/admin/deleted-accounts" style="color:#2563eb;font-weight:700">Deleted Accounts</a>
         </div>
 
     </div>
@@ -538,8 +538,8 @@ Not Verified
 <!-- ACTION -->
 <td>
 <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-<a href="/admin/customer/{{ customer['id'] }}" class="view">Manage</a>
-<form method="POST" action="/admin/customer/delete/{{ customer['id'] }}" onsubmit="return confirm('Move this customer to Deleted Accounts?')">
+<a href="{{ admin_base_path }}/admin/customer/{{ customer['id'] }}" class="view">Manage</a>
+<form method="POST" action="{{ admin_base_path }}/admin/customer/delete/{{ customer['id'] }}" onsubmit="return confirm('Move this customer to Deleted Accounts?')">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button type="submit" class="view" style="background:#fee2e2;color:#b91c1c;border:0;cursor:pointer">Delete</button>
 </form>

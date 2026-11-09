@@ -151,23 +151,9 @@ def admin_required(view_function):
             session.clear()
             return redirect(url_for("admin.admin_login"))
 
-        conn = get_db()
-        try:
-            cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT admin_id
-                FROM admin
-                WHERE admin_id=?
-                LIMIT 1
-                """,
-                (str(admin_id),),
-            )
-            admin = cur.fetchone()
-        finally:
-            conn.close()
-
-        if not admin:
+        # Admin access requires an active account and completed website MFA.
+        from utils.admin_mfa import is_admin_authorized
+        if not is_admin_authorized(str(admin_id)):
             session.clear()
             return redirect(url_for("admin.admin_login"))
 

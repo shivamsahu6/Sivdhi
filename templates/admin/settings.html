@@ -630,27 +630,27 @@
     <div class="menu-title">Overview</div>
 
     <nav class="nav">
-        <a href="/admin/dashboard">
+        <a href="{{ admin_base_path }}/admin/dashboard">
             <span class="nav-icon">▦</span>Dashboard
         </a>
 
-        <a href="/admin/workers">
+        <a href="{{ admin_base_path }}/admin/workers">
             <span class="nav-icon">👷</span>Workers
         </a>
 
-        <a href="/admin/partners">
+        <a href="{{ admin_base_path }}/admin/partners">
             <span class="nav-icon">🤝</span>Partners
         </a>
 
-        <a href="/admin/deleted-accounts">
+        <a href="{{ admin_base_path }}/admin/deleted-accounts">
             <span class="nav-icon">🗑️</span>Deleted Accounts
         </a>
 
-        <a href="/admin/jobs">
+        <a href="{{ admin_base_path }}/admin/jobs">
             <span class="nav-icon">💼</span>Jobs
         </a>
 
-        <a href="/admin/job-requests">
+        <a href="{{ admin_base_path }}/admin/job-requests">
             <span class="nav-icon">📋</span>Job Requests
         </a>
     </nav>
@@ -658,11 +658,11 @@
     <div class="menu-title">Finance</div>
 
     <nav class="nav">
-        <a href="/admin/wallet">
+        <a href="{{ admin_base_path }}/admin/wallet">
             <span class="nav-icon">💰</span>Wallet
         </a>
 
-        <a href="/admin/withdrawals">
+        <a href="{{ admin_base_path }}/admin/withdrawals">
             <span class="nav-icon">💸</span>Withdrawals
         </a>
     </nav>
@@ -670,15 +670,15 @@
     <div class="menu-title">Platform</div>
 
     <nav class="nav">
-        <a href="/admin/notifications">
+        <a href="{{ admin_base_path }}/admin/notifications">
             <span class="nav-icon">🔔</span>Notifications
         </a>
 
-        <a href="/admin/ratings">
+        <a href="{{ admin_base_path }}/admin/ratings">
             <span class="nav-icon">⭐</span>Ratings &amp; Reviews
         </a>
 
-        <a href="/admin/settings" class="active">
+        <a href="{{ admin_base_path }}/admin/settings" class="active">
             <span class="nav-icon">⚙️</span>Settings
         </a>
     </nav>
@@ -693,7 +693,7 @@
         </div>
 
         <nav class="nav">
-            <form method="post" action="/admin/logout" class="nav-logout-form">
+            <form method="post" action="{{ admin_base_path }}/admin/logout" class="nav-logout-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="nav-logout-button">
                     <span class="nav-icon">↪</span>Logout
@@ -764,7 +764,7 @@
                     Prices aur booking modes har subcategory par set hote hain.
                 </p>
 
-                <form id="categoryAddForm" method="post" action="/admin/categories/add">
+                <form id="categoryAddForm" method="post" action="{{ admin_base_path }}/admin/categories/add">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="price" value="0">
                     <input type="hidden" name="commission" value="0">
@@ -836,7 +836,7 @@
                             <summary>Edit category / enable modes</summary>
 
                             <form method="post"
-                                  action="/admin/categories/{{ c['id'] }}/edit"
+                                  action="{{ admin_base_path }}/admin/categories/{{ c['id'] }}/edit"
                                   class="grid categoryEditForm">
 
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -886,7 +886,7 @@
                             </form>
 
                             <form method="post"
-                                  action="/admin/categories/{{ c['id'] }}/delete"
+                                  action="{{ admin_base_path }}/admin/categories/{{ c['id'] }}/delete"
                                   onsubmit="return confirm('Agar subcategories linked hain to category disable hogi. Continue?')"
                                   class="actions">
 
@@ -914,7 +914,7 @@
                     Commission percentages isi service ke future bookings par apply honge.
                 </p>
 
-                <form id="subcategoryAddForm" method="post" action="/admin/services/add">
+                <form id="subcategoryAddForm" method="post" action="{{ admin_base_path }}/admin/services/add">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="commission" value="0">
                     <input type="hidden" name="visit_fee" value="0">
@@ -1009,7 +1009,7 @@
                             </div>
 
                             <div class="actions" style="margin-top:0">
-                                <form method="post" action="/admin/services/{{ s['id'] }}/toggle">
+                                <form method="post" action="{{ admin_base_path }}/admin/services/{{ s['id'] }}/toggle">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button class="btn small" type="submit">
                                         {% if s['active'] %}Disable{% else %}Enable{% endif %}
@@ -1022,7 +1022,7 @@
                             <summary>Edit subcategory</summary>
 
                             <form method="post"
-                                  action="/admin/services/{{ s['id'] }}/edit"
+                                  action="{{ admin_base_path }}/admin/services/{{ s['id'] }}/edit"
                                   class="grid subcategoryEditForm">
 
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1110,7 +1110,7 @@
                             </form>
 
                             <form method="post"
-                                  action="/admin/services/{{ s['id'] }}/delete"
+                                  action="{{ admin_base_path }}/admin/services/{{ s['id'] }}/delete"
                                   class="actions"
                                   onsubmit="return confirm('Delete this subcategory? If booking history exists, disable it instead.')">
 
@@ -1137,7 +1137,7 @@
                     separate Platform Fee.
                 </p>
 
-                <form id="commissionForm" method="post" action="/admin/settings"
+                <form id="commissionForm" method="post" action="{{ admin_base_path }}/admin/settings"
                       style="margin-top:15px">
 
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

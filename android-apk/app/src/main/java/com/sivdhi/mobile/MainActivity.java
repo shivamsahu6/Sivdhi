@@ -249,6 +249,14 @@ public class MainActivity extends Activity {
     @SuppressWarnings("SetJavaScriptEnabled")
     private void configureWebView() {
         WebSettings settings = webView.getSettings();
+        // Identifies requests coming from the native app so the server can
+        // apply the app-only persistent-session policy. This marker is not
+        // used as an authentication credential.
+        String appUserAgent = settings.getUserAgentString();
+        if (appUserAgent == null) appUserAgent = "";
+        if (!appUserAgent.contains("SivdhiAndroidApp/1.0")) {
+            settings.setUserAgentString(appUserAgent + " SivdhiAndroidApp/1.0");
+        }
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);

@@ -315,7 +315,7 @@ tr:hover{
 
     </div>
 
-    <a href="/admin/dashboard" class="back">
+    <a href="{{ admin_base_path }}/admin/dashboard" class="back">
         ← Dashboard
     </a>
 
@@ -512,7 +512,7 @@ tr:hover{
 <td>
 
 <a
-    href="/admin/job/{{ job['id'] }}"
+    href="{{ admin_base_path }}/admin/job/{{ job['id'] }}"
     class="view"
     aria-label="View job {{ job['booking_id'] or job['id'] }}"
 >

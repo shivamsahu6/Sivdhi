@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Admin Verification - Sivdhi</title>
+    <style>
+        *{box-sizing:border-box;font-family:Poppins,Arial,sans-serif}
+        body{margin:0;min-height:100vh;background:linear-gradient(135deg,#2563eb,#0f172a);display:flex;align-items:center;justify-content:center;padding:20px}
+        .card{width:100%;max-width:420px;background:#fff;padding:32px 28px;border-radius:22px;box-shadow:0 15px 40px rgba(0,0,0,.25)}
+        h1{font-size:23px;color:#111827;margin:0 0 8px;text-align:center}
+        p{color:#6b7280;line-height:1.6;font-size:14px;text-align:center}
+        label{display:block;margin:22px 0 8px;font-weight:600;color:#374151;font-size:14px}
+        input{width:100%;padding:15px;border:1px solid #d1d5db;border-radius:11px;font-size:18px;letter-spacing:3px;text-align:center}
+        button{width:100%;margin-top:17px;padding:15px;border:0;border-radius:11px;background:#2563eb;color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+        .flash{padding:11px;border-radius:10px;background:#fee2e2;color:#991b1b;margin:12px 0;font-size:14px}
+        .hint{margin-top:17px;background:#eff6ff;padding:12px;border-radius:10px;color:#1e40af;font-size:13px}
+    </style>
+</head>
+<body>
+<main class="card">
+    <h1>Admin identity verification</h1>
+    <p>Enter the current 6-digit code from your authenticator app. You may use one unused recovery code instead.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}<div class="flash">{{ message }}</div>{% endfor %}
+    {% endwith %}
+    <form method="post" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="code">Authenticator or recovery code</label>
+        <input id="code" name="code" type="text" inputmode="text" autocomplete="one-time-code" maxlength="32" required autofocus>
+        <button type="submit">Verify and open Admin</button>
+    </form>
+    <div class="hint">Verification sessions expire after 5 minutes. Recovery codes can each be used once.</div>
+</main>
+</body>
+</html>

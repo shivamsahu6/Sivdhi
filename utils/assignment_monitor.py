@@ -65,6 +65,21 @@ def reassign_minutes() -> int:
     )
 
 
+def assignment_batch_size() -> int:
+    """Number of eligible workers notified together for a booking."""
+    return _bounded_int("SIVDHI_ASSIGNMENT_BATCH_SIZE", 5, 1, 50)
+
+
+def assignment_batch_interval_seconds() -> int:
+    """Wait time before the next worker batch is opened."""
+    return _bounded_int(
+        "SIVDHI_ASSIGNMENT_BATCH_INTERVAL_SECONDS",
+        15,
+        1,
+        300,
+    )
+
+
 def ensure_assignment_monitor_schema(conn) -> None:
     """Create additive/idempotent monitor schema and required booking fields."""
     ensure_finance_schema(conn)
@@ -535,7 +550,7 @@ def _finalize_unassigned_booking(conn, booking) -> None:
 
     message = (
         f"Your booking {booking_ref} has been cancelled because no worker accepted it within one hour. "
-        + (f"A refund of ₹{amount:.2f} is pending Admin bank transfer. You will receive a separate confirmation after the transfer is completed." if paid and amount > 0 else
+        + (f"A refund request for ₹{amount:.2f} has been raised for the bank account linked to your Sivdhi profile. The Admin bank transfer is pending; you will receive a separate confirmation after the transfer is completed." if paid and amount > 0 else
            "No paid amount was found, so no refund is due.")
     )
     _notify(conn, "customer", customer_id, "Booking Cancelled", message)
@@ -971,7 +986,14 @@ def _booking_assignment_deadline(booking, now: datetime) -> datetime | None:
 
 
 def _discover_live_worker_offers(conn, booking, now: datetime) -> int:
-    """Offer an active booking to every newly eligible worker, without resetting its global deadline."""
+    """Open nearest-worker batches and rebalance the active response window.
+
+    A booking first goes to up to five nearest eligible workers. Every 15
+    seconds (or the configured interval), the next eligible workers can join.
+    Whenever the pool changes, all active offers share the remaining time
+    evenly. Their response deadlines may move earlier, but the booking's
+    original global deadline never changes.
+    """
     from routes.customer import (
         find_nearest_worker, get_booking_attempted_worker_ids, record_worker_attempt,
     )
@@ -989,27 +1011,67 @@ def _discover_live_worker_offers(conn, booking, now: datetime) -> int:
     except (TypeError, ValueError):
         current_worker = None
 
-    # Make the originally assigned worker part of the offer pool too.
-    active_rows = conn.execute(
-        "SELECT worker_id FROM booking_assignment_offers WHERE booking_db_id=? AND status='offered'",
+    now_text = now.isoformat(timespec="seconds")
+    # Close stale offers before counting the active pool. Otherwise workers
+    # who never opened an expired request would continue consuming response
+    # time and remain visible as if they could still accept it.
+    conn.execute(
+        "UPDATE booking_assignment_offers SET status='expired', responded_at=? "
+        "WHERE booking_db_id=? AND status='offered' AND response_deadline<=?",
+        (now_text, booking_id, now_text),
+    )
+    offer_rows = conn.execute(
+        "SELECT worker_id, offered_at FROM booking_assignment_offers WHERE booking_db_id=?",
         (booking_id,),
     ).fetchall()
-    offered_ids = {str(row[0]) for row in active_rows}
-    if current_worker is not None and str(current_worker) not in offered_ids:
-        partner_id = (booking["assigned_partner_id"] if "assigned_partner_id" in booking.keys() else None) or (booking["partner_id"] if "partner_id" in booking.keys() else None)
-        conn.execute(
-            "INSERT OR IGNORE INTO booking_assignment_offers(booking_db_id,worker_id,partner_id,status,offered_at,response_deadline) VALUES(?,?,?,'offered',?,?)",
-            (booking_id, current_worker, partner_id, now.isoformat(timespec="seconds"), deadline.isoformat(timespec="seconds")),
-        )
-        offered_ids.add(str(current_worker))
+    offered_ids = {str(row["worker_id"]) for row in offer_rows}
+
+    # Do not open a new group before the configured batch interval. Rejected
+    # and expired rows deliberately remain in this history so fast retries do
+    # not turn into a request blast.
+    last_offered_at = max(
+        (
+            _parse_datetime(row["offered_at"])
+            for row in offer_rows
+            if _parse_datetime(row["offered_at"]) is not None
+        ),
+        default=None,
+    )
+    if (
+        last_offered_at is not None
+        and now < last_offered_at + timedelta(seconds=assignment_batch_interval_seconds())
+    ):
+        return 0
 
     attempted = get_booking_attempted_worker_ids(conn, booking_id)
     excluded = {str(x) for x in attempted} | offered_ids
     mode = (booking["booking_type"] if "booking_type" in booking.keys() else None) or (booking["service_type"] if "service_type" in booking.keys() else None) or "normal"
+    batch_size = assignment_batch_size()
+    # `added` counts every newly inserted row for the current batch limit.
+    # `newly_eligible_added` excludes a legacy direct assignee that is being
+    # represented in the offer table for the first time.
     added = 0
+    newly_eligible_added = 0
     new_offers = []
-    # Repeated nearest-worker search yields all eligible workers in nearest-first order.
-    for _ in range(2000):
+
+    # Legacy bookings can have a single direct assignee created before the
+    # batch matcher was introduced. Include that worker in the first batch
+    # once, then treat every later request uniformly.
+    if current_worker is not None and str(current_worker) not in offered_ids:
+        partner_id = (booking["assigned_partner_id"] if "assigned_partner_id" in booking.keys() else None) or (booking["partner_id"] if "partner_id" in booking.keys() else None)
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO booking_assignment_offers(booking_db_id,worker_id,partner_id,status,offered_at,response_deadline) VALUES(?,?,?,'offered',?,?)",
+            (booking_id, current_worker, partner_id, now.isoformat(timespec="seconds"), deadline.isoformat(timespec="seconds")),
+        )
+        if cursor.rowcount == 1:
+            added += 1
+            offered_ids.add(str(current_worker))
+            excluded.add(str(current_worker))
+            new_offers.append((current_worker, partner_id))
+
+    # Repeated nearest-worker search returns the nearest remaining workers in
+    # order. Stop at this batch's limit; later batches are opened by the monitor.
+    while added < batch_size:
         candidate = find_nearest_worker(
             conn, booking["category"], booking["latitude"], booking["longitude"],
             excluded, exclude_booking_id=booking_id, mode=mode,
@@ -1028,59 +1090,48 @@ def _discover_live_worker_offers(conn, booking, now: datetime) -> int:
         if cursor.rowcount != 1:
             continue
         added += 1
+        newly_eligible_added += 1
         record_worker_attempt(conn, booking_id, worker_id, candidate.get("distance_km"), "offered")
         new_offers.append((worker_id, partner_id))
 
     if added:
-        # Re-divide only the remaining time among the currently offered workers.
-        # This never moves a response deadline beyond the booking's fixed deadline.
-        active = conn.execute(
-            "SELECT worker_id FROM booking_assignment_offers WHERE booking_db_id=? AND status='offered'",
+        # Re-divide the remaining global assignment time across the active pool.
+        # Per-worker response windows may move earlier, but the hard booking
+        # deadline remains the immutable deadline derived from created_at.
+        active_count = int(conn.execute(
+            "SELECT COUNT(*) FROM booking_assignment_offers WHERE booking_db_id=? AND status='offered'",
             (booking_id,),
-        ).fetchall()
-        remaining = max(1, int((deadline - now).total_seconds()))
-        slice_seconds = max(1, remaining // max(1, len(active)))
-        per_worker_deadline = min(deadline, now + timedelta(seconds=slice_seconds))
+        ).fetchone()[0] or 0)
+        remaining_seconds = max(1, int((deadline - now).total_seconds()))
+        allocated_seconds = max(1, remaining_seconds // max(1, active_count))
+        response_deadline = min(deadline, now + timedelta(seconds=allocated_seconds))
         conn.execute(
-            "UPDATE booking_assignment_offers SET response_deadline=?, allocation_started_at=? WHERE booking_db_id=? AND status='offered'",
-            (per_worker_deadline.isoformat(timespec="seconds"), now.isoformat(timespec="seconds"), booking_id),
+            "UPDATE booking_assignment_offers SET allocation_started_at=?, response_deadline=? WHERE booking_db_id=? AND status='offered'",
+            (now.isoformat(timespec="seconds"), response_deadline.isoformat(timespec="seconds"), booking_id),
         )
-        conn.execute(
-            "UPDATE bookings SET assignment_response_seconds=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-            (slice_seconds, booking_id),
-        )
+
         booking_ref = str(booking["booking_id"] or booking_id)
-        allocation_message = (
-            f"Booking {booking_ref}: your current response window is {_format_duration(slice_seconds)} and ends at "
-            f"{per_worker_deadline.strftime('%I:%M:%S %p')} IST. The booking's original one-hour deadline remains "
-            f"{deadline.strftime('%I:%M %p')} IST."
+        offer_message = (
+            f"Booking {booking_ref} is available to you. This request stays active until another worker accepts it "
+            f"or the matching window ends at {deadline.strftime('%I:%M %p')} IST. "
+            "The first worker whose acceptance reaches Sivdhi gets the booking."
         )
-        # Send the new request once, then update previously-offered workers and
-        # their partners because adding a worker changes the fair time split.
-        new_worker_ids = {str(worker_id) for worker_id, _ in new_offers}
-        new_partner_ids = {str(partner_id) for _, partner_id in new_offers if partner_id}
-        active_rows = conn.execute(
-            "SELECT worker_id, partner_id FROM booking_assignment_offers WHERE booking_db_id=? AND status='offered'",
-            (booking_id,),
-        ).fetchall()
         notified_partners = set()
-        for active_row in active_rows:
-            worker_id = int(active_row["worker_id"])
+        for worker_id, partner_id in new_offers:
             _notify_assignment_event(
                 conn, "worker", worker_id,
-                "New Booking Request" if str(worker_id) in new_worker_ids else "Response Time Updated",
-                allocation_message,
+                "New Booking Request",
+                offer_message,
             )
-            partner_id = active_row["partner_id"]
             partner_key = str(partner_id) if partner_id else ""
             if partner_key and partner_key not in notified_partners:
                 notified_partners.add(partner_key)
                 _notify_assignment_event(
                     conn, "partner", partner_id,
-                    "Eligible Worker Notified" if partner_key in new_partner_ids else "Assignment Time Updated",
-                    allocation_message,
+                    "Eligible Worker Notified",
+                    offer_message,
                 )
-    return added
+    return newly_eligible_added
 
 
 def _send_offer_pool_reminders(conn, booking, active_offers, now: datetime) -> None:
@@ -1126,37 +1177,11 @@ def _send_offer_pool_reminders(conn, booking, active_offers, now: datetime) -> N
 
 
 def _process_offer_pool(conn, booking, now: datetime) -> str | None:
-    """Keep simultaneous offers alive until their divided slice ends; then advance the pool."""
-    booking_id = int(booking["id"])
-    # Expire overdue offers before discovering new workers so a late arrival
-    # cannot accidentally reset an already-expired worker's response window.
-    conn.execute(
-        "UPDATE booking_assignment_offers SET status='expired', responded_at=? WHERE booking_db_id=? AND status='offered' AND response_deadline<=?",
-        (now.isoformat(timespec="seconds"), booking_id, now.isoformat(timespec="seconds")),
-    )
+    """Continue opening batches until the global deadline or first acceptance."""
     _discover_live_worker_offers(conn, booking, now)
-    active = conn.execute(
-        "SELECT * FROM booking_assignment_offers WHERE booking_db_id=? AND status='offered' ORDER BY offered_at, worker_id",
-        (booking_id,),
-    ).fetchall()
-    if not active:
-        return None
-    deadlines = [_parse_datetime(row["response_deadline"]) for row in active]
-    deadlines = [value for value in deadlines if value is not None]
-    if deadlines and now < min(deadlines):
-        _send_offer_pool_reminders(conn, booking, active, now)
-        return "waiting_offers"
-    # Some active offers may have a later deadline; do not advance the booking
-    # while any worker still has valid response time.
-    conn.execute(
-        "UPDATE booking_assignment_offers SET status='expired', responded_at=? WHERE booking_db_id=? AND status='offered' AND response_deadline<=?",
-        (now.isoformat(timespec="seconds"), booking_id, now.isoformat(timespec="seconds")),
-    )
-    remaining = conn.execute(
-        "SELECT 1 FROM booking_assignment_offers WHERE booking_db_id=? AND status='offered' LIMIT 1",
-        (booking_id,),
-    ).fetchone()
-    return "waiting_offers" if remaining else None
+    # Keep polling even when the current area has no eligible workers. A
+    # worker coming online inside the hour can still receive the next batch.
+    return "waiting_offers"
 
 
 def _process_one_booking(booking_db_id: int, now: datetime) -> str:

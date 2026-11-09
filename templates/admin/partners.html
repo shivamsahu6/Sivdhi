@@ -280,7 +280,7 @@ tr:hover{
 
     </div>
 
-    <a href="/admin/dashboard" class="back">
+    <a href="{{ admin_base_path }}/admin/dashboard" class="back">
         ← Dashboard
     </a>
 
@@ -440,7 +440,7 @@ Active
 <td>
 
 <a
-    href="/admin/partner/{{ partner['id'] }}"
+    href="{{ admin_base_path }}/admin/partner/{{ partner['id'] }}"
     class="view"
 >
     View

@@ -223,7 +223,7 @@
             <h1>Notifications</h1>
             <p>Manage Sivdhi platform notifications</p>
         </div>
-        <a href="/admin/dashboard" class="back">← Dashboard</a>
+        <a href="{{ admin_base_path }}/admin/dashboard" class="back">← Dashboard</a>
     </header>
     <div class="container">
         <div class="top">
@@ -263,7 +263,7 @@
                                     class="badge unread">Unread</span>{% endif %}</td>
                             <td>{{ notification['created_at'] or '-' }}</td>
                             <td>{% if not notification['is_read'] %}<form method="POST"
-                                    action="/admin/notifications/{{ notification['id'] }}/read">
+                                    action="{{ admin_base_path }}/admin/notifications/{{ notification['id'] }}/read">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn"
                                         type="submit">Mark Read</button></form>{% else %}<span
                                     class="muted">Completed</span>{% endif %}</td>

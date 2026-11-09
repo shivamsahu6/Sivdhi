@@ -322,7 +322,7 @@ tbody tr:last-child td{
 
     </div>
 
-    <a href="/admin/dashboard" class="back">
+    <a href="{{ admin_base_path }}/admin/dashboard" class="back">
         ← Dashboard
     </a>
 
@@ -448,7 +448,7 @@ tbody tr:last-child td{
 
             <form
                 method="POST"
-                action="/admin/worker/{{ worker['id'] }}/restore"
+                action="{{ admin_base_path }}/admin/worker/{{ worker['id'] }}/restore"
                 onsubmit="return confirm('Restore this worker account?')"
             >
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -462,7 +462,7 @@ tbody tr:last-child td{
 
             <form
                 method="POST"
-                action="/admin/worker/{{ worker['id'] }}/permanent-delete"
+                action="{{ admin_base_path }}/admin/worker/{{ worker['id'] }}/permanent-delete"
                 onsubmit="return confirm('This will permanently delete this worker. Continue?')"
             >
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -542,7 +542,7 @@ tbody tr:last-child td{
 
             <form
                 method="POST"
-                action="/admin/partner/{{ partner['id'] }}/restore"
+                action="{{ admin_base_path }}/admin/partner/{{ partner['id'] }}/restore"
                 onsubmit="return confirm('Restore this partner account?')"
             >
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -556,7 +556,7 @@ tbody tr:last-child td{
 
             <form
                 method="POST"
-                action="/admin/partner/{{ partner['id'] }}/permanent-delete"
+                action="{{ admin_base_path }}/admin/partner/{{ partner['id'] }}/permanent-delete"
                 onsubmit="return confirm('This will permanently delete this partner. Continue?')"
             >
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -585,8 +585,8 @@ tbody tr:last-child td{
   <td>{{ customer["mobile"] or "-" }}</td>
   <td>{{ customer["created_at"] or "-" }}</td>
   <td><div class="actions">
-    <form method="POST" action="/admin/customer/{{ customer['id'] }}/restore" onsubmit="return confirm('Restore this customer account?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn restore">↩ Restore</button></form>
-    <form method="POST" action="/admin/customer/{{ customer['id'] }}/permanent-delete" onsubmit="return confirm('Permanently delete this customer? This cannot be undone.')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn permanent">🗑 Delete</button></form>
+    <form method="POST" action="{{ admin_base_path }}/admin/customer/{{ customer['id'] }}/restore" onsubmit="return confirm('Restore this customer account?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn restore">↩ Restore</button></form>
+    <form method="POST" action="{{ admin_base_path }}/admin/customer/{{ customer['id'] }}/permanent-delete" onsubmit="return confirm('Permanently delete this customer? This cannot be undone.')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn permanent">🗑 Delete</button></form>
   </div></td>
 </tr>
 {% endfor %}

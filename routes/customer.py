@@ -11,7 +11,7 @@ import math
 import os
 import re
 import secrets
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from functools import wraps
 from urllib.parse import urlsplit
@@ -970,14 +970,23 @@ def _worker_is_active(worker, columns, allow_offline=False):
     # Self-managed workers remain eligible for 3 days after their last heartbeat.
     # A partner's explicit Online override also supports workers without a
     # smartphone/app session; an explicit Offline override is handled above.
-    if "last_seen_at" in columns and partner_override != 1:
+    if not allow_offline and "last_seen_at" in columns and partner_override != 1:
         last_seen = worker["last_seen_at"]
         if not last_seen:
             return False
         try:
-            raw = str(last_seen).strip().replace("Z", "")
-            seen = datetime.fromisoformat(raw[:19])
-            current = datetime.utcnow()
+            raw = str(last_seen).strip()
+            if raw.endswith("Z"):
+                raw = raw[:-1] + "+00:00"
+
+            seen = datetime.fromisoformat(raw)
+
+            if seen.tzinfo is None:
+                seen = seen.replace(tzinfo=timezone.utc)
+            else:
+                seen = seen.astimezone(timezone.utc)
+
+            current = datetime.now(timezone.utc)
             if (current - seen).total_seconds() > 3 * 24 * 60 * 60:
                 return False
             if seen > current + timedelta(minutes=2):
@@ -2487,8 +2496,6 @@ def payment():
 
         booking_id = booking_number()
         payment_id = payment_number()
-        worker_db_id = int(candidate["worker_db_id"])
-        partner_id = find_partner_for_worker(db, worker_db_id)
         partner_rate, platform_rate = get_commission_rates(db)
         if selected:
             try:
@@ -2540,26 +2547,25 @@ def payment():
             "advance_payment_status": advance_status,
             "balance_payment_status": "DUE" if balance_due > 0 else advance_status,
             "advance_payment_id": payment_id,
-            "booking_status": "assigned",
-            "status": "assigned",
+            # Matching starts with a simultaneous worker batch. No worker is
+            # pre-assigned before one of the live offers is accepted.
+            "booking_status": "pending",
+            "status": "pending",
             "booking_type": mode,
             "service_type": mode,
             "booking_date": valid_date,
             "booking_time": valid_time,
             "preferred_date": valid_date,
             "preferred_time": valid_time,
-            "worker_id": worker_db_id,
-            "assigned_worker_id": worker_db_id,
-            "partner_id": partner_id,
-            "assigned_partner_id": partner_id,
-            "assigned_at": _india_now().isoformat(timespec="seconds"),
-            # Split the one-hour assignment window evenly across all eligible workers
-            # in this service area; the same allocation is reused for each retry.
-            "assignment_response_seconds": response_seconds_for_count(count_eligible_workers(
-                db, category_name, latitude, longitude, mode=mode,
-                preferred_date=valid_date, preferred_time=valid_time,
-            )),
-            "partner_commission_percent": partner_rate if partner_id else 0,
+            "worker_id": None,
+            "assigned_worker_id": None,
+            "partner_id": None,
+            "assigned_partner_id": None,
+            "assigned_at": None,
+            "assignment_response_seconds": 3600,
+            # Preserve the configured split now; a partner is linked only
+            # after a worker accepts from the live offer batch.
+            "partner_commission_percent": partner_rate,
             "platform_commission_percent": platform_rate,
             "created_at": _india_now().isoformat(timespec="seconds"),
             "updated_at": _india_now().isoformat(timespec="seconds"),
@@ -2580,7 +2586,6 @@ def payment():
                 VALUES (?, ?, ?, ?)
             """, (booking_id, problem["id"], problem["name"], problem["price"]))
 
-        record_worker_attempt(db, booking_db_id, worker_db_id, candidate.get("distance_km"), "assigned")
         db.execute("""
             INSERT INTO customer_payment_records
                 (customer_id, booking_id, payment_id, amount, method, status, payment_type, is_demo)
@@ -2601,15 +2606,19 @@ def payment():
                 VALUES(?,?,?,?,0,CURRENT_TIMESTAMP)
             """, (user_type, str(user_id), title, message))
 
-        response_window = int(values.get("assignment_response_seconds") or 3600)
-        response_window_text = format_response_window(response_window)
+        # Start the first nearest-worker batch inside this transaction. This
+        # ensures the customer cannot see a confirmed booking before matching
+        # has begun and prevents a later monitor pass from sending duplicates.
+        from utils.assignment_monitor import _discover_live_worker_offers, _now_ist
+        matching_booking = db.execute(
+            "SELECT * FROM bookings WHERE id=? LIMIT 1", (booking_db_id,)
+        ).fetchone()
+        if matching_booking is None:
+            raise RuntimeError("New booking could not be loaded for worker matching")
+        _discover_live_worker_offers(db, matching_booking, _now_ist())
+
         customer_notice = (f"Your booking {booking_id} is confirmed.")
-        worker_notice = (f"Booking {booking_id} has been assigned to you. You have {response_window_text} to accept or reject this request. If you do not respond, the system will notify your partner and offer the booking to the next eligible worker. Once accepted, reach the customer's location within 1 hour, or at the later scheduled slot shown in the booking.")
         add_notification("customer", customer_row["id"], "Booking Confirmed", customer_notice)
-        add_notification("worker", worker_db_id, "New booking assigned", worker_notice)
-        if partner_id:
-            partner_notice = f"Worker assigned to booking {booking_id}. The worker has {response_window_text} to respond. If they do not respond, Sivdhi will notify you and reassign the booking to the next eligible worker."
-            add_notification("partner", partner_id, "Worker assigned to booking", partner_notice)
 
         db.commit()
 

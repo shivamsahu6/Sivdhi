@@ -3,7 +3,7 @@ import hmac
 import sqlite3
 from datetime import datetime
 from werkzeug.security import generate_password_hash
-from flask import render_template, abort
+from flask import render_template, abort, redirect, url_for
 
 import os
 from pathlib import Path
@@ -19,6 +19,13 @@ from config import Config
 from database import create_tables, get_db
 from routes.push import push_bp
 from utils.push_notifications import ensure_push_schema
+from utils.app_persistent_sessions import (
+    AppAwareSecureCookieSessionInterface,
+    after_app_request,
+    before_app_request,
+    ensure_app_session_schema,
+)
+from utils.admin_mfa import configure_admin_mfa_encryption, ensure_admin_security_schema
 
 # ==========================
 # Blueprints
@@ -27,7 +34,7 @@ from utils.push_notifications import ensure_push_schema
 from routes.auth import auth_bp
 from routes.worker import worker_bp
 from routes.partner import partner_bp
-from routes.admin import admin_bp, _ensure_admin_catalog_schema
+from routes.admin import admin_bp, _ensure_admin_catalog_schema, ADMIN_PANEL_BASE
 from routes.customer import customer_bp
 
 # ==========================
@@ -36,6 +43,11 @@ from routes.customer import customer_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
+# Customer, worker and partner sessions are long-lived and server-revocable.
+# Admin keeps its separate short MFA session policy.
+app.session_interface = AppAwareSecureCookieSessionInterface()
+app.before_request(before_app_request)
+app.after_request(after_app_request)
 
 # Trust proxy headers only when explicitly configured.
 try:
@@ -60,12 +72,15 @@ if trusted_proxy_hops:
 csrf = CSRFProtect(app)
 
 
-@app.route("/setup-admin", methods=["GET", "POST"])
+@app.route(f"{ADMIN_PANEL_BASE}/bootstrap", methods=["GET", "POST"])
 def temporary_admin_setup():
     """One-time, secret-protected admin bootstrap; remove after use."""
     setup_key = os.getenv("ADMIN_SETUP_KEY", "").strip()
 
-    if len(setup_key) < 32:
+    if (
+        len(setup_key) < 32
+        or setup_key.lower().startswith(("replace-", "change-me"))
+    ):
         abort(404)
 
     conn = get_db()
@@ -170,9 +185,37 @@ def health_check():
         return jsonify({"status": "unavailable"}), 503
 
 
+@app.get("/")
+def customer_entrypoint():
+    """Make the public Sivdhi URL the customer entry point."""
+    if session.get("customer_id"):
+        return redirect(url_for("customer.home"))
+    return redirect(url_for("customer.login"))
+
+
+@app.get("/worker-partner/login")
+def worker_partner_entrypoint():
+    """Canonical entry point for the shared Worker/Partner Android app."""
+    return redirect(url_for("auth.choose_role"))
+
+
+@app.get("/worker/login")
+def worker_entrypoint():
+    return redirect(url_for("auth.login", role="worker"))
+
+
+@app.get("/partner/login")
+def partner_entrypoint():
+    return redirect(url_for("auth.login", role="partner"))
+
+
 @app.after_request
 def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    if request.blueprint == "admin" or request.path == f"{ADMIN_PANEL_BASE}/bootstrap":
+        response.headers.setdefault("X-Robots-Tag", "noindex, nofollow, noarchive")
+        response.headers.setdefault("Cache-Control", "no-store, max-age=0, private")
+        response.headers.setdefault("Pragma", "no-cache")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault(
         "Referrer-Policy",
@@ -239,6 +282,24 @@ app.secret_key = Config.SECRET_KEY
 # Create base tables first.
 create_tables()
 
+# Admin MFA uses an independent persistent encryption key and additive tables.
+# In production the key must be supplied through ADMIN_MFA_ENCRYPTION_KEY.
+configure_admin_mfa_encryption()
+_admin_security_conn = get_db()
+try:
+    ensure_admin_security_schema(_admin_security_conn)
+    _admin_security_conn.commit()
+finally:
+    _admin_security_conn.close()
+
+# Server-side revocation ledger used only by the native Android app sessions.
+_app_session_schema_conn = get_db()
+try:
+    ensure_app_session_schema(_app_session_schema_conn)
+    _app_session_schema_conn.commit()
+finally:
+    _app_session_schema_conn.close()
+
 # Add push-token and transactional outbox tables without altering existing users.
 _push_schema_conn = get_db()
 try:
@@ -290,13 +351,19 @@ def inject_service_categories():
             """
         ).fetchall()
 
-        return {"service_categories_global": rows}
+        return {
+            "service_categories_global": rows,
+            "admin_base_path": ADMIN_PANEL_BASE,
+        }
 
     except Exception:
         current_app.logger.exception(
             "Could not load global service categories"
         )
-        return {"service_categories_global": []}
+        return {
+            "service_categories_global": [],
+            "admin_base_path": ADMIN_PANEL_BASE,
+        }
 
     finally:
         if conn is not None:

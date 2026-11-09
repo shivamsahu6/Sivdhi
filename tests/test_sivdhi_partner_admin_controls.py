@@ -13,7 +13,7 @@ def test_partner_controls_worker_availability_without_worker_heartbeat():
     assert "partner_availability_override" in partner
     assert "partner_availability_override" in worker
     assert "3 * 24 * 60 * 60" in customer
-    assert 'if "last_seen_at" in columns and partner_override != 1' in customer
+    assert 'if not allow_offline and "last_seen_at" in columns and partner_override != 1' in customer
 
 def test_partner_can_control_all_four_job_actions():
     partner = source("routes/partner.py")

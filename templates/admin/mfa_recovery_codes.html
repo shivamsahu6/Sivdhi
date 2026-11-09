@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Save Admin Recovery Codes - Sivdhi</title>
+    <style>
+        *{box-sizing:border-box;font-family:Poppins,Arial,sans-serif}
+        body{margin:0;min-height:100vh;background:linear-gradient(135deg,#2563eb,#0f172a);display:flex;align-items:center;justify-content:center;padding:20px}
+        .card{width:100%;max-width:520px;background:#fff;padding:30px;border-radius:22px;box-shadow:0 15px 40px rgba(0,0,0,.25)}
+        h1{font-size:23px;color:#111827;margin:0 0 8px;text-align:center}
+        p{color:#4b5563;line-height:1.6;font-size:14px}
+        .warning{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:12px;padding:13px;font-size:13px}
+        .codes{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:20px 0}
+        code{display:block;background:#f3f4f6;padding:12px;border-radius:9px;text-align:center;font-size:14px;font-weight:700;letter-spacing:1px;color:#111827}
+        button,.link{display:block;width:100%;padding:14px;border:0;border-radius:11px;background:#2563eb;color:#fff;font-weight:700;text-align:center;text-decoration:none;cursor:pointer}
+        button{margin-bottom:12px}
+    </style>
+</head>
+<body>
+<main class="card">
+    <h1>Save your recovery codes</h1>
+    <p>MFA is now enabled. Each code below can be used once if your authenticator is unavailable.</p>
+    <div class="warning"><strong>Important:</strong> These codes are shown only once. Save them in a private password manager or another secure offline location. Do not share them.</div>
+    <div class="codes" id="recoveryCodes">
+      {% for code in recovery_codes %}<code>{{ code }}</code>{% endfor %}
+    </div>
+    <button type="button" onclick="copyCodes()">Copy recovery codes</button>
+    <a class="link" href="{{ admin_base_path }}/admin/dashboard">Continue to Admin Dashboard</a>
+</main>
+<script>
+function copyCodes(){
+  const values = Array.from(document.querySelectorAll('#recoveryCodes code')).map(el => el.textContent).join('\n');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(values).then(() => alert('Recovery codes copied. Store them privately.'));
+  } else {
+    alert('Please select and copy the recovery codes manually.');
+  }
+}
+</script>
+</body>
+</html>

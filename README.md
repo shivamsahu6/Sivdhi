@@ -8,7 +8,7 @@
 5. For production WSGI deployments, run the assignment monitor as a separate always-on process: `python -m utils.assignment_monitor`. The in-process monitor starts when `app.py` is run directly, but multi-worker WSGI deployments should not rely on a per-web-worker daemon.
 
 ## Assignment timing
-The system divides the 60-minute assignment budget by the eligible worker count. During each assigned worker's response window, reminders are issued at one-third and two-thirds of the allotted time. When the response deadline expires, reassignment starts immediately. For example, six eligible workers means a 10-minute response window; reminders are sent around 3m20s and 6m40s, then the next eligible worker is attempted at the 10-minute deadline.
+The system sends a booking request to the five nearest eligible workers together. Every 15 seconds it adds the next five nearest workers, while every earlier request stays active. The first worker whose acceptance reaches the server receives the booking; all other pending offers stop immediately. If nobody accepts within the fixed 60-minute window, the booking is cancelled and the customer receives an in-app notification and email with the refund-request status.
 
 ## Email
 In-app notifications are stored in the database. Email is queued in the transactional outbox and sent by the assignment monitor. Configure valid SMTP credentials in `.env`; delivery cannot be guaranteed without working SMTP credentials.

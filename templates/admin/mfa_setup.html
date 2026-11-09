@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Secure Admin Setup - Sivdhi</title>
+    <style>
+        *{box-sizing:border-box;font-family:Poppins,Arial,sans-serif}
+        body{margin:0;min-height:100vh;background:linear-gradient(135deg,#2563eb,#0f172a);display:flex;align-items:center;justify-content:center;padding:20px}
+        .card{width:100%;max-width:520px;background:#fff;padding:30px;border-radius:22px;box-shadow:0 15px 40px rgba(0,0,0,.25)}
+        h1{font-size:23px;color:#111827;margin:0 0 8px;text-align:center}
+        p{color:#4b5563;line-height:1.6;font-size:14px}
+        .step{background:#eff6ff;color:#1e40af;padding:13px;border-radius:12px;margin:18px 0;font-size:14px}
+        .secret{font-family:monospace;font-size:18px;font-weight:700;letter-spacing:2px;word-break:break-all;background:#f3f4f6;padding:16px;border-radius:12px;text-align:center;color:#111827}
+        label{display:block;margin:18px 0 7px;font-weight:600;color:#374151;font-size:14px}
+        input{width:100%;padding:14px;border:1px solid #d1d5db;border-radius:11px;font-size:18px;letter-spacing:4px;text-align:center}
+        button,.link{display:block;width:100%;margin-top:16px;padding:14px;border:0;border-radius:11px;background:#2563eb;color:#fff;font-weight:700;text-align:center;text-decoration:none;cursor:pointer}
+        .warning{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:12px;padding:13px;font-size:13px}
+        .flash{padding:11px;border-radius:10px;background:#fee2e2;color:#991b1b;margin:12px 0;font-size:14px}
+        .uri{font-size:11px;word-break:break-all;color:#6b7280;background:#f9fafb;padding:10px;border-radius:8px}
+    </style>
+</head>
+<body>
+<main class="card">
+    <h1>Secure your Sivdhi Admin account</h1>
+    <p>Two-step verification is required before the Admin dashboard can open.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}<div class="flash">{{ message }}</div>{% endfor %}
+    {% endwith %}
+    <div class="step"><strong>Step 1.</strong> Open Google Authenticator, Microsoft Authenticator, or another TOTP-compatible authenticator app. Choose the option to add an account using a setup key.</div>
+    <p><strong>Account:</strong> Sivdhi Admin</p>
+    <p><strong>Setup key (enter exactly):</strong></p>
+    <div class="secret">{{ secret }}</div>
+    <p class="warning">Keep this setup key private. Do not send it to anyone or save it in a public place.</p>
+    <p><strong>Step 2.</strong> Enter the current 6-digit code shown in your authenticator app to confirm that setup is working.</p>
+    <form method="post" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="code">6-digit authenticator code</label>
+        <input id="code" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" required>
+        <button type="submit">Enable MFA and continue</button>
+    </form>
+    <p class="uri">Authenticator URI (advanced): {{ provisioning_uri }}</p>
+</main>
+</body>
+</html>

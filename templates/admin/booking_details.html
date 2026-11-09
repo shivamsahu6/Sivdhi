@@ -236,7 +236,7 @@ button:hover{
 
 
     <a
-        href="/admin/bookings"
+        href="{{ admin_base_path }}/admin/bookings"
         class="back"
     >
         ← Bookings
@@ -413,7 +413,7 @@ Payment Status
 
 <form
     method="POST"
-    action="/admin/booking/{{ booking['id'] }}/status"
+    action="{{ admin_base_path }}/admin/booking/{{ booking['id'] }}/status"
 >
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -526,7 +526,7 @@ Update Status
         <p style="margin:14px 0;padding:12px;border-radius:10px;background:#fff7ed;color:#9a3412;line-height:1.5;font-size:14px;">
             Transfer ₹{{ '%.2f'|format(paid_total) }} to the customer's bank account first. Click the button only after the bank transfer is complete. This action records the refund and sends the customer an email and notification; it does not transfer money.
         </p>
-        <form method="post" action="/admin/booking/{{ booking['id'] }}/refund"
+        <form method="post" action="{{ admin_base_path }}/admin/booking/{{ booking['id'] }}/refund"
               onsubmit="return confirm('Have you already transferred ₹{{ '%.2f'|format(paid_total) }} to the customer bank account? Only confirm after the transfer is complete.');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label for="refund_reference">Bank transaction reference (optional)</label>

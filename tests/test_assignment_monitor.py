@@ -466,5 +466,17 @@ def test_newly_eligible_worker_joins_live_booking_without_resetting_deadline(mon
         assert all(datetime.fromisoformat(row["response_deadline"]) == expected_deadline for row in offers)
         assert _booking_assignment_deadline(booking, join_time) == start + timedelta(minutes=60)
         assert conn.execute("SELECT COUNT(*) FROM notification_email_outbox WHERE recipient IN ('w1@example.com','w2@example.com')").fetchone()[0] >= 2
+
+        # At the rebalanced response deadline, stale offers are closed even
+        # when a worker never opened the request or clicked Reject.
+        expiry_time = start + timedelta(minutes=40)
+        booking = conn.execute("SELECT * FROM bookings WHERE id=1").fetchone()
+        assert _discover_live_worker_offers(conn, booking, expiry_time) == 0
+        offer_statuses = {
+            row[0] for row in conn.execute(
+                "SELECT status FROM booking_assignment_offers WHERE booking_db_id=1"
+            ).fetchall()
+        }
+        assert offer_statuses == {"expired"}
     finally:
         conn.close()

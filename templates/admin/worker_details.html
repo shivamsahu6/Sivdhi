@@ -304,7 +304,7 @@ body{
 
     </div>
 
-    <a href="/admin/workers" class="back">
+    <a href="{{ admin_base_path }}/admin/workers" class="back">
         ← Workers
     </a>
 
@@ -775,7 +775,7 @@ body{
 
     <form
         method="POST"
-        action="/admin/worker/{{ worker['id'] }}/activate"
+        action="{{ admin_base_path }}/admin/worker/{{ worker['id'] }}/activate"
         style="display:inline;"
     >
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -795,7 +795,7 @@ body{
 
     <form
         method="POST"
-        action="/admin/worker/{{ worker['id'] }}/suspend"
+        action="{{ admin_base_path }}/admin/worker/{{ worker['id'] }}/suspend"
         style="display:inline;"
         onsubmit="
             return confirm(

@@ -19,3 +19,22 @@
 - Jinja parse passed for admin customer list, customer details, deleted accounts, and dashboard templates.
 - SQLite migration and simulated suspend/delete/restore semantics passed on a disposable copy of the bundled database; existing customer rows were preserved.
 - Full Flask route/browser integration test was not run in this environment because Flask is not installed here. Email delivery is unrelated to this admin UI addition and was not tested in this run.
+
+## Clean source package audit — 2026-11-09
+
+- Retained the ZIP-root Sivdhi project as the sole source tree; removed nested duplicate project copies and local-only/backup artifacts from the clean package.
+- Corrected live assignment offer handling: active offer response windows are rebalanced when new eligible workers join, while the original global booking deadline remains fixed; response-expired offers are marked expired even when the worker did not open the request.
+- Clarified the customer cancellation notice: it uses the `Booking Cancelled` title and states that the Admin bank transfer is pending; the application does not claim that an automatic bank refund has occurred.
+- Executable test subset: **74 passed** across Admin MFA, assignment monitor, authentication-template/static checks, booking schedule, finance, login security, OTP security, payment policy, partner/admin controls, and static security.
+- Python AST/syntax checks: **37/37 passed**. Jinja template parse: **111/111 passed**.
+- Full test collection remains environment-blocked for `test_admin_route_security.py`, `test_app_persistent_sessions.py`, `test_customer_category_visibility.py`, and `test_push_notifications.py` because Flask is not installed in this audit container.
+- The recovered authentication artifact `routes/_auth_recovered.pyc` is compiled for CPython 3.14; this audit container runs Python 3.13.5, so authentication runtime and full Flask startup could not be verified here. Run the complete suite under the project's Python 3.14 environment with the requirements installed before production deployment.
+- Real SMTP/FCM delivery and Android Gradle builds were not exercised in this environment; these require the configured provider credentials/Firebase project and the Gradle toolchain.
+
+## Full Windows Python 3.14 test run — 2026-11-09
+
+- After installing the declared project dependencies and `pytest`, the first full collection exposed a missing Windows IANA timezone database (`Asia/Kolkata`). `tzdata>=2025.2` is now declared in `requirements.txt` so the timezone data is installed with the application dependencies on Windows.
+- The Android session-lifetime regression test fixture now includes a test-only `sivdhi_app_session_id`, matching the production rule that 365-day Android cookie lifetime is granted only to a session with a server-issued persistent-session token. No production session-policy code was weakened or changed for this test correction.
+- User-reported full test command: `python -m pytest -q -ra` under the project's Windows Python 3.14 virtual environment. Result: **93 passed in 4.86s**.
+- The same run had no failures, collection errors, skips, or xfails in the displayed pytest summary.
+- This run verifies the repository's automated tests. It does not by itself verify real SMTP/FCM delivery, production secrets, Android Gradle builds, or a live browser/device end-to-end deployment.

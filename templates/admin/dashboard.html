@@ -159,24 +159,24 @@ body{background:var(--bg);color:var(--text)}
     </div>
     <div class="menu-title">Overview</div>
     <nav class="nav">
-        <a href="/admin/dashboard" class="active"><span class="nav-icon">▦</span>Dashboard</a>
-        <a href="/admin/workers"><span class="nav-icon">👷</span>Workers</a>
-        <a href="/admin/partners"><span class="nav-icon">🤝</span>Partners</a>
-        <a href="/admin/customers"><span class="nav-icon">👥</span>Customers</a>
-        <a href="/admin/deleted-accounts"><span class="nav-icon">🗑️</span>Deleted Accounts</a>
-        <a href="/admin/jobs"><span class="nav-icon">💼</span>Jobs</a>
-        <a href="/admin/job-requests"><span class="nav-icon">📋</span>Job Requests</a>
+        <a href="{{ admin_base_path }}/admin/dashboard" class="active"><span class="nav-icon">▦</span>Dashboard</a>
+        <a href="{{ admin_base_path }}/admin/workers"><span class="nav-icon">👷</span>Workers</a>
+        <a href="{{ admin_base_path }}/admin/partners"><span class="nav-icon">🤝</span>Partners</a>
+        <a href="{{ admin_base_path }}/admin/customers"><span class="nav-icon">👥</span>Customers</a>
+        <a href="{{ admin_base_path }}/admin/deleted-accounts"><span class="nav-icon">🗑️</span>Deleted Accounts</a>
+        <a href="{{ admin_base_path }}/admin/jobs"><span class="nav-icon">💼</span>Jobs</a>
+        <a href="{{ admin_base_path }}/admin/job-requests"><span class="nav-icon">📋</span>Job Requests</a>
     </nav>
     <div class="menu-title">Finance</div>
     <nav class="nav">
-        <a href="/admin/wallet"><span class="nav-icon">💰</span>Wallet</a>
-        <a href="/admin/withdrawals"><span class="nav-icon">💸</span>Withdrawals</a>
+        <a href="{{ admin_base_path }}/admin/wallet"><span class="nav-icon">💰</span>Wallet</a>
+        <a href="{{ admin_base_path }}/admin/withdrawals"><span class="nav-icon">💸</span>Withdrawals</a>
     </nav>
     <div class="menu-title">Platform</div>
     <nav class="nav">
-        <a href="/admin/notifications"><span class="nav-icon">🔔</span>Notifications</a>
-        <a href="/admin/ratings"><span class="nav-icon">⭐</span>Ratings &amp; Reviews</a>
-        <a href="/admin/settings"><span class="nav-icon">⚙️</span>Settings</a>
+        <a href="{{ admin_base_path }}/admin/notifications"><span class="nav-icon">🔔</span>Notifications</a>
+        <a href="{{ admin_base_path }}/admin/ratings"><span class="nav-icon">⭐</span>Ratings &amp; Reviews</a>
+        <a href="{{ admin_base_path }}/admin/settings"><span class="nav-icon">⚙️</span>Settings</a>
     </nav>
     <div class="sidebar-bottom">
         <div class="admin-mini">
@@ -187,7 +187,7 @@ body{background:var(--bg);color:var(--text)}
             </div>
         </div>
         <nav class="nav">
-            <form method="post" action="/admin/logout" class="nav-logout-form">
+            <form method="post" action="{{ admin_base_path }}/admin/logout" class="nav-logout-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="nav-logout-button">
                     <span class="nav-icon">↪</span>Logout
@@ -252,7 +252,7 @@ body{background:var(--bg);color:var(--text)}
         <div class="kpi-top"><div class="kpi-icon purple">👤</div><div class="kpi-menu">⋮</div></div>
         <div class="kpi-label">Total Customers</div>
         <div class="kpi-number">{{ total_customers|default(0) }}</div>
-        <div class="kpi-bottom"><span class="up">Manage</span><a href="/admin/customers" style="color:inherit;text-decoration:none">customer accounts →</a></div>
+        <div class="kpi-bottom"><span class="up">Manage</span><a href="{{ admin_base_path }}/admin/customers" style="color:inherit;text-decoration:none">customer accounts →</a></div>
     </div>
     <div class="kpi">
         <div class="kpi-top"><div class="kpi-icon orange">💼</div><div class="kpi-menu">⋮</div></div>
@@ -277,7 +277,7 @@ body{background:var(--bg);color:var(--text)}
     <div class="panel">
         <div class="panel-head">
             <div><h3>Platform Activity</h3><p>Monthly overview</p></div>
-            <a href="/admin/jobs" class="view">View details →</a>
+            <a href="{{ admin_base_path }}/admin/jobs" class="view">View details →</a>
         </div>
         <div class="chart-area">
             <div class="chart-column"><div class="bar-wrap"><div class="bar" style="height:35%;"></div></div><small>Jan</small></div>
@@ -336,35 +336,35 @@ body{background:var(--bg);color:var(--text)}
     <div class="panel">
         <div class="panel-head">
             <div><h3>Pending Approvals</h3><p>Requires your attention</p></div>
-            <a href="/admin/withdrawals" class="view">View all →</a>
+            <a href="{{ admin_base_path }}/admin/withdrawals" class="view">View all →</a>
         </div>
         <div class="approval-list">
             <div class="approval">
                 <div class="approval-avatar">💸</div>
                 <div class="approval-info"><strong>Withdraw Requests</strong><span>{{ total_withdrawals|default(0) }} pending</span></div>
-                <a href="/admin/withdrawals" class="approve-btn">Review</a>
+                <a href="{{ admin_base_path }}/admin/withdrawals" class="approve-btn">Review</a>
             </div>
             <div class="approval">
                 <div class="approval-avatar">📋</div>
                 <div class="approval-info"><strong>Job Requests</strong><span>{{ total_job_requests|default(0) }} requests</span></div>
-                <a href="/admin/job-requests" class="approve-btn">Review</a>
+                <a href="{{ admin_base_path }}/admin/job-requests" class="approve-btn">Review</a>
             </div>
             <div class="approval">
                 <div class="approval-avatar">🗑️</div>
                 <div class="approval-info"><strong>Deleted Accounts</strong><span>{{ deleted_accounts|default(0) }} accounts</span></div>
-                <a href="/admin/deleted-accounts" class="approve-btn">Manage</a>
+                <a href="{{ admin_base_path }}/admin/deleted-accounts" class="approve-btn">Manage</a>
             </div>
         </div>
     </div>
 </div>
 
 <div class="quick">
-    <a href="/admin/workers"><div class="quick-icon">👷</div><strong>Manage Workers</strong><span>View all workers</span></a>
-    <a href="/admin/partners"><div class="quick-icon">🤝</div><strong>Manage Partners</strong><span>View all partners</span></a>
-    <a href="/admin/customers"><div class="quick-icon">👥</div><strong>Manage Customers</strong><span>View and manage customer accounts</span></a>
-    <a href="/admin/deleted-accounts"><div class="quick-icon">🗑️</div><strong>Deleted Accounts</strong><span>Restore or permanently delete</span></a>
-    <a href="/admin/jobs"><div class="quick-icon">💼</div><strong>Manage Jobs</strong><span>View platform jobs</span></a>
-    <a href="/admin/withdrawals"><div class="quick-icon">💸</div><strong>Withdrawals</strong><span>Review payments</span></a>
+    <a href="{{ admin_base_path }}/admin/workers"><div class="quick-icon">👷</div><strong>Manage Workers</strong><span>View all workers</span></a>
+    <a href="{{ admin_base_path }}/admin/partners"><div class="quick-icon">🤝</div><strong>Manage Partners</strong><span>View all partners</span></a>
+    <a href="{{ admin_base_path }}/admin/customers"><div class="quick-icon">👥</div><strong>Manage Customers</strong><span>View and manage customer accounts</span></a>
+    <a href="{{ admin_base_path }}/admin/deleted-accounts"><div class="quick-icon">🗑️</div><strong>Deleted Accounts</strong><span>Restore or permanently delete</span></a>
+    <a href="{{ admin_base_path }}/admin/jobs"><div class="quick-icon">💼</div><strong>Manage Jobs</strong><span>View platform jobs</span></a>
+    <a href="{{ admin_base_path }}/admin/withdrawals"><div class="quick-icon">💸</div><strong>Withdrawals</strong><span>Review payments</span></a>
 </div>
 </section>
 </main>
@@ -407,7 +407,7 @@ searchInput.addEventListener('input',function(){
         return;
     }
 
-    searchTimer=setTimeout(()=>fetch('/admin/search?q='+encodeURIComponent(q),{credentials:'same-origin'})
+    searchTimer=setTimeout(()=>fetch('{{ admin_base_path }}/admin/search?q='+encodeURIComponent(q),{credentials:'same-origin'})
         .then(r=>{
             if(!r.ok) throw new Error('Search unavailable');
             return r.json();

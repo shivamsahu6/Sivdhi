@@ -499,7 +499,7 @@
                 <p>Category & service catalog</p>
             </div>
         </div>
-        <a class="back" href="/admin/services">← Back to services</a>
+        <a class="back" href="{{ admin_base_path }}/admin/services">← Back to services</a>
     </header>
 
     <main>
@@ -627,7 +627,7 @@
                     <div class="actions">
                         <button class="button primary" type="submit">{% if service %}Save subcategory changes{% else
                             %}Create subcategory{% endif %}</button>
-                        <a class="button secondary" href="/admin/services">Cancel</a>
+                        <a class="button secondary" href="{{ admin_base_path }}/admin/services">Cancel</a>
                     </div>
                 </form>
             </section>

@@ -95,13 +95,12 @@
 
       <div class="success">
         Account saved.
-        Go to <a href="/admin/login">Admin Login</a>.
+        Go to <a href="{{ admin_base_path }}/admin/login">Admin Login</a>.
       </div>
 
       <p class="hint">
-        अब project से temporary /setup-admin route और यह HTML file
-        हटाकर दोबारा deploy करें। Render Environment से
-        ADMIN_SETUP_KEY भी हटा दें।
+        First Admin account बन चुका है। यह bootstrap page अब server पर 404 देगा।
+        सुरक्षा के लिए server environment से ADMIN_SETUP_KEY हटा दें।
       </p>
 
     {% else %}

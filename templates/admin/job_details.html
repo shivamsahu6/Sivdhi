@@ -364,7 +364,7 @@ body{
 
 </div>
 
-<a href="/admin/jobs" class="back">
+<a href="{{ admin_base_path }}/admin/jobs" class="back">
     ← Jobs
 </a>
 
@@ -696,13 +696,13 @@ body{
 
 <div class="actions">
 
-<a href="/admin/jobs" class="btn back-btn">
+<a href="{{ admin_base_path }}/admin/jobs" class="btn back-btn">
     ← Back to Jobs
 </a>
 
 {% set current_status = job["status"] or "pending" %}
 
-<form method="POST" action="/admin/booking/{{ job['id'] }}/status" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+<form method="POST" action="{{ admin_base_path }}/admin/booking/{{ job['id'] }}/status" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label for="admin-status" style="font-weight:700;color:#475569;">Status</label>
     <select id="admin-status" name="status" required style="padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;background:white;font-weight:600;">
