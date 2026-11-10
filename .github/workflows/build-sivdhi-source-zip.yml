@@ -11,6 +11,16 @@ on:
       - 'requirements.txt'
       - 'tests/**'
       - '.github/workflows/build-sivdhi-source-zip.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**.py'
+      - 'templates/**'
+      - 'static/**'
+      - 'requirements.txt'
+      - 'tests/**'
+      - '.github/workflows/build-sivdhi-source-zip.yml'
   workflow_dispatch:
 
 permissions:
