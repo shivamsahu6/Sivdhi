@@ -1,24 +1,44 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-IN">
 
 <head>
-    <link rel="manifest" href="/static/pwa/workpartner/manifest.json">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/static/pwa/workpartner/manifest.json">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/pwa/workpartner/icon-512.png">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {% if role == "worker" %}
     <title>Sivdhi Worker Login | Worker Account Access</title>
     <meta name="description" content="Sign in to your Sivdhi Worker account to manage assigned service bookings and your work profile.">
     <link rel="canonical" href="https://sivdhi.duckdns.org/login?role=worker">
+    <meta property="og:title" content="Sivdhi Worker Login | Worker Account Access">
+    <meta property="og:description" content="Sign in to your Sivdhi Worker account to manage assigned service bookings and your work profile.">
+    <meta property="og:url" content="https://sivdhi.duckdns.org/login?role=worker">
+    <meta name="twitter:title" content="Sivdhi Worker Login | Worker Account Access">
+    <meta name="twitter:description" content="Sign in to your Sivdhi Worker account to manage assigned service bookings and your work profile.">
     {% else %}
     <title>Sivdhi Partner Login | Referral Partner Account Access</title>
     <meta name="description" content="Sign in to your Sivdhi Referral Partner account to manage your partner profile, workers and service activity.">
     <link rel="canonical" href="https://sivdhi.duckdns.org/login?role=partner">
+    <meta property="og:title" content="Sivdhi Partner Login | Referral Partner Account Access">
+    <meta property="og:description" content="Sign in to your Sivdhi Referral Partner account to manage your partner profile, workers and service activity.">
+    <meta property="og:url" content="https://sivdhi.duckdns.org/login?role=partner">
+    <meta name="twitter:title" content="Sivdhi Partner Login | Referral Partner Account Access">
+    <meta name="twitter:description" content="Sign in to your Sivdhi Referral Partner account to manage your partner profile, workers and service activity.">
     {% endif %}
     <meta name="robots" content="index,follow">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Sivdhi">
+    <meta property="og:locale" content="en_IN">
+    <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/workpartner/icon-512.png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="Sivdhi Worker and Partner app icon">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/pwa/workpartner/icon-512.png">
+    <meta name="twitter:image:alt" content="Sivdhi Worker and Partner app icon">
 
     <style>
         * {
@@ -63,7 +83,7 @@
             color: #2563eb;
         }
 
-        h2 {
+        h1 {
             text-align: center;
             margin-bottom: 10px;
         }
@@ -194,13 +214,13 @@
             S
         </div>
 
-        <h2>
+        <h1>
             {% if role == "worker" %}
                 Worker Login
             {% else %}
                 Referral Partner Login
             {% endif %}
-        </h2>
+        </h1>
 
         <p>
             Welcome Back
