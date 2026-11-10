@@ -65,7 +65,6 @@ jobs:
                "*.p12" \
                "*.keystore" \
                "**/__pycache__/*" \
-               "**/*.pyc" \
                ".pytest_cache/*" \
                "**/.pytest_cache/*" \
                "android-apk/**/build/*" \
