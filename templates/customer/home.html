@@ -1,27 +1,61 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-IN">
 <head>
-    <link rel="manifest" href="/static/pwa/customer/manifest.json">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#09070f">
-    <title>Sivdhi | Home Services</title>
-    <meta name="description" content="Discover home services with Sivdhi. Find eligible local service categories, compare service options, and book trusted home-service professionals.">
+    <title>Sivdhi Home Services | Find &amp; Book Local Services</title>
+    <meta name="description" content="Find home services available in your area with Sivdhi. Check local availability and book home-service professionals online.">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://sivdhi.duckdns.org/customer/">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/pwa/customer/icon-512.png">
+    <link rel="apple-touch-icon" href="/static/pwa/customer/icon-192.png">
+    <link rel="manifest" href="/static/pwa/customer/manifest.json">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Sivdhi | Home Services">
-    <meta property="og:description" content="Find home services available in your area with Sivdhi.">
+    <meta property="og:site_name" content="Sivdhi">
+    <meta property="og:locale" content="en_IN">
+    <meta property="og:title" content="Sivdhi Home Services | Find &amp; Book Local Services">
+    <meta property="og:description" content="Find home services available in your area with Sivdhi. Check local availability and book home-service professionals online.">
     <meta property="og:url" content="https://sivdhi.duckdns.org/customer/">
+    <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="Sivdhi app icon">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Sivdhi Home Services | Find &amp; Book Local Services">
+    <meta name="twitter:description" content="Find home services available in your area with Sivdhi. Check local availability and book home-service professionals online.">
+    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
+    <meta name="twitter:image:alt" content="Sivdhi app icon">
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Sivdhi",
-      "url": "https://sivdhi.duckdns.org/",
-      "description": "Home services discovery and booking platform."
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://sivdhi.duckdns.org/customer/#organization",
+          "name": "Sivdhi",
+          "url": "https://sivdhi.duckdns.org/customer/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png",
+            "width": 512,
+            "height": 512
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://sivdhi.duckdns.org/customer/#website",
+          "name": "Sivdhi",
+          "url": "https://sivdhi.duckdns.org/customer/",
+          "description": "Home services discovery and booking platform.",
+          "inLanguage": "en-IN",
+          "publisher": {
+            "@id": "https://sivdhi.duckdns.org/customer/#organization"
+          }
+        }
+      ]
     }
     </script>
 
@@ -662,12 +696,10 @@
 
         <main>
             <section class="intro">
-                <h1 class="greeting">
-                    Hello, <span>{{ session.get('customer_name') or 'Customer' }}</span> 👋
-                </h1>
+                <h1 class="greeting">Find Home Services Near You</h1>
 
                 <p class="intro-text">
-                    What service do you need today?
+                    Hello, {{ session.get('customer_name') or 'Customer' }}. What service do you need today?
                 </p>
 
                 <div class="location-line" id="locationLine" {% if not location_allowed %}hidden{% endif %}>
