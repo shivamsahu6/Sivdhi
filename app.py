@@ -209,17 +209,25 @@ def robots_txt():
 
 @app.get("/sitemap.xml")
 def sitemap_xml():
-    """Expose only the canonical public customer entry page to search engines."""
+    """Expose the public customer page and role-specific login pages."""
     from xml.sax.saxutils import escape
 
-    public_url = "https://sivdhi.duckdns.org/customer/"
+    public_urls = (
+        "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/login?role=worker",
+        "https://sivdhi.duckdns.org/login?role=partner",
+    )
     last_modified = datetime.utcnow().date().isoformat()
+    url_entries = "".join(
+        f'<url><loc>{escape(public_url)}</loc>'
+        f'<lastmod>{last_modified}</lastmod>'
+        '<changefreq>weekly</changefreq><priority>0.7</priority></url>'
+        for public_url in public_urls
+    )
     content = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-        f'<url><loc>{escape(public_url)}</loc>'
-        f'<lastmod>{last_modified}</lastmod>'
-        '<changefreq>weekly</changefreq><priority>1.0</priority></url>'
+        f'{url_entries}'
         '</urlset>'
     )
     return current_app.response_class(
@@ -247,17 +255,18 @@ def partner_entrypoint():
 @app.after_request
 def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    role = (request.args.get("role") or "").strip().lower()
+    is_public_role_login = request.path == "/login" and role in {"worker", "partner"}
+    is_private_worker_partner_page = (
+        request.path.startswith(("/worker/", "/partner/"))
+        and request.path not in {"/worker/login", "/partner/login"}
+    )
     if (
         request.blueprint == "admin"
         or request.path == f"{ADMIN_PANEL_BASE}/bootstrap"
-        or request.path in {
-            "/customer/login",
-            "/customer/signup",
-            "/login",
-            "/signup",
-            "/worker/login",
-            "/partner/login",
-        }
+        or request.path in {"/customer/login", "/customer/signup", "/signup"}
+        or (request.path == "/login" and not is_public_role_login)
+        or is_private_worker_partner_page
     ):
         response.headers.setdefault("X-Robots-Tag", "noindex, nofollow, noarchive")
     if request.blueprint == "admin" or request.path == f"{ADMIN_PANEL_BASE}/bootstrap":
