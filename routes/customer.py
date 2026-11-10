@@ -1797,6 +1797,9 @@ def login():
                 return render_template("customer/login.html")
 
             clear_login_failures("customer", identifier, client_ip)
+            guest_latitude = safe_float(session.get("customer_latitude"))
+            guest_longitude = safe_float(session.get("customer_longitude"))
+            guest_booking_mode = normalise_booking_mode(session.get("booking_mode") or "normal")
             session.clear()
             session.permanent = True
             session["customer_id"] = row["id"]
@@ -1824,10 +1827,17 @@ def login():
                 else None
             )
 
-            if lat is not None and lon is not None:
+            if guest_latitude is not None and guest_longitude is not None:
+                # Preserve the location selected on the public home page through login.
+                session["customer_latitude"] = guest_latitude
+                session["customer_longitude"] = guest_longitude
+                session["customer_location_allowed"] = True
+                session["customer_location_name"] = "Current location"
+            elif lat is not None and lon is not None:
                 session["customer_latitude"] = lat
                 session["customer_longitude"] = lon
                 session["customer_location_allowed"] = True
+            session["booking_mode"] = guest_booking_mode
 
             next_url = request.args.get("next") or request.form.get("next")
             parsed = urlsplit(next_url or "")
@@ -2013,8 +2023,8 @@ def logout():
 # =========================================================
 
 @customer_bp.route("/api/location", methods=["POST"])
-@customer_login_required
 def save_customer_location_api():
+    """Save the visitor's current location; persist it only for signed-in customers."""
     data = request.get_json(silent=True) or request.form
 
     latitude = safe_float(
@@ -2040,15 +2050,15 @@ def save_customer_location_api():
     try:
         ensure_customer_schema(db)
 
-        row = get_customer(db)
+        row = get_customer(db) if session.get("customer_id") else None
 
-        if not row:
+        if session.get("customer_id") and not row:
             return jsonify({
                 "success": False,
                 "message": "Customer account was not found.",
             }), 401
 
-        columns = table_columns(db, "customers")
+        columns = table_columns(db, "customers") if row else []
         updates = {}
 
         if "latitude" in columns:
@@ -2114,7 +2124,6 @@ def save_customer_location_api():
 
 
 @customer_bp.route("/api/categories")
-@customer_login_required
 def customer_categories_api():
     mode = normalise_booking_mode(
         request.args.get("mode")
@@ -2165,8 +2174,8 @@ def customer_categories_api():
 
 @customer_bp.route("/")
 @customer_bp.route("/home")
-@customer_login_required
 def home():
+    """Public service catalogue; account-specific actions remain protected."""
     mode = normalise_booking_mode(
         request.args.get("mode")
         or session.get("booking_mode")
