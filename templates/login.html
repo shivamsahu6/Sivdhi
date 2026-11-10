@@ -9,7 +9,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Login | Sivdhi</title>
+    {% if role == "worker" %}
+    <title>Sivdhi Worker Login | Worker Account Access</title>
+    <meta name="description" content="Sign in to your Sivdhi Worker account to manage assigned service bookings and your work profile.">
+    <link rel="canonical" href="https://sivdhi.duckdns.org/login?role=worker">
+    {% else %}
+    <title>Sivdhi Partner Login | Referral Partner Account Access</title>
+    <meta name="description" content="Sign in to your Sivdhi Referral Partner account to manage your partner profile, workers and service activity.">
+    <link rel="canonical" href="https://sivdhi.duckdns.org/login?role=partner">
+    {% endif %}
+    <meta name="robots" content="index,follow">
 
     <style>
         * {

@@ -8,6 +8,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#09070f">
     <title>Sivdhi | Home Services</title>
+    <meta name="description" content="Discover home services with Sivdhi. Find eligible local service categories, compare service options, and book trusted home-service professionals.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ request.url_root.rstrip('/') }}{{ url_for('customer.home') }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Sivdhi | Home Services">
+    <meta property="og:description" content="Find home services available in your area with Sivdhi.">
+    <meta property="og:url" content="{{ request.url_root.rstrip('/') }}{{ url_for('customer.home') }}">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Sivdhi",
+      "url": "https://sivdhi.duckdns.org/",
+      "description": "Home services discovery and booking platform."
+    }
+    </script>
 
     <style>
         :root {
@@ -124,6 +140,21 @@
         .notification-button svg {
             width: 21px;
             height: 21px;
+        }
+
+        .customer-login-link {
+            min-height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: rgba(255,255,255,.025);
+            color: #e8d6fa;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
         }
 
         .notification-count {
@@ -592,36 +623,40 @@
             </a>
 
             <div class="notification-wrap">
-                <button
-                    class="notification-button"
-                    id="customerNotificationButton"
-                    type="button"
-                    aria-label="Notifications"
-                    aria-expanded="false"
-                    aria-controls="customerNotificationPanel"
-                    title="Notifications"
-                >
-                    <svg viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="1.8"
-                         stroke-linecap="round" stroke-linejoin="round"
-                         aria-hidden="true">
-                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
-                        <path d="M10 21h4"></path>
-                    </svg>
-                    <span class="notification-count" id="customerNotificationCount" hidden>0</span>
-                </button>
+                {% if session.get('customer_id') %}
+                    <button
+                        class="notification-button"
+                        id="customerNotificationButton"
+                        type="button"
+                        aria-label="Notifications"
+                        aria-expanded="false"
+                        aria-controls="customerNotificationPanel"
+                        title="Notifications"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="1.8"
+                             stroke-linecap="round" stroke-linejoin="round"
+                             aria-hidden="true">
+                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                            <path d="M10 21h4"></path>
+                        </svg>
+                        <span class="notification-count" id="customerNotificationCount" hidden>0</span>
+                    </button>
 
-                <section
-                    class="notification-panel"
-                    id="customerNotificationPanel"
-                    aria-label="Your notifications"
-                    hidden
-                >
-                    <h2 class="notification-heading">Notifications</h2>
-                    <div id="customerNotificationList" aria-live="polite">
-                        <div class="notification-status">Loading notifications…</div>
-                    </div>
-                </section>
+                    <section
+                        class="notification-panel"
+                        id="customerNotificationPanel"
+                        aria-label="Your notifications"
+                        hidden
+                    >
+                        <h2 class="notification-heading">Notifications</h2>
+                        <div id="customerNotificationList" aria-live="polite">
+                            <div class="notification-status">Loading notifications…</div>
+                        </div>
+                    </section>
+                {% else %}
+                    <a class="customer-login-link" href="{{ url_for('customer.login') }}">Customer Login</a>
+                {% endif %}
             </div>
         </header>
 

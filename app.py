@@ -187,10 +187,53 @@ def health_check():
 
 @app.get("/")
 def customer_entrypoint():
-    """Make the public Sivdhi URL the customer entry point."""
-    if session.get("customer_id"):
-        return redirect(url_for("customer.home"))
-    return redirect(url_for("customer.login"))
+    """Send the public Sivdhi URL to the public customer home page."""
+    return redirect(url_for("customer.home"))
+
+
+@app.get("/robots.txt")
+def robots_txt():
+    """Publish crawler rules for public pages only."""
+    content = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin\n"
+        "Disallow: /customer/login\n"
+        "Disallow: /customer/signup\n"
+        "Disallow: /customer/bookings\n"
+        "Disallow: /customer/profile\n"
+        "Sitemap: https://sivdhi.duckdns.org/sitemap.xml\n"
+    )
+    return current_app.response_class(content, mimetype="text/plain")
+
+
+@app.get("/sitemap.xml")
+def sitemap_xml():
+    """Expose the public customer page and role-specific login pages."""
+    from xml.sax.saxutils import escape
+
+    public_urls = (
+        "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/login?role=worker",
+        "https://sivdhi.duckdns.org/login?role=partner",
+    )
+    last_modified = datetime.utcnow().date().isoformat()
+    url_entries = "".join(
+        f'<url><loc>{escape(public_url)}</loc>'
+        f'<lastmod>{last_modified}</lastmod>'
+        '<changefreq>weekly</changefreq><priority>0.7</priority></url>'
+        for public_url in public_urls
+    )
+    content = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        f'{url_entries}'
+        '</urlset>'
+    )
+    return current_app.response_class(
+        content,
+        mimetype="application/xml",
+    )
 
 
 @app.get("/worker-partner/login")
@@ -212,8 +255,21 @@ def partner_entrypoint():
 @app.after_request
 def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    if request.blueprint == "admin" or request.path == f"{ADMIN_PANEL_BASE}/bootstrap":
+    role = (request.args.get("role") or "").strip().lower()
+    is_public_role_login = request.path == "/login" and role in {"worker", "partner"}
+    is_private_worker_partner_page = (
+        request.path.startswith(("/worker/", "/partner/"))
+        and request.path not in {"/worker/login", "/partner/login"}
+    )
+    if (
+        request.blueprint == "admin"
+        or request.path == f"{ADMIN_PANEL_BASE}/bootstrap"
+        or request.path in {"/customer/login", "/customer/signup", "/signup"}
+        or (request.path == "/login" and not is_public_role_login)
+        or is_private_worker_partner_page
+    ):
         response.headers.setdefault("X-Robots-Tag", "noindex, nofollow, noarchive")
+    if request.blueprint == "admin" or request.path == f"{ADMIN_PANEL_BASE}/bootstrap":
         response.headers.setdefault("Cache-Control", "no-store, max-age=0, private")
         response.headers.setdefault("Pragma", "no-cache")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")

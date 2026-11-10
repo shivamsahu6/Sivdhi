@@ -1,0 +1,82 @@
+name: Validate and Package Sivdhi Source ZIP
+
+on:
+  push:
+    branches:
+      - feature/customer-public-home-login-seo
+    paths:
+      - '**.py'
+      - 'templates/**'
+      - 'static/**'
+      - 'requirements.txt'
+      - 'tests/**'
+      - '.github/workflows/build-sivdhi-source-zip.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**.py'
+      - 'templates/**'
+      - 'static/**'
+      - 'requirements.txt'
+      - 'tests/**'
+      - '.github/workflows/build-sivdhi-source-zip.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+
+      - name: Run test suite
+        run: python -m pytest -q -ra
+
+      - name: Create source ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          ZIP_NAME="Sivdhi_Updated_Customer_Public_Home_${SHORT_SHA}.zip"
+          zip -r "$ZIP_NAME" . \
+            -x ".git/*" \
+               ".env" \
+               "**/.env" \
+               ".secret_key" \
+               "**/.secret_key" \
+               "*.key" \
+               "*.p12" \
+               "*.keystore" \
+               "**/__pycache__/*" \
+               ".pytest_cache/*" \
+               "**/.pytest_cache/*" \
+               "android-apk/**/build/*" \
+               "android-apk/dist/*"
+          sha256sum "$ZIP_NAME" | tee "${ZIP_NAME}.sha256"
+
+      - name: Upload source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sivdhi-Updated-Source-ZIP
+          path: |
+            Sivdhi_Updated_Customer_Public_Home_*.zip
+            Sivdhi_Updated_Customer_Public_Home_*.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
