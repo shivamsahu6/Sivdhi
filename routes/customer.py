@@ -7,6 +7,8 @@ Customer flow:
 Worker-route compatibility helpers are retained for existing worker modules.
 """
 
+import hashlib
+import json
 import math
 import os
 import re
@@ -194,6 +196,33 @@ def payment_number():
         f"PAY-{datetime.now().strftime('%y%m%d%H%M')}-"
         f"{secrets.token_hex(3).upper()}"
     )
+
+
+def cashfree_checkout_fingerprint(customer_id, mode, category_name, total_amount,
+                                  advance_amount, booking_date, booking_time,
+                                  latitude, longitude, selected, problems):
+    """Bind a verified Cashfree order to the exact customer booking context."""
+    payload = {
+        "customer_id": int(customer_id),
+        "mode": str(mode),
+        "category": str(category_name),
+        "total": money(total_amount),
+        "advance": money(advance_amount),
+        "date": str(booking_date),
+        "time": str(booking_time),
+        "latitude": round(float(latitude), 6),
+        "longitude": round(float(longitude), 6),
+        "service_id": safe_int(session.get("selected_service_id"), 0),
+        "description": str(session.get("booking_description") or ""),
+        "service_name": str((selected or {}).get("display_name") or ""),
+        "problems": [
+            [safe_int(item.get("id"), 0), str(item.get("name") or ""),
+             money(item.get("price"))]
+            for item in (problems or [])
+        ],
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _worker_has_schedule_conflict(conn, worker_id, booking_date, booking_time, mode, exclude_booking_id=None):
@@ -2461,16 +2490,23 @@ def payment():
         balance_due = money(max(0.0, total - advance_amount))
         cashfree_mode = (not demo_mode and cashfree_enabled())
         cashfree_verified_order_id = ""
+        cashfree_context_mismatch = False
+        cashfree_context_hash = cashfree_checkout_fingerprint(
+            customer_db_id(), mode, category_name, total, advance_amount,
+            valid_date, valid_time, latitude, longitude, selected, amount["problems"],
+        )
         requested_cashfree_order_id = (request.args.get("cashfree_order_id") or "").strip()
         if cashfree_mode and requested_cashfree_order_id:
             verified_order = db.execute("""
-                SELECT order_id FROM cashfree_payment_orders
-                WHERE order_id=? AND customer_id=? AND status='SUCCESS'
-                  AND ABS(amount - ?) < 0.005
+                SELECT order_id, status, context_hash FROM cashfree_payment_orders
+                WHERE order_id=? AND customer_id=?
                 LIMIT 1
-            """, (requested_cashfree_order_id, customer_db_id(), advance_amount)).fetchone()
-            if verified_order:
-                cashfree_verified_order_id = str(verified_order["order_id"])
+            """, (requested_cashfree_order_id, customer_db_id())).fetchone()
+            if verified_order and verified_order["status"] == "SUCCESS":
+                if verified_order["context_hash"] == cashfree_context_hash:
+                    cashfree_verified_order_id = str(verified_order["order_id"])
+                else:
+                    cashfree_context_mismatch = True
 
         # Check eligibility before showing/accepting any payment. Re-check on POST
         # under a write lock to avoid recording a payment when no worker is available.
@@ -2479,7 +2515,7 @@ def payment():
                 db, category_name, latitude, longitude, mode=mode,
                 preferred_date=valid_date, preferred_time=valid_time,
             )
-            if not candidate and not cashfree_verified_order_id:
+            if not candidate and not cashfree_verified_order_id and not cashfree_context_mismatch:
                 flash("Abhi is slot ke liye aapke area mein koi eligible worker available nahi hai. Payment nahi liya gaya.", "warning")
                 return redirect(url_for("customer.home", mode=mode))
 
@@ -2493,6 +2529,7 @@ def payment():
                 payment_mode=("demo" if demo_mode else ("cashfree" if cashfree_mode else "live")),
                 cashfree_environment=os.getenv("CASHFREE_ENV", "sandbox").strip().lower(),
                 cashfree_verified_order_id=cashfree_verified_order_id,
+                cashfree_context_mismatch=cashfree_context_mismatch,
                 booking_date=valid_date, booking_time=valid_time,
             )
 
@@ -2528,10 +2565,10 @@ def payment():
                     )
                     db.execute("""
                         INSERT INTO cashfree_payment_orders
-                            (order_id, customer_id, amount, currency, status, payment_session_id, created_at)
-                        VALUES (?, ?, ?, 'INR', 'PENDING', ?, CURRENT_TIMESTAMP)
+                            (order_id, customer_id, amount, currency, status, payment_session_id, context_hash, created_at)
+                        VALUES (?, ?, ?, 'INR', 'PENDING', ?, ?, CURRENT_TIMESTAMP)
                     """, (new_order_id, customer_row["id"], advance_amount,
-                          created_order["payment_session_id"]))
+                          created_order["payment_session_id"], cashfree_context_hash))
                     db.commit()
                     return jsonify({
                         "ok": True,
@@ -2549,12 +2586,13 @@ def payment():
 
             cashfree_order_id = (request.form.get("cashfree_order_id") or "").strip()
             paid_order = db.execute("""
-                SELECT order_id, amount, cf_payment_id, status
+                SELECT order_id, amount, cf_payment_id, status, context_hash
                 FROM cashfree_payment_orders
                 WHERE order_id=? AND customer_id=? LIMIT 1
             """, (cashfree_order_id, customer_row["id"])).fetchone()
             if (not paid_order or paid_order["status"] != "SUCCESS"
                     or abs(money(paid_order["amount"]) - advance_amount) > 0.004
+                    or paid_order["context_hash"] != cashfree_context_hash
                     or not paid_order["cf_payment_id"]):
                 flash("Cashfree payment is not verified for this booking. No booking was created.", "warning")
                 return redirect(url_for("customer.payment"))
