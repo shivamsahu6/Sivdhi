@@ -43,7 +43,7 @@ from utils.booking_schedule import (
 )
 from utils.sivdhi_finance import (
     ADVANCE_CAP, ensure_finance_schema, is_demo_mode, get_commission_rates,
-    find_partner_for_worker, add_finance_ledger_entry,
+    find_partner_for_worker, add_finance_ledger_entry, payment_audit_metadata,
 )
 from utils.cashfree_gateway import (
     CashfreeGatewayError, cashfree_enabled, create_cashfree_order,
@@ -2644,8 +2644,11 @@ def payment():
                         partner_rate, platform_rate = candidate_partner_rate, candidate_platform_rate
                 except (TypeError, ValueError):
                     pass
-        payment_status = "PARTIALLY_PAID_DEMO" if demo_mode else "PARTIALLY_PAID"
-        advance_status = "DEMO_PAID" if demo_mode else "PAID"
+        payment_is_demo, ledger_payment_mode = payment_audit_metadata(
+            demo_mode, payment_method, os.getenv("CASHFREE_ENV", "sandbox")
+        )
+        payment_status = "PARTIALLY_PAID_DEMO" if payment_is_demo else "PARTIALLY_PAID"
+        advance_status = "DEMO_PAID" if payment_is_demo else "PAID"
         values = {
             "booking_id": booking_id,
             "customer_id": customer_row["id"],
@@ -2715,10 +2718,10 @@ def payment():
                 (customer_id, booking_id, payment_id, amount, method, status, payment_type, is_demo)
             VALUES (?, ?, ?, ?, ?, ?, 'advance', ?)
         """, (customer_row["id"], booking_id, payment_id, advance_amount,
-              payment_method, advance_status, 1 if demo_mode else 0))
+              payment_method, advance_status, 1 if payment_is_demo else 0))
         add_finance_ledger_entry(
             db, booking_id, "customer_advance", advance_amount,
-            advance_status.lower(), "demo" if demo_mode else "live",
+            advance_status.lower(), ledger_payment_mode,
             payment_id, "Customer booking advance",
         )
 
@@ -2763,7 +2766,9 @@ def payment():
         ):
             session.pop(key, None)
         session["last_booking_id"] = booking_id
-        if demo_mode:
+        if ledger_payment_mode == "cashfree_sandbox":
+            flash(f"Cashfree Sandbox payment verified. No real money was charged. Test booking {booking_id} confirmed; remaining balance is due when the worker arrives.", "success")
+        elif demo_mode:
             flash(f"Booking confirmed. ₹{advance_amount:.2f} demo advance record hua; real money charge nahi hua. Baaki amount worker ke pahunchne par due hoga.", "success")
         else:
             flash(f"Cashfree payment verified. Booking {booking_id} confirmed; remaining balance worker ke pahunchne par due hoga.", "success")
