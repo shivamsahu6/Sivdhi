@@ -83,6 +83,23 @@ def ensure_finance_schema(conn) -> None:
     })
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS cashfree_payment_orders (
+            order_id TEXT PRIMARY KEY,
+            customer_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'INR',
+            status TEXT NOT NULL DEFAULT 'PENDING',
+            payment_session_id TEXT NOT NULL,
+            cf_payment_id TEXT,
+            payment_method TEXT,
+            booking_id TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            verified_at TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS sivdhi_finance_ledger (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             booking_id TEXT NOT NULL,
