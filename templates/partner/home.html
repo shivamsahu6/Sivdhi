@@ -171,7 +171,75 @@
                 font-size: 12px;
             }
         }
-    </style>
+    
+        /* Sivdhi social footer — shared home-page treatment */
+        .home-social-footer {
+            position: relative;
+            width: min(100% - 40px, 680px);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin: 30px auto 112px;
+            padding: 25px 22px 22px;
+            overflow: hidden;
+            border: 1px solid rgba(196, 181, 253, .2);
+            border-radius: 24px;
+            background: radial-gradient(ellipse at 50% -30%, rgba(164, 77, 255, .24), transparent 65%), linear-gradient(145deg, rgba(31, 22, 45, .98), rgba(15, 12, 24, .98));
+            box-shadow: 0 18px 48px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255,255,255,.045);
+            text-align: center;
+        }
+        .home-social-footer::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 92px;
+            height: 2px;
+            transform: translateX(-50%);
+            border-radius: 0 0 5px 5px;
+            background: linear-gradient(90deg, #ec4899, #a855f7, #3b82f6);
+            box-shadow: 0 0 18px rgba(164,77,255,.5);
+        }
+        .home-social-heading { position: relative; margin: 0; color: #fff7ff; font-size: 17px; font-weight: 800; letter-spacing: -.35px; }
+        .home-social-caption { position: relative; margin: -8px 0 2px; color: #a99ab8; font-size: 11px; line-height: 1.6; }
+        .home-social-links { display: flex; al    <footer class="home-social-footer" aria-label="Sivdhi social media">
+        <h2 class="home-social-heading">Stay Connected with Sivdhi</h2>
+        <p class="home-social-caption">Follow us for updates, offers and more</p>
+        <div class="home-social-links">
+            <a href="https://www.instagram.com/sivdhiapp?dlrf=MWo4OWw0dmdwZG50eA==" target="_blank" rel="noopener noreferrer" aria-label="Sivdhi on Instagram" title="Instagram">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect class="outline" x="3" y="3" width="18" height="18" rx="5"/><circle class="outline" cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1.25"/></svg>
+            </a>
+            <a href="https://www.facebook.com/share/1ALe4RqBKM/" target="_blank" rel="noopener noreferrer" aria-label="Sivdhi on Facebook" title="Facebook">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.4 21v-8h2.7l.4-3.1h-3.1v-2c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.1H7.2V13H10v8z"/></svg>
+            </a>
+            <a href="https://www.threads.com/@sivdhiapp" target="_blank" rel="noopener noreferrer" aria-label="Sivdhi on Threads" title="Threads">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.1 2.3c-5.4 0-8.4 3.8-8.4 9.8 0 6.1 3.2 9.6 8.4 9.6 4.5 0 7.4-2.4 7.4-6.2 0-2.9-1.8-4.7-4.8-5.1-.4-2.2-1.7-3.4-3.8-3.4-1.9 0-3.2 1.2-3.2 3.1 0 1.7 1.2 2.8 3.4 3.1l2.1.3c-.4 1.4-1.3 2.1-2.7 2.1-1.5 0-2.5-.9-2.5-2.3h-2.1c0 2.6 1.8 4.3 4.6 4.3 2.7 0 4.5-1.6 4.9-4.3 1.1.4 1.7 1.2 1.7 2.3 0 2.5-1.9 4-5.1 4-4 0-6.3-2.8-6.3-7.5 0-4.8 2.3-7.7 6.4-7.7 3.7 0 5.7 2.1 5.9 6.2h2.2c-.2-5.4-3.1-8.3-8.1-8.3z"/></svg>
+            </a>
+        </div>
+    </footer>
+
+ign-items: center; justify-content: center; gap: 13px; }
+        .home-social-footer a {
+            position: relative; display: grid; place-items: center; width: 49px; height: 49px;
+            color: #f8edff; border: 1px solid rgba(206, 174, 255, .24); border-radius: 16px;
+            background: linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.035));
+            box-shadow: 0 7px 18px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.08);
+            transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+        }
+        .home-social-footer a:hover { transform: translateY(-4px); border-color: rgba(213, 165, 255, .62); background: linear-gradient(145deg, rgba(164,77,255,.28), rgba(255,67,140,.14)); box-shadow: 0 10px 24px rgba(112, 55, 190, .22); }
+        .home-social-footer a:active { transform: translateY(-1px) scale(.96); }
+        .home-social-footer svg { width: 23px; height: 23px; fill: currentColor; }
+        .home-social-footer svg .outline { fill: none; stroke: currentColor; stroke-width: 1.9; }
+        @media (max-width: 560px) {
+            .home-social-footer { width: calc(100% - 30px); gap: 13px; margin-top: 24px; padding: 22px 16px 19px; border-radius: 20px; }
+            .home-social-heading { font-size: 16px; }
+            .home-social-caption { font-size: 10px; }
+            .home-social-footer a { width: 46px; height: 46px; border-radius: 14px; }
+        }
+        @media (prefers-reduced-motion: reduce) { .home-social-footer a { transition: none; } }
+</style>
 </head>
 
 <body>
