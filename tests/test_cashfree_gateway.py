@@ -124,4 +124,6 @@ def test_live_cashfree_booking_requires_verified_database_order():
     assert "status='SUCCESS'" in source
     assert "verify_cashfree_order_payment(order_id, money(order[\"amount\"]))" in source
     assert "cashfree_payment_orders" in source
+    assert "cashfree_checkout_fingerprint" in source
+    assert "context_hash" in source
     assert "status='BOOKED'" in source
