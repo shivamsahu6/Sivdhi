@@ -328,6 +328,79 @@ def add_security_headers(response):
     return response
 
 
+@app.after_request
+def add_public_sivdhi_footer(response):
+    """Show consistent owner, contact, social and legal links across site pages."""
+    if (
+        response.mimetype != "text/html"
+        or response.status_code < 200
+        or response.status_code >= 300
+        or response.is_streamed
+        or request.blueprint == "admin"
+        or request.path == f"{ADMIN_PANEL_BASE}/bootstrap"
+    ):
+        return response
+
+    try:
+        html = response.get_data(as_text=True)
+    except (RuntimeError, UnicodeDecodeError):
+        return response
+
+    # The customer landing page already contains this exact shared section.
+    if 'class="public-contact"' in html or "</body>" not in html.lower():
+        return response
+
+    footer = """
+    <style>
+      .public-contact{margin:34px 0 0;padding:30px 18px 24px;color:#f8fafc;background:#171329;border-radius:24px 24px 0 0}
+      .public-contact-inner{width:100%;max-width:1040px;margin:0 auto}
+      .public-contact-kicker{margin:0 0 8px;color:#c4b5fd;font-size:10px;font-weight:800;letter-spacing:1.5px}
+      .public-contact h2{margin:0 0 9px;font-size:21px}
+      .public-contact-description{max-width:620px;margin:0 0 20px;color:#cbd5e1;font-size:13px;line-height:1.7}
+      .public-contact-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:22px}
+      .public-contact-details div{min-width:0;padding:13px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:13px}
+      .public-contact-details span{display:block;margin-bottom:6px;color:#c4b5fd;font-size:11px}
+      .public-contact-details strong,.public-contact-details a{overflow-wrap:anywhere;color:#fff;font-size:13px;font-weight:700;text-decoration:none}
+      .public-contact h3{margin:0 0 10px;font-size:14px}
+      .public-social-links{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:20px}
+      .public-social-links a{display:inline-flex;flex-direction:column;gap:3px;padding:10px 13px;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:11px;text-decoration:none;font-size:12px;font-weight:700}
+      .public-social-links span{color:#c4b5fd;font-size:10px;font-weight:500}
+      .public-policy-links{display:flex;flex-wrap:wrap;gap:16px;padding-top:15px;border-top:1px solid rgba(255,255,255,.14)}
+      .public-policy-links a{color:#ddd6fe;font-size:12px;text-decoration:none}
+      .public-contact-note{margin:18px 0 0;color:#a1a1aa;font-size:10px}
+      @media(max-width:600px){.public-contact-details{grid-template-columns:1fr}.public-contact{padding:25px 15px 22px}}
+    </style>
+    <section class="public-contact" aria-labelledby="publicContactHeading">
+      <div class="public-contact-inner">
+        <p class="public-contact-kicker">OFFICIAL WEBSITE</p>
+        <h2 id="publicContactHeading">Contact &amp; Company Information</h2>
+        <p class="public-contact-description">Sivdhi is operated by Shivam Sahu. For business, booking or platform-related questions, contact us using the details below.</p>
+        <div class="public-contact-details">
+          <div><span>Legal / Owner Name</span><strong>Shivam Sahu</strong></div>
+          <div><span>Email</span><a href="mailto:shivamsahu.co@gmail.com">shivamsahu.co@gmail.com</a></div>
+          <div><span>Phone</span><a href="tel:9286557611">9286557611</a></div>
+        </div>
+        <h3>Follow Sivdhi</h3>
+        <div class="public-social-links">
+          <a href="https://www.instagram.com/sivdhiapp?dlrf=MWo4OWw0dmdwZG50eA==" target="_blank" rel="noopener noreferrer">Instagram <span>@sivdhiapp</span></a>
+          <a href="https://www.facebook.com/share/1ALe4RqBKM/" target="_blank" rel="noopener noreferrer">Facebook <span>Sivdhi</span></a>
+          <a href="https://www.threads.com/@sivdhiapp" target="_blank" rel="noopener noreferrer">Threads <span>@sivdhiapp</span></a>
+        </div>
+        <nav class="public-policy-links" aria-label="Legal information">
+          <a href="/customer/about">About Sivdhi</a>
+          <a href="/customer/privacy">Privacy Policy</a>
+          <a href="/customer/terms">Terms &amp; Conditions</a>
+        </nav>
+        <p class="public-contact-note">© 2026 Sivdhi. All rights reserved.</p>
+      </div>
+    </section>
+    """;
+    const closingBody = html.toLowerCase().lastIndexOf("</body>");
+    html = html.slice(0, closingBody) + footer + html.slice(closingBody);
+    response.set_data(html);
+    return response
+
+
 app.secret_key = Config.SECRET_KEY
 
 
