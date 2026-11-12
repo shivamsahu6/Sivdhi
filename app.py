@@ -395,8 +395,8 @@ def add_public_sivdhi_footer(response):
       </div>
     </section>
     """;
-    const closingBody = html.toLowerCase().lastIndexOf("</body>");
-    html = html.slice(0, closingBody) + footer + html.slice(closingBody);
+    closing_body = html.lower().rfind("</body>")
+    html = html[:closing_body] + footer + html[closing_body:]
     response.set_data(html);
     return response
 
