@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import utils.cashfree_gateway as gateway
 
 
@@ -122,7 +120,7 @@ def test_live_cashfree_booking_requires_verified_database_order():
     from pathlib import Path
 
     source = (Path(__file__).resolve().parents[1] / "routes/customer.py").read_text(encoding="utf-8")
-    assert "payment_action == \"confirm_cashfree\"" in source
+    assert 'payment_action != "confirm_cashfree"' in source
     assert "status='SUCCESS'" in source
     assert "verify_cashfree_order_payment(order_id, money(order[\"amount\"]))" in source
     assert "cashfree_payment_orders" in source
