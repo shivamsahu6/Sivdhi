@@ -155,3 +155,18 @@ def test_cashfree_create_order_rejects_unexpected_returned_order_id(monkeypatch)
             {"id": 4, "fullname": "Test Customer", "mobile": "9876543210"},
             "https://sivdhi.duckdns.org/customer/cashfree/return",
         )
+
+
+
+def test_cashfree_sandbox_payment_is_classified_as_non_live():
+    from utils.sivdhi_finance import payment_audit_metadata
+
+    assert payment_audit_metadata(False, "cashfree", "sandbox") == (
+        True, "cashfree_sandbox"
+    )
+    assert payment_audit_metadata(False, "cashfree", "production") == (
+        False, "live"
+    )
+    assert payment_audit_metadata(True, "demo", "sandbox") == (
+        True, "demo"
+    )
