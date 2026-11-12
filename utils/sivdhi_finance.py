@@ -100,6 +100,15 @@ def ensure_finance_schema(conn) -> None:
         )
     """)
 
+    _add_columns(conn, "cashfree_payment_orders", {
+        "context_hash": "TEXT",
+        "cf_payment_id": "TEXT",
+        "payment_method": "TEXT",
+        "booking_id": "TEXT",
+        "verified_at": "TEXT",
+        "updated_at": "TEXT DEFAULT CURRENT_TIMESTAMP",
+    })
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS sivdhi_finance_ledger (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
