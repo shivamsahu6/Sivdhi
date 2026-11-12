@@ -819,13 +819,68 @@
                                 <span aria-hidden="true">→</span>
                             </button>
                         </form>
+                        {% if payment_mode == 'demo' %}
+                        <form method="POST" action="{{ url_for('customer.payment') }}" id="paymentForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="payment_method" value="demo">
+
+                            <div class="notice">
+                                <div class="notice-icon" aria-hidden="true">🧪</div>
+                                <div>
+                                    <strong>Demo payment mode</strong>
+                                    <p>This is simulated money for testing. No real money will be charged and no bank or
+                                        UPI transaction will occur.</p>
+                                </div>
+                            </div>
+
+                            <div class="error-message" id="paymentMessage" hidden></div>
+
+                            <button class="pay-button" id="payButton" type="submit">
+                                Record ₹{{ '%.2f'|format(advance_value|float) }} demo advance
+                                <span aria-hidden="true">→</span>
+                            </button>
+                        </form>
+                        {% elif payment_mode == 'cashfree' %}
+                            {% if cashfree_verified_order_id %}
+                            <form method="POST" action="{{ url_for('customer.payment') }}" id="paymentForm">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="payment_method" value="cashfree">
+                                <input type="hidden" name="payment_action" value="confirm_cashfree">
+                                <input type="hidden" name="cashfree_order_id" value="{{ cashfree_verified_order_id|e }}">
+                                <div class="notice">
+                                    <div class="notice-icon" aria-hidden="true">✓</div>
+                                    <div>
+                                        <strong>Cashfree payment verified</strong>
+                                        <p>Your ₹{{ '%.2f'|format(advance_value|float) }} advance is confirmed by Cashfree. Confirm below to create your booking and start worker matching.</p>
+                                    </div>
+                                </div>
+                                <div class="error-message" id="paymentMessage" hidden></div>
+                                <button class="pay-button" id="payButton" type="submit">
+                                    Confirm booking
+                                    <span aria-hidden="true">→</span>
+                                </button>
+                            </form>
+                            {% else %}
+                            <div class="notice">
+                                <div class="notice-icon" aria-hidden="true">🔒</div>
+                                <div>
+                                    <strong>Secure Cashfree checkout · {{ cashfree_environment|upper }}</strong>
+                                    <p>Pay only the booking advance of ₹{{ '%.2f'|format(advance_value|float) }}. Sivdhi verifies the payment directly with Cashfree before creating your booking.</p>
+                                </div>
+                            </div>
+                            <div class="error-message" id="paymentMessage" hidden></div>
+                            <input type="hidden" id="cashfreeCsrfToken" value="{{ csrf_token() }}">
+                            <button class="pay-button" id="payButton" type="button">
+                                Pay ₹{{ '%.2f'|format(advance_value|float) }} securely
+                                <span aria-hidden="true">→</span>
+                            </button>
+                            {% endif %}
                         {% else %}
                         <div class="notice">
                             <div class="notice-icon" aria-hidden="true">ⓘ</div>
                             <div>
-                                <strong>Live gateway not configured</strong>
-                                <p>No payment has been taken. Sivdhi will enable this step after a payment provider is
-                                    configured and verified.</p>
+                                <strong>Online payment is not configured</strong>
+                                <p>No payment has been taken. Sivdhi will enable checkout after Cashfree credentials are securely configured on the server.</p>
                             </div>
                         </div>
                         {% endif %}
@@ -912,6 +967,9 @@
         </a>
     </nav>
 
+    {% if payment_mode == 'cashfree' %}
+    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    {% endif %}
     <script>
         const paymentForm = document.getElementById("paymentForm");
         const paymentMessage = document.getElementById("paymentMessage");
@@ -946,10 +1004,54 @@
             });
         });
 
-        // Demo checkout uses a hidden payment_method field, not a radio button.
-        // Accept either input type so the demo Pay button can submit.
-        // In live mode, the form remains unavailable until a verified gateway
-        // integration has been configured.
+        const cashfreePayButton = document.getElementById("payButton");
+        const cashfreeCsrfToken = document.getElementById("cashfreeCsrfToken");
+        const paymentIsCashfree = {{ 'true' if payment_mode == 'cashfree' else 'false' }};
+        const cashfreeEnvironment = {{ (cashfree_environment|default('sandbox'))|tojson }};
+
+        if (paymentIsCashfree && cashfreePayButton && cashfreeCsrfToken) {
+            cashfreePayButton.addEventListener("click", async () => {
+                cashfreePayButton.disabled = true;
+                cashfreePayButton.textContent = "Connecting to Cashfree…";
+                if (paymentMessage) {
+                    paymentMessage.hidden = true;
+                    paymentMessage.textContent = "";
+                }
+                try {
+                    const response = await fetch("{{ url_for('customer.payment') }}", {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: new URLSearchParams({
+                            csrf_token: cashfreeCsrfToken.value,
+                            payment_action: "create_cashfree_order"
+                        })
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.ok || !result.payment_session_id) {
+                        throw new Error(result.message || "Could not start Cashfree checkout.");
+                    }
+                    const cashfree = Cashfree({ mode: cashfreeEnvironment });
+                    await cashfree.checkout({
+                        paymentSessionId: result.payment_session_id,
+                        redirectTarget: "_self"
+                    });
+                } catch (error) {
+                    if (paymentMessage) {
+                        paymentMessage.textContent = error.message || "Cashfree checkout could not be opened.";
+                        paymentMessage.hidden = false;
+                    }
+                    cashfreePayButton.disabled = false;
+                    cashfreePayButton.innerHTML = "Try secure payment again <span aria-hidden='true'>→</span>";
+                }
+            });
+        }
+
+        // Demo checkout uses a hidden payment_method field; the verified Cashfree
+        // confirmation form also uses a hidden field and is not a second charge.
         if (paymentForm) {
             paymentForm.addEventListener("submit", event => {
                 const selected = paymentForm.querySelector(
