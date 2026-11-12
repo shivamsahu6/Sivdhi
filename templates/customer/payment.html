@@ -819,27 +819,6 @@
                                 <span aria-hidden="true">→</span>
                             </button>
                         </form>
-                        {% if payment_mode == 'demo' %}
-                        <form method="POST" action="{{ url_for('customer.payment') }}" id="paymentForm">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="payment_method" value="demo">
-
-                            <div class="notice">
-                                <div class="notice-icon" aria-hidden="true">🧪</div>
-                                <div>
-                                    <strong>Demo payment mode</strong>
-                                    <p>This is simulated money for testing. No real money will be charged and no bank or
-                                        UPI transaction will occur.</p>
-                                </div>
-                            </div>
-
-                            <div class="error-message" id="paymentMessage" hidden></div>
-
-                            <button class="pay-button" id="payButton" type="submit">
-                                Record ₹{{ '%.2f'|format(advance_value|float) }} demo advance
-                                <span aria-hidden="true">→</span>
-                            </button>
-                        </form>
                         {% elif payment_mode == 'cashfree' %}
                             {% if cashfree_context_mismatch %}
                             <div class="notice">
