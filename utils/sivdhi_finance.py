@@ -90,6 +90,7 @@ def ensure_finance_schema(conn) -> None:
             currency TEXT NOT NULL DEFAULT 'INR',
             status TEXT NOT NULL DEFAULT 'PENDING',
             payment_session_id TEXT NOT NULL,
+            context_hash TEXT,
             cf_payment_id TEXT,
             payment_method TEXT,
             booking_id TEXT,
