@@ -109,13 +109,16 @@ def create_cashfree_order(order_id: str, amount: float, customer: dict, return_u
     except requests.RequestException as exc:
         raise CashfreeGatewayError("Could not connect to Cashfree. Please try again.") from exc
     result = _response_json(response)
+    returned_order_id = str(result.get("order_id") or "").strip()
+    if returned_order_id != str(order_id):
+        raise CashfreeGatewayError("Cashfree returned an unexpected order reference.")
     session_id = str(result.get("payment_session_id") or "").strip()
     if not session_id:
         raise CashfreeGatewayError("Cashfree did not return a payment session.")
     return {
         "payment_session_id": session_id,
         "environment": environment,
-        "order_id": str(result.get("order_id") or order_id),
+        "order_id": returned_order_id,
     }
 
 
