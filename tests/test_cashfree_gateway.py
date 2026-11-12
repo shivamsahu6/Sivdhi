@@ -127,3 +127,31 @@ def test_live_cashfree_booking_requires_verified_database_order():
     assert "cashfree_checkout_fingerprint" in source
     assert "context_hash" in source
     assert "status='BOOKED'" in source
+
+
+
+def test_cashfree_create_order_rejects_unexpected_returned_order_id(monkeypatch):
+    import pytest
+
+    monkeypatch.setenv("CASHFREE_ENV", "sandbox")
+    monkeypatch.setenv("CASHFREE_APP_ID", "sandbox-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "sandbox-secret")
+
+    class Response:
+        ok = True
+        status_code = 200
+
+        def json(self):
+            return {
+                "order_id": "different_order",
+                "payment_session_id": "session_test_only",
+            }
+
+    monkeypatch.setattr(gateway.requests, "post", lambda *args, **kwargs: Response())
+    with pytest.raises(gateway.CashfreeGatewayError, match="unexpected order reference"):
+        gateway.create_cashfree_order(
+            "sivdhi_4_abcd1234",
+            50,
+            {"id": 4, "fullname": "Test Customer", "mobile": "9876543210"},
+            "https://sivdhi.duckdns.org/customer/cashfree/return",
+        )
