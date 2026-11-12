@@ -3597,20 +3597,20 @@ def faq():
 
 
 @customer_bp.route("/privacy")
+@customer_login_required
 def privacy():
-    """Public privacy policy page for customers and payment-gateway review."""
     return render_template("customer/privacy.html")
 
 
 @customer_bp.route("/terms")
+@customer_login_required
 def terms():
-    """Public terms page for customers and payment-gateway review."""
     return render_template("customer/terms.html")
 
 
 @customer_bp.route("/about")
+@customer_login_required
 def about():
-    """Public about page for customers and payment-gateway review."""
     return render_template("customer/about.html")
 
 
