@@ -841,7 +841,15 @@
                             </button>
                         </form>
                         {% elif payment_mode == 'cashfree' %}
-                            {% if cashfree_verified_order_id %}
+                            {% if cashfree_context_mismatch %}
+                            <div class="notice">
+                                <div class="notice-icon" aria-hidden="true">⚠</div>
+                                <div>
+                                    <strong>Payment received · booking details changed</strong>
+                                    <p>Cashfree payment was verified, but the booking details no longer match the paid order. Do not pay again. Please contact Sivdhi Support with your payment reference.</p>
+                                </div>
+                            </div>
+                            {% elif cashfree_verified_order_id %}
                             <form method="POST" action="{{ url_for('customer.payment') }}" id="paymentForm">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="payment_method" value="cashfree">
