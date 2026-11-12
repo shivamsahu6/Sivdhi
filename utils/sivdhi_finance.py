@@ -156,6 +156,24 @@ def is_demo_mode() -> bool:
     return mode in {"demo", "test", "simulation"}
 
 
+def payment_audit_metadata(
+    demo_mode: bool,
+    payment_method: str,
+    gateway_environment: str = "",
+) -> tuple[bool, str]:
+    """Classify payment records so Cashfree Sandbox cannot look like real money."""
+    if demo_mode:
+        return True, "demo"
+
+    method = str(payment_method or "").strip().lower()
+    environment = str(gateway_environment or "").strip().lower()
+
+    if method == "cashfree" and environment == "sandbox":
+        return True, "cashfree_sandbox"
+
+    return False, "live"
+
+
 def money(value: Any) -> float:
     try:
         return round(max(0.0, float(value or 0)), 2)
@@ -220,6 +238,17 @@ def settle_completed_booking(conn, booking_db_id: int) -> tuple[bool, str]:
     booking = conn.execute("SELECT * FROM bookings WHERE id=? LIMIT 1", (booking_db_id,)).fetchone()
     if not booking:
         return False, "Booking not found."
+    sandbox_advance = conn.execute("""
+        SELECT 1
+        FROM sivdhi_finance_ledger
+        WHERE booking_id=?
+          AND entry_type='customer_advance'
+          AND payment_mode='cashfree_sandbox'
+        LIMIT 1
+    """, (str(booking["booking_id"]),)).fetchone()
+    if sandbox_advance:
+        return False, "Cashfree Sandbox bookings cannot credit real worker, partner, or platform wallets."
+
     if booking["commission_settled_at"]:
         return True, "Commission was already settled."
 
