@@ -208,6 +208,55 @@
                 padding-left: 64px;
             }
         }
+ 
+        .owner-contact {
+            margin-top: 22px;
+            padding: 19px 17px;
+            border: 1px solid var(--border);
+            border-radius: 17px;
+            background: linear-gradient(145deg, rgba(164, 77, 255, .13), rgba(23, 18, 31, .96));
+        }
+        .owner-contact h2 {
+            margin: 0 0 7px;
+            font-size: 17px;
+            font-weight: 800;
+        }
+        .owner-contact > p {
+            margin: 0 0 15px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+        .owner-contact-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-top: 1px solid var(--border);
+        }
+        .owner-contact-icon {
+            display: grid;
+            place-items: center;
+            width: 38px;
+            height: 38px;
+            flex-shrink: 0;
+            border-radius: 12px;
+            color: #e9d5ff;
+            background: rgba(164, 77, 255, .15);
+            font-size: 17px;
+        }
+        .owner-contact-label {
+            display: block;
+            margin-bottom: 3px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+        .owner-contact-value {
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 750;
+            overflow-wrap: anywhere;
+        }
     </style>
 </head>
 
@@ -315,6 +364,22 @@
                 </div>
             </details>
 
+        </section>
+        <section class="owner-contact" aria-labelledby="ownerContactTitle">
+            <h2 id="ownerContactTitle">Sivdhi Contact Details</h2>
+            <p>For help or questions about Sivdhi, contact the owner using the details below.</p>
+            <div class="owner-contact-row">
+                <span class="owner-contact-icon" aria-hidden="true">👤</span>
+                <div><span class="owner-contact-label">Legal / Owner Name</span><strong class="owner-contact-value">Shivam Sahu</strong></div>
+            </div>
+            <div class="owner-contact-row">
+                <span class="owner-contact-icon" aria-hidden="true">✉</span>
+                <div><span class="owner-contact-label">Email</span><a class="owner-contact-value" href="mailto:shivamsahu.co@gmail.com">shivamsahu.co@gmail.com</a></div>
+            </div>
+            <div class="owner-contact-row">
+                <span class="owner-contact-icon" aria-hidden="true">☎</span>
+                <div><span class="owner-contact-label">Phone</span><a class="owner-contact-value" href="tel:9286557611">9286557611</a></div>
+            </div>
         </section>
     </main>
 </body>
