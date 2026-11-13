@@ -71,6 +71,7 @@
                 <div class="detail"><small>Customer</small><strong>{{ order['customer_name'] or ('Customer #' ~ order['customer_id']) }}</strong></div>
                 <div class="detail"><small>Refund amount (full payment)</small><strong>₹{{ '%.2f'|format(order['amount']|float) }}</strong></div>
                 <div class="detail"><small>Cashfree environment</small><strong>{{ (order['environment'] or 'unknown')|upper }}</strong></div>
+                <div class="detail"><small>Payment type</small><strong>{{ (order['payment_type'] or 'advance')|title }}</strong></div>
                 <div class="detail"><small>Cashfree Payment ID</small><strong>{{ order['cf_payment_id'] or 'Missing — investigate first' }}</strong></div>
                 <div class="detail"><small>Booking / payment state</small><strong>{{ order['status'] }}{% if order['booking_id'] %} / {{ order['booking_lifecycle'] or order['booking_status'] or 'unknown' }}{% endif %}</strong></div>
                 <div class="detail"><small>Order created</small><strong>{{ order['created_at'] or 'Not available' }}</strong></div>
