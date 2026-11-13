@@ -35,8 +35,8 @@ def _cashfree_callback_client(
 
     conn.execute("""
         INSERT INTO cashfree_payment_orders
-            (order_id, customer_id, amount, currency, status, payment_session_id)
-        VALUES (?, ?, 50, 'INR', ?, ?)
+            (order_id, customer_id, amount, currency, status, payment_session_id, environment)
+        VALUES (?, ?, 50, 'INR', ?, ?, 'sandbox')
     """, (
         "sivdhi_1_callbacktest",
         order_owner,
@@ -75,7 +75,7 @@ def test_cashfree_return_marks_own_verified_order_success(
     monkeypatch.setattr(
         routes,
         "verify_cashfree_order_payment",
-        lambda order_id, amount: {
+        lambda order_id, amount, environment=None: {
             "cf_payment_id": "987654321",
             "payment_group": "upi",
             "payment_amount": "50.00",
