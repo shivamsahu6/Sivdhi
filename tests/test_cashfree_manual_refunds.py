@@ -336,10 +336,12 @@ def test_separate_advance_and_balance_refunds_accumulate_on_booking(
         tmp_path, monkeypatch, order_status="BOOKED", environment="sandbox"
     )
     conn = sqlite3.connect(path)
+    conn.execute("ALTER TABLE bookings ADD COLUMN total_amount REAL DEFAULT 100")
     conn.execute("""
         INSERT INTO bookings(
-            booking_id, customer_id, status, booking_status
-        ) VALUES('SIV-REFUND-BOTH', 1, 'cancelled', 'cancelled')
+            booking_id, customer_id, status, booking_status,
+            total_amount, advance_paid_amount, balance_paid_amount
+        ) VALUES('SIV-REFUND-BOTH', 1, 'cancelled', 'cancelled', 100, 50, 50)
     """)
     conn.execute("""
         UPDATE cashfree_payment_orders
@@ -371,12 +373,22 @@ def test_separate_advance_and_balance_refunds_accumulate_on_booking(
         )
         assert recorded.status_code == 302
 
-    for attempt_id in (1, 2):
-        updated = client.post(
-            f"{base}/{attempt_id}/status",
-            data={"status": "SUCCESS"},
-        )
-        assert updated.status_code == 302
+    first_refund = client.post(
+        f"{base}/1/status", data={"status": "SUCCESS"}
+    )
+    assert first_refund.status_code == 302
+    conn = sqlite3.connect(path)
+    partial_state = conn.execute("""
+        SELECT refund_status, refund_amount FROM bookings
+        WHERE booking_id='SIV-REFUND-BOTH'
+    """).fetchone()
+    conn.close()
+    assert partial_state == ("partially_refunded", 50.0)
+
+    second_refund = client.post(
+        f"{base}/2/status", data={"status": "SUCCESS"}
+    )
+    assert second_refund.status_code == 302
 
     conn = sqlite3.connect(path)
     booking = conn.execute("""
