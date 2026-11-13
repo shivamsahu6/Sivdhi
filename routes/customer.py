@@ -2935,7 +2935,10 @@ def _finalize_cashfree_balance_payment(db, order, verified, customer_id):
             balance_due <= 0
             or abs(balance_due - money(current_order["amount"])) > 0.004
             or balance_state in paid_states
-            or not (booking["worker_id"] or booking["assigned_worker_id"])
+            or not (
+                (booking["worker_id"] if "worker_id" in booking.keys() else None)
+                or (booking["assigned_worker_id"] if "assigned_worker_id" in booking.keys() else None)
+            )
         ):
             return hold_for_reconciliation()
 
@@ -3010,7 +3013,10 @@ def _finalize_cashfree_balance_payment(db, order, verified, customer_id):
         if consumed.rowcount != 1:
             raise RuntimeError("Verified balance order could not be consumed exactly once")
 
-        worker_id = booking["worker_id"] or booking["assigned_worker_id"]
+        worker_id = (
+            (booking["worker_id"] if "worker_id" in booking.keys() else None)
+            or (booking["assigned_worker_id"] if "assigned_worker_id" in booking.keys() else None)
+        )
         if table_exists(db, "notifications") and worker_id:
             db.execute("""
                 INSERT INTO notifications
@@ -3024,7 +3030,10 @@ def _finalize_cashfree_balance_payment(db, order, verified, customer_id):
                 + (" Sandbox payment only; no real money was collected." if is_demo_payment else ""),
             ))
 
-        partner_id = booking["assigned_partner_id"] or booking["partner_id"]
+        partner_id = (
+            (booking["assigned_partner_id"] if "assigned_partner_id" in booking.keys() else None)
+            or (booking["partner_id"] if "partner_id" in booking.keys() else None)
+        )
         if not partner_id and worker_id:
             partner_id = find_partner_for_worker(db, int(worker_id))
         if table_exists(db, "notifications") and partner_id:
@@ -3361,7 +3370,10 @@ def pay_booking_balance(booking_ref):
                     ),
                 }), 409
 
-            worker_id = booking["worker_id"] or booking["assigned_worker_id"]
+            worker_id = (
+                (booking["worker_id"] if "worker_id" in booking.keys() else None)
+                or (booking["assigned_worker_id"] if "assigned_worker_id" in booking.keys() else None)
+            )
             if not worker_id:
                 db.rollback()
                 flash("This booking has no assigned worker. Balance payment is unavailable.", "warning")
