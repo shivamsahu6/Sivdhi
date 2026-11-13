@@ -61,6 +61,7 @@ def _admin_refund_client(tmp_path, monkeypatch, *, order_status="PAID_NO_WORKER"
     app = Flask(__name__)
     app.secret_key = "isolated-admin-refund-test-secret"
     app.config["TESTING"] = True
+    app.jinja_env.globals["csrf_token"] = lambda: "test-csrf-token"
     app.register_blueprint(admin_routes.admin_bp)
     client = app.test_client()
     now = int(time.time())
@@ -192,4 +193,4 @@ def test_cashfree_manual_refund_page_requires_admin_and_lists_paid_no_worker(
     assert response.status_code == 200
     assert b"sivdhi_1_refundtest" in response.data
     assert b"Cashfree Payment ID" in response.data
-    assert b"does not transfer money" in response.data
+    assert b"never transfers money" in response.data
