@@ -70,7 +70,13 @@ def _response_json(response):
     return payload
 
 
-def create_cashfree_order(order_id: str, amount: float, customer: dict, return_url: str) -> dict:
+def create_cashfree_order(
+    order_id: str,
+    amount: float,
+    customer: dict,
+    return_url: str,
+    order_note: str = "Sivdhi booking advance",
+) -> dict:
     environment, base_url, app_id, secret_key = cashfree_settings()
     phone = re.sub(r"\D", "", str(customer.get("mobile") or ""))
     if len(phone) == 12 and phone.startswith("91"):
@@ -99,7 +105,7 @@ def create_cashfree_order(order_id: str, amount: float, customer: dict, return_u
         "order_currency": "INR",
         "customer_details": customer_details,
         "order_meta": {"return_url": return_url},
-        "order_note": "Sivdhi booking advance",
+        "order_note": str(order_note or "Sivdhi booking advance")[:80],
     }
     try:
         response = requests.post(
