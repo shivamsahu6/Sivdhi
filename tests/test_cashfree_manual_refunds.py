@@ -243,6 +243,12 @@ def test_verified_successful_unbooked_cashfree_order_can_be_reconciled(
     assert row == (
         "sivdhi_1_refundtest", "refund-success-unbooked", 50.0, "INITIATED"
     )
+    conn = sqlite3.connect(path)
+    order_status = conn.execute(
+        "SELECT status FROM cashfree_payment_orders"
+    ).fetchone()[0]
+    conn.close()
+    assert order_status == "REFUND_PENDING"
 
 
 def test_verified_successful_order_linked_to_booking_is_not_unbooked_refund(
@@ -275,3 +281,31 @@ def test_verified_successful_order_linked_to_booking_is_not_unbooked_refund(
     ).fetchone()[0]
     conn.close()
     assert count == 0
+
+
+
+def test_failed_manual_refund_reopens_verified_unbooked_order(
+    tmp_path, monkeypatch
+):
+    client, path, routes = _admin_refund_client(
+        tmp_path, monkeypatch, order_status="SUCCESS"
+    )
+    base = routes.ADMIN_PANEL_BASE + "/admin/cashfree-refunds"
+    client.post(
+        base + "/sivdhi_1_refundtest/record",
+        data={"refund_id": "refund-unbooked-failed", "environment": "production"},
+    )
+    conn = sqlite3.connect(path)
+    locked = conn.execute(
+        "SELECT status FROM cashfree_payment_orders"
+    ).fetchone()[0]
+    conn.close()
+    assert locked == "REFUND_PENDING"
+
+    client.post(base + "/1/status", data={"status": "FAILED"})
+    conn = sqlite3.connect(path)
+    restored = conn.execute(
+        "SELECT status FROM cashfree_payment_orders"
+    ).fetchone()[0]
+    conn.close()
+    assert restored == "SUCCESS"
