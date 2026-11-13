@@ -147,23 +147,14 @@ def verify_cashfree_order_payment(order_id: str, expected_amount: float) -> dict
             continue
         if str(payment.get("payment_status") or "").upper() != "SUCCESS":
             continue
-        if str(payment.get("payment_currency") or "").upper() != "INR":
-            continue
-        try:
-            paid = Decimal(str(payment.get("payment_amount"))).quantize(Decimal("0.01"))
-        except (InvalidOperation, TypeError, ValueError):
-            continue
-        if paid != expected:
-            continue
+
+        # Count every successful payment for this order before checking the
+        # expected amount/currency. A second captured payment must never be
+        # hidden merely because its amount or currency differs.
         cf_payment_id = str(payment.get("cf_payment_id") or "").strip()
         if not cf_payment_id:
             continue
-
-        successful[cf_payment_id] = {
-            "cf_payment_id": cf_payment_id,
-            "payment_group": str(payment.get("payment_group") or "online")[:40],
-            "payment_amount": str(paid),
-        }
+        successful[cf_payment_id] = payment
 
     if len(successful) > 1:
         raise CashfreeGatewayError(
@@ -171,4 +162,19 @@ def verify_cashfree_order_payment(order_id: str, expected_amount: float) -> dict
         )
     if not successful:
         return None
-    return next(iter(successful.values()))
+
+    payment = next(iter(successful.values()))
+    if str(payment.get("payment_currency") or "").upper() != "INR":
+        return None
+    try:
+        paid = Decimal(str(payment.get("payment_amount"))).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    if paid != expected:
+        return None
+
+    return {
+        "cf_payment_id": next(iter(successful)),
+        "payment_group": str(payment.get("payment_group") or "online")[:40],
+        "payment_amount": str(paid),
+    }
