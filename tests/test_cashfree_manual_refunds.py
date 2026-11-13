@@ -211,3 +211,67 @@ def test_cashfree_booking_cannot_use_legacy_manual_bank_refund_path():
     )[0]
     assert "cashfree_payment_orders" in refund_route
     assert "Use the Cashfree Refunds page" in refund_route
+
+
+def test_verified_successful_unbooked_cashfree_order_can_be_reconciled(
+    tmp_path, monkeypatch
+):
+    client, path, routes = _admin_refund_client(
+        tmp_path, monkeypatch, order_status="SUCCESS"
+    )
+    base = routes.ADMIN_PANEL_BASE + "/admin/cashfree-refunds"
+
+    page = client.get(base)
+    assert page.status_code == 200
+    assert b"sivdhi_1_refundtest" in page.data
+
+    recorded = client.post(
+        base + "/sivdhi_1_refundtest/record",
+        data={
+            "refund_id": "refund-success-unbooked",
+            "environment": "production",
+            "reason": "Customer did not complete booking",
+        },
+    )
+    assert recorded.status_code == 302
+
+    conn = sqlite3.connect(path)
+    row = conn.execute(
+        "SELECT order_id, refund_id, amount, status FROM cashfree_manual_refunds"
+    ).fetchone()
+    conn.close()
+    assert row == (
+        "sivdhi_1_refundtest", "refund-success-unbooked", 50.0, "INITIATED"
+    )
+
+
+def test_verified_successful_order_linked_to_booking_is_not_unbooked_refund(
+    tmp_path, monkeypatch
+):
+    client, path, routes = _admin_refund_client(
+        tmp_path, monkeypatch, order_status="SUCCESS"
+    )
+    conn = sqlite3.connect(path)
+    conn.execute(
+        "INSERT INTO bookings(booking_id, customer_id, status, booking_status) "
+        "VALUES('SIV-BOOKED', 1, 'pending', 'pending')"
+    )
+    conn.execute(
+        "UPDATE cashfree_payment_orders SET booking_id='SIV-BOOKED' "
+        "WHERE order_id='sivdhi_1_refundtest'"
+    )
+    conn.commit()
+    conn.close()
+
+    response = client.post(
+        routes.ADMIN_PANEL_BASE + "/admin/cashfree-refunds/sivdhi_1_refundtest/record",
+        data={"refund_id": "refund-linked-order", "environment": "production"},
+    )
+    assert response.status_code == 302
+
+    conn = sqlite3.connect(path)
+    count = conn.execute(
+        "SELECT COUNT(*) FROM cashfree_manual_refunds"
+    ).fetchone()[0]
+    conn.close()
+    assert count == 0
