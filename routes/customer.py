@@ -3167,57 +3167,6 @@ def cashfree_return():
         return redirect(url_for("customer.payment", cashfree_order_id=order_id))
     finally:
         db.close()
-    """Verify Cashfree payment server-side before allowing booking confirmation."""
-    order_id = (request.args.get("order_id") or "").strip()
-    if not order_id or len(order_id) > 50:
-        flash("Cashfree order reference is missing. If money was debited, contact Sivdhi Support.", "warning")
-        return redirect(url_for("customer.payment"))
-
-    db = get_db()
-    try:
-        ensure_finance_schema(db)
-        order = db.execute("""
-            SELECT order_id, amount, status, environment FROM cashfree_payment_orders
-            WHERE order_id=? AND customer_id=? LIMIT 1
-        """, (order_id, customer_db_id())).fetchone()
-        if not order:
-            flash("This Cashfree order does not belong to your account.", "danger")
-            return redirect(url_for("customer.payment"))
-        if order["status"] == "BOOKED":
-            return redirect(url_for("customer.bookings"))
-        if order["status"] == "PAID_NO_WORKER":
-            flash("Payment was received, but this slot could not be booked. Please contact Sivdhi Support; do not pay again.", "warning")
-            return redirect(url_for("customer.bookings"))
-        if order["status"] in {"REFUND_PENDING", "REFUNDED"}:
-            flash("This payment is locked for refund processing or has already been refunded. Do not retry payment; contact Sivdhi Support if you need an update.", "warning")
-            return redirect(url_for("customer.payment"))
-        if order["status"] not in {"PENDING", "SUCCESS"}:
-            flash("This payment order is not available for verification. Do not retry payment; contact Sivdhi Support.", "warning")
-            return redirect(url_for("customer.payment"))
-        if order["status"] == "PENDING":
-            try:
-                verified = verify_cashfree_order_payment(
-                    order_id, money(order["amount"]), environment=order["environment"]
-                )
-            except CashfreeGatewayError as gateway_error:
-                current_app.logger.warning("Cashfree verification failed for %s: %s", order_id, gateway_error)
-                flash("Payment status could not be verified yet. Do not retry payment; refresh this page or contact support.", "warning")
-                return redirect(url_for("customer.payment"))
-            if not verified:
-                flash("Cashfree has not confirmed a successful payment. If your bank shows a debit, wait a moment and retry verification; do not pay again.", "warning")
-                return redirect(url_for("customer.payment"))
-            db.execute("""
-                UPDATE cashfree_payment_orders
-                SET status='SUCCESS', cf_payment_id=?, payment_method=?,
-                    verified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
-                WHERE order_id=? AND customer_id=? AND status='PENDING'
-            """, (verified["cf_payment_id"], verified["payment_group"], order_id, customer_db_id()))
-            db.commit()
-        return redirect(url_for("customer.payment", cashfree_order_id=order_id))
-    finally:
-        db.close()
-
-
 # =========================================================
 # JSON ENDPOINTS FOR THE CUSTOMER FLOW
 # =========================================================
