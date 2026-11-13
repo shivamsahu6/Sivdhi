@@ -108,7 +108,7 @@ def test_cashfree_return_keeps_order_pending_when_payment_is_not_verified(
     client, path, routes = _cashfree_callback_client(tmp_path, monkeypatch)
 
     monkeypatch.setattr(
-        routes, "verify_cashfree_order_payment", lambda *args: None
+        routes, "verify_cashfree_order_payment", lambda *args, **kwargs: None
     )
 
     response = client.get(
