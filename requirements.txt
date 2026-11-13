@@ -5,3 +5,4 @@ waitress>=3.0,<4.0
 firebase-admin>=7.7.0,<8.0
 cryptography>=45.0,<52.0
 tzdata>=2025.2
+requests>=2.32,<3.0
