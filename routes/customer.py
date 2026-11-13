@@ -3302,7 +3302,7 @@ def pay_booking_balance(booking_ref):
             if not cashfree_enabled():
                 db.rollback()
                 flash(
-                    "Live balance payment is not configured. No payment was taken.",
+                    "Live balance payment is not enabled yet. No payment was taken.",
                     "warning",
                 )
                 return redirect(url_for("customer.bookings"))
