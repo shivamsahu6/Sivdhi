@@ -86,9 +86,9 @@ def create_cashfree_order(
     try:
         order_amount = Decimal(str(amount)).quantize(Decimal("0.01"))
     except (InvalidOperation, TypeError, ValueError):
-        raise CashfreeGatewayError("Invalid booking advance amount.")
+        raise CashfreeGatewayError("Invalid Cashfree payment amount.")
     if order_amount <= 0:
-        raise CashfreeGatewayError("Booking advance must be greater than zero.")
+        raise CashfreeGatewayError("Cashfree payment amount must be greater than zero.")
 
     customer_details = {
         "customer_id": str(customer.get("id")),
