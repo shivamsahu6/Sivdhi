@@ -161,3 +161,29 @@ class FinanceSettlementTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+    def test_cashfree_sandbox_balance_cannot_credit_real_wallets(self):
+        booking_id = self.add_booking('SIV-TEST-CASHFREE-BALANCE')
+        self.db.execute("""
+            INSERT INTO sivdhi_finance_ledger(
+                booking_id, entry_type, amount, status, payment_mode
+            ) VALUES(?, 'customer_balance', 450, 'demo_paid', 'cashfree_sandbox')
+        """, ('SIV-TEST-CASHFREE-BALANCE',))
+
+        ok, message = settle_completed_booking(self.db, booking_id)
+
+        self.assertFalse(ok)
+        self.assertIn("Sandbox", message)
+        self.assertAlmostEqual(
+            self.db.execute("SELECT wallet FROM workers WHERE id=1").fetchone()[0],
+            0,
+        )
+        self.assertAlmostEqual(
+            self.db.execute("SELECT wallet FROM partners WHERE id=1").fetchone()[0],
+            0,
+        )
+        self.assertEqual(
+            self.db.execute("SELECT COUNT(*) FROM wallet_transactions").fetchone()[0],
+            0,
+        )
+
