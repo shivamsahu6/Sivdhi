@@ -19,12 +19,14 @@ class CashfreeGatewayError(RuntimeError):
     """Safe, user-displayable Cashfree integration error."""
 
 
-def cashfree_settings():
+def cashfree_settings(expected_environment: str | None = None):
     environment = os.getenv("CASHFREE_ENV", "sandbox").strip().lower()
     app_id = os.getenv("CASHFREE_APP_ID", "").strip()
     secret_key = os.getenv("CASHFREE_SECRET_KEY", "").strip()
     if environment not in {"sandbox", "production"}:
         raise CashfreeGatewayError("Cashfree environment must be sandbox or production.")
+    if expected_environment is not None and str(expected_environment).strip().lower() != environment:
+        raise CashfreeGatewayError("Cashfree order environment does not match the configured credentials. Restore the matching environment to verify this payment.")
     if not app_id or not secret_key:
         raise CashfreeGatewayError("Cashfree API credentials are not configured on the server.")
     base_url = "https://sandbox.cashfree.com/pg" if environment == "sandbox" else "https://api.cashfree.com/pg"
@@ -122,9 +124,11 @@ def create_cashfree_order(order_id: str, amount: float, customer: dict, return_u
     }
 
 
-def verify_cashfree_order_payment(order_id: str, expected_amount: float) -> dict | None:
-    """Return one captured SUCCESS payment only when order, amount and currency match."""
-    _, base_url, app_id, secret_key = cashfree_settings()
+def verify_cashfree_order_payment(
+    order_id: str, expected_amount: float, environment: str | None = None
+) -> dict | None:
+    """Verify against credentials for the environment stored with the order."""
+    _, base_url, app_id, secret_key = cashfree_settings(expected_environment=environment)
     try:
         response = requests.get(
             f"{base_url}/orders/{order_id}/payments",
