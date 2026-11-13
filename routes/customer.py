@@ -3220,12 +3220,10 @@ def cashfree_return():
 @customer_bp.route("/booking/<booking_ref>/balance-payment", methods=["POST"])
 @customer_login_required
 def pay_booking_balance(booking_ref):
-    """Record the remaining balance after the assigned worker has arrived.
+    """Record a demo balance or create a verified Cashfree balance checkout.
 
-    In demo/test mode this creates a clearly-labelled simulated receipt only;
-    no real money is collected. Live mode fails closed until a payment gateway
-    verifies a provider callback. Worker arrival itself never marks the balance
-    as paid.
+    Balance payment is available only after the assigned worker has recorded
+    arrival. Live payment is never marked successful from the browser.
     """
     db = get_db()
     try:
@@ -3262,7 +3260,7 @@ def pay_booking_balance(booking_ref):
         booking_status = str(
             booking["booking_status"] or booking["status"] or "pending"
         ).strip().lower()
-        if booking_status in {"cancelled", "canceled", "refunded", "failed"}:
+        if booking_status in {"cancelled", "canceled", "refunded", "failed", "completed", "complete"}:
             db.rollback()
             flash("This booking is not eligible for balance payment.", "warning")
             return redirect(url_for("customer.bookings"))
@@ -3291,15 +3289,152 @@ def pay_booking_balance(booking_ref):
             flash("There is no remaining balance due for this booking.", "info")
             return redirect(url_for("customer.bookings"))
 
-        # Do not fabricate a live payment success without a verified provider.
         if not demo_mode:
-            db.rollback()
-            flash(
-                "Live balance payment is not enabled yet. No payment was taken. "
-                "Sivdhi must connect and verify a real payment gateway before live payments can be accepted.",
-                "warning",
+            if not cashfree_enabled():
+                db.rollback()
+                flash(
+                    "Live balance payment is not configured. No payment was taken.",
+                    "warning",
+                )
+                return redirect(url_for("customer.bookings"))
+
+            payment_action = (request.form.get("payment_action") or "").strip().lower()
+            if payment_action != "create_cashfree_balance_order":
+                db.rollback()
+                flash("Use the secure Cashfree checkout to pay the remaining balance. No payment was taken.", "warning")
+                return redirect(url_for("customer.bookings"))
+
+            environment = os.getenv("CASHFREE_ENV", "sandbox").strip().lower()
+            existing_order = db.execute("""
+                SELECT order_id, amount, payment_session_id, status
+                FROM cashfree_payment_orders
+                WHERE customer_id=? AND booking_id=? AND payment_type='balance'
+                  AND environment=?
+                  AND status IN (
+                      'CREATING','PENDING','SUCCESS','BOOKED',
+                      'PAID_NO_WORKER','REFUND_PENDING'
+                  )
+                ORDER BY created_at DESC
+                LIMIT 1
+            """, (
+                customer_row["id"], str(booking["booking_id"]), environment
+            )).fetchone()
+
+            if existing_order and existing_order["status"] == "CREATING":
+                db.execute("""
+                    UPDATE cashfree_payment_orders
+                    SET status='FAILED', updated_at=CURRENT_TIMESTAMP
+                    WHERE order_id=? AND status='CREATING'
+                      AND datetime(created_at) < datetime('now', '-2 minutes')
+                """, (existing_order["order_id"],))
+                existing_order = db.execute("""
+                    SELECT order_id, amount, payment_session_id, status
+                    FROM cashfree_payment_orders
+                    WHERE order_id=? AND status IN (
+                        'CREATING','PENDING','SUCCESS','BOOKED',
+                        'PAID_NO_WORKER','REFUND_PENDING'
+                    )
+                    LIMIT 1
+                """, (existing_order["order_id"],)).fetchone()
+
+            if existing_order:
+                if (
+                    existing_order["status"] == "PENDING"
+                    and existing_order["payment_session_id"]
+                    and existing_order["payment_session_id"] != "CREATING"
+                    and abs(money(existing_order["amount"]) - balance_due) <= 0.004
+                ):
+                    db.commit()
+                    return jsonify({
+                        "ok": True,
+                        "order_id": existing_order["order_id"],
+                        "payment_session_id": existing_order["payment_session_id"],
+                        "environment": environment,
+                        "reused": True,
+                    })
+                db.commit()
+                return jsonify({
+                    "ok": False,
+                    "message": (
+                        "A previous balance payment is still processing or needs support reconciliation. "
+                        "Do not pay again; refresh your bookings or contact Sivdhi Support."
+                    ),
+                }), 409
+
+            worker_id = booking["worker_id"] or booking["assigned_worker_id"]
+            if not worker_id:
+                db.rollback()
+                flash("This booking has no assigned worker. Balance payment is unavailable.", "warning")
+                return redirect(url_for("customer.bookings"))
+
+            new_order_id = f"sivdhi_{customer_row['id']}_{secrets.token_hex(8)}"
+            balance_context = hashlib.sha256(
+                (
+                    f"balance|{customer_row['id']}|{booking['booking_id']}|"
+                    f"{balance_due:.2f}|{booking['worker_arrived_at']}"
+                ).encode("utf-8")
+            ).hexdigest()
+            db.execute("""
+                INSERT INTO cashfree_payment_orders
+                    (order_id, customer_id, amount, currency, status,
+                     payment_session_id, environment, context_hash, booking_id,
+                     payment_type, created_at)
+                VALUES (?, ?, ?, 'INR', 'CREATING', 'CREATING', ?, ?, ?,
+                        'balance', CURRENT_TIMESTAMP)
+            """, (
+                new_order_id,
+                customer_row["id"],
+                balance_due,
+                environment,
+                balance_context,
+                str(booking["booking_id"]),
+            ))
+            db.commit()
+
+            return_url = (
+                os.getenv("SIVDHI_PUBLIC_BASE_URL", "https://sivdhi.duckdns.org").rstrip("/")
+                + url_for("customer.cashfree_return")
             )
-            return redirect(url_for("customer.bookings"))
+            try:
+                created_order = create_cashfree_order(
+                    new_order_id,
+                    balance_due,
+                    dict(customer_row),
+                    return_url,
+                    order_note="Sivdhi remaining balance",
+                )
+                db.execute("""
+                    UPDATE cashfree_payment_orders
+                    SET status='PENDING', payment_session_id=?, updated_at=CURRENT_TIMESTAMP
+                    WHERE order_id=? AND customer_id=? AND payment_type='balance'
+                      AND status='CREATING'
+                """, (
+                    created_order["payment_session_id"],
+                    new_order_id,
+                    customer_row["id"],
+                ))
+                if db.execute("SELECT changes()").fetchone()[0] != 1:
+                    db.rollback()
+                    return jsonify({
+                        "ok": False,
+                        "message": "Balance checkout reservation changed unexpectedly. Contact Sivdhi Support before retrying.",
+                    }), 409
+                db.commit()
+                return jsonify({
+                    "ok": True,
+                    "order_id": new_order_id,
+                    "payment_session_id": created_order["payment_session_id"],
+                    "environment": created_order["environment"],
+                    "reused": False,
+                })
+            except CashfreeGatewayError as gateway_error:
+                db.execute("""
+                    UPDATE cashfree_payment_orders
+                    SET status='FAILED', updated_at=CURRENT_TIMESTAMP
+                    WHERE order_id=? AND status='CREATING'
+                """, (new_order_id,))
+                db.commit()
+                return jsonify({"ok": False, "message": str(gateway_error)}), 502
 
         pay_id = payment_number()
         payment_status = "DEMO_PAID"
@@ -3725,10 +3860,14 @@ def bookings():
 
             result.append(item)
 
+        demo_mode = is_demo_mode()
+        cashfree_mode = not demo_mode and cashfree_enabled()
         return render_template(
             "customer/bookings.html",
             bookings=result,
-            demo_mode=is_demo_mode(),
+            demo_mode=demo_mode,
+            cashfree_mode=cashfree_mode,
+            cashfree_environment=os.getenv("CASHFREE_ENV", "sandbox").strip().lower(),
         )
 
     finally:
