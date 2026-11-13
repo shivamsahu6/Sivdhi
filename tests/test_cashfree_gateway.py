@@ -170,3 +170,38 @@ def test_cashfree_sandbox_payment_is_classified_as_non_live():
     assert payment_audit_metadata(True, "demo", "sandbox") == (
         True, "demo"
     )
+
+
+def test_cashfree_verification_rejects_multiple_successful_payments(monkeypatch):
+    import pytest
+
+    monkeypatch.setenv("CASHFREE_ENV", "sandbox")
+    monkeypatch.setenv("CASHFREE_APP_ID", "sandbox-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "sandbox-secret")
+
+    class Response:
+        ok = True
+        status_code = 200
+
+        def json(self):
+            return [
+                {
+                    "order_id": "sivdhi_4_abcd1234",
+                    "payment_status": "SUCCESS",
+                    "payment_currency": "INR",
+                    "payment_amount": 50,
+                    "cf_payment_id": "payment-1",
+                },
+                {
+                    "order_id": "sivdhi_4_abcd1234",
+                    "payment_status": "SUCCESS",
+                    "payment_currency": "INR",
+                    "payment_amount": 50,
+                    "cf_payment_id": "payment-2",
+                },
+            ]
+
+    monkeypatch.setattr(gateway.requests, "get", lambda *args, **kwargs: Response())
+
+    with pytest.raises(gateway.CashfreeGatewayError, match="multiple successful payments"):
+        gateway.verify_cashfree_order_payment("sivdhi_4_abcd1234", 50)

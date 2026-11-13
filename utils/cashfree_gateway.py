@@ -138,6 +138,8 @@ def verify_cashfree_order_payment(order_id: str, expected_amount: float) -> dict
         raise CashfreeGatewayError("Cashfree returned an invalid payment status response.")
 
     expected = Decimal(str(expected_amount)).quantize(Decimal("0.01"))
+    successful = {}
+
     for payment in payments:
         if not isinstance(payment, dict):
             continue
@@ -156,9 +158,17 @@ def verify_cashfree_order_payment(order_id: str, expected_amount: float) -> dict
         cf_payment_id = str(payment.get("cf_payment_id") or "").strip()
         if not cf_payment_id:
             continue
-        return {
+
+        successful[cf_payment_id] = {
             "cf_payment_id": cf_payment_id,
             "payment_group": str(payment.get("payment_group") or "online")[:40],
             "payment_amount": str(paid),
         }
-    return None
+
+    if len(successful) > 1:
+        raise CashfreeGatewayError(
+            "Cashfree reported multiple successful payments for this order. Manual reconciliation is required."
+        )
+    if not successful:
+        return None
+    return next(iter(successful.values()))
