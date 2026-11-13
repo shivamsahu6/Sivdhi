@@ -71,16 +71,17 @@ def test_cashfree_return_marks_own_verified_order_success(
     tmp_path, monkeypatch
 ):
     client, path, routes = _cashfree_callback_client(tmp_path, monkeypatch)
+    verification_calls = []
 
-    monkeypatch.setattr(
-        routes,
-        "verify_cashfree_order_payment",
-        lambda order_id, amount, environment=None: {
+    def verify_order(order_id, amount, environment=None):
+        verification_calls.append((order_id, amount, environment))
+        return {
             "cf_payment_id": "987654321",
             "payment_group": "upi",
             "payment_amount": "50.00",
-        },
-    )
+        }
+
+    monkeypatch.setattr(routes, "verify_cashfree_order_payment", verify_order)
 
     response = client.get(
         "/customer/cashfree/return?order_id=sivdhi_1_callbacktest"
@@ -88,6 +89,7 @@ def test_cashfree_return_marks_own_verified_order_success(
 
     assert response.status_code == 302
     assert "cashfree_order_id=" in response.location
+    assert verification_calls == [("sivdhi_1_callbacktest", 50.0, "sandbox")]
 
     conn = sqlite3.connect(path)
     row = conn.execute("""
@@ -542,3 +544,40 @@ def test_paid_cashfree_order_without_worker_is_not_booked_or_charged_again(
     assert booking_count == 0
     assert payment_count == 0
     assert ledger_count == 0
+
+
+
+def test_pending_checkout_from_other_cashfree_environment_is_not_reused(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    first_order_id = _create_test_cashfree_order(client, routes, monkeypatch)
+
+    conn = sqlite3.connect(path)
+    conn.execute(
+        "UPDATE cashfree_payment_orders SET environment='production' WHERE order_id=?",
+        (first_order_id,),
+    )
+    conn.commit()
+    conn.close()
+
+    second = client.post(
+        "/customer/payment",
+        data={"payment_action": "create_cashfree_order"},
+    )
+    assert second.status_code == 200
+    second_payload = second.get_json()
+    assert second_payload["order_id"] != first_order_id
+    assert second_payload["environment"] == "sandbox"
+
+    conn = sqlite3.connect(path)
+    rows = conn.execute(
+        "SELECT order_id, environment FROM cashfree_payment_orders ORDER BY rowid"
+    ).fetchall()
+    conn.close()
+    assert rows == [
+        (first_order_id, "production"),
+        (second_payload["order_id"], "sandbox"),
+    ]
