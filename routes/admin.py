@@ -1657,7 +1657,7 @@ def admin_cashfree_refunds():
             SELECT
                 o.order_id, o.customer_id, o.amount, o.currency, o.status,
                 o.environment, o.cf_payment_id, o.payment_method, o.booking_id,
-                o.created_at,
+                o.payment_type, o.created_at,
                 c.fullname AS customer_name,
                 c.email AS customer_email,
                 b.status AS booking_status,
