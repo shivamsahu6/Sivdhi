@@ -2606,9 +2606,13 @@ def payment():
                     new_order_id = f"sivdhi_{customer_row['id']}_{secrets.token_hex(8)}"
                     db.execute("""
                         INSERT INTO cashfree_payment_orders
-                            (order_id, customer_id, amount, currency, status, payment_session_id, context_hash, created_at)
-                        VALUES (?, ?, ?, 'INR', 'CREATING', 'CREATING', ?, CURRENT_TIMESTAMP)
-                    """, (new_order_id, customer_row["id"], advance_amount, cashfree_context_hash))
+                            (order_id, customer_id, amount, currency, status, payment_session_id, environment, context_hash, created_at)
+                        VALUES (?, ?, ?, 'INR', 'CREATING', 'CREATING', ?, ?, CURRENT_TIMESTAMP)
+                    """, (
+                        new_order_id, customer_row["id"], advance_amount,
+                        os.getenv("CASHFREE_ENV", "sandbox").strip().lower(),
+                        cashfree_context_hash,
+                    ))
                     db.commit()
                 except Exception:
                     db.rollback()
