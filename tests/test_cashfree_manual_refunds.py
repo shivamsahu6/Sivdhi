@@ -394,4 +394,3 @@ def test_separate_advance_and_balance_refunds_accumulate_on_booking(
     assert booking[1] == 100.0
     assert booking[2] == "refund-balance"
     assert ledger_total == 100.0
-
