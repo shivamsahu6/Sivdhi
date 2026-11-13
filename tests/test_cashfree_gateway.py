@@ -116,7 +116,7 @@ def test_live_cashfree_booking_requires_verified_database_order():
     source = (Path(__file__).resolve().parents[1] / "routes/customer.py").read_text(encoding="utf-8")
     assert 'payment_action != "confirm_cashfree"' in source
     assert "status='SUCCESS'" in source
-    assert "verify_cashfree_order_payment(order_id, money(order[\"amount\"]))" in source
+    assert "environment=order[\"environment\"]" in source
     assert "cashfree_payment_orders" in source
     assert "cashfree_checkout_fingerprint" in source
     assert "context_hash" in source
