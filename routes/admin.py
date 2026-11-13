@@ -1672,6 +1672,10 @@ def admin_cashfree_refunds():
               ON CAST(b.booking_id AS TEXT)=CAST(o.booking_id AS TEXT)
             WHERE o.status='PAID_NO_WORKER'
                OR (
+                    o.status='SUCCESS'
+                    AND o.booking_id IS NULL
+               )
+               OR (
                     o.status='BOOKED'
                     AND LOWER(COALESCE(NULLIF(b.booking_status,''), b.status, ''))
                         IN ('cancelled','canceled')
@@ -1731,9 +1735,14 @@ def admin_record_cashfree_refund(order_id):
             flash("Cashfree order not found.", "danger")
             return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
 
-        if order["status"] not in {"PAID_NO_WORKER", "BOOKED"}:
+        if order["status"] not in {"PAID_NO_WORKER", "SUCCESS", "BOOKED"}:
             conn.rollback()
             flash("This Cashfree order is not eligible for manual refund reconciliation.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        if order["status"] == "SUCCESS" and order["booking_id"]:
+            conn.rollback()
+            flash("This successful Cashfree order is already linked to a booking. Use the booking refund workflow.", "warning")
             return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
 
         if order["status"] == "BOOKED":
