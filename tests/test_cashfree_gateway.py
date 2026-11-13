@@ -241,3 +241,23 @@ def test_cashfree_verification_flags_second_success_even_with_wrong_amount_or_cu
 
     with pytest.raises(gateway.CashfreeGatewayError, match="multiple successful payments"):
         gateway.verify_cashfree_order_payment("sivdhi_4_abcd1234", 50)
+
+
+
+def test_cashfree_verification_refuses_credentials_from_wrong_environment(monkeypatch):
+    import pytest
+
+    monkeypatch.setenv("CASHFREE_ENV", "production")
+    monkeypatch.setenv("CASHFREE_APP_ID", "production-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "production-secret")
+    calls = []
+    monkeypatch.setattr(
+        gateway.requests, "get",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(gateway.CashfreeGatewayError, match="does not match"):
+        gateway.verify_cashfree_order_payment(
+            "sivdhi_4_sandbox_order", 50, environment="sandbox"
+        )
+    assert calls == []
