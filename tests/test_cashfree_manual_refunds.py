@@ -328,4 +328,3 @@ def test_cashfree_refund_queue_labels_balance_orders(tmp_path, monkeypatch):
     assert response.status_code == 200
     assert b"Payment type" in response.data
     assert b"Balance" in response.data
-
