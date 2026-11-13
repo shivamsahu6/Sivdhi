@@ -205,3 +205,38 @@ def test_cashfree_verification_rejects_multiple_successful_payments(monkeypatch)
 
     with pytest.raises(gateway.CashfreeGatewayError, match="multiple successful payments"):
         gateway.verify_cashfree_order_payment("sivdhi_4_abcd1234", 50)
+
+
+def test_cashfree_verification_flags_second_success_even_with_wrong_amount_or_currency(monkeypatch):
+    import pytest
+
+    monkeypatch.setenv("CASHFREE_ENV", "sandbox")
+    monkeypatch.setenv("CASHFREE_APP_ID", "sandbox-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "sandbox-secret")
+
+    class Response:
+        ok = True
+        status_code = 200
+
+        def json(self):
+            return [
+                {
+                    "order_id": "sivdhi_4_abcd1234",
+                    "payment_status": "SUCCESS",
+                    "payment_currency": "INR",
+                    "payment_amount": 50,
+                    "cf_payment_id": "payment-valid",
+                },
+                {
+                    "order_id": "sivdhi_4_abcd1234",
+                    "payment_status": "SUCCESS",
+                    "payment_currency": "USD",
+                    "payment_amount": 50,
+                    "cf_payment_id": "payment-extra",
+                },
+            ]
+
+    monkeypatch.setattr(gateway.requests, "get", lambda *args, **kwargs: Response())
+
+    with pytest.raises(gateway.CashfreeGatewayError, match="multiple successful payments"):
+        gateway.verify_cashfree_order_payment("sivdhi_4_abcd1234", 50)
