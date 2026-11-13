@@ -404,7 +404,7 @@ def test_cashfree_order_creation_persists_pending_order_only(
 
     conn = sqlite3.connect(path)
     order = conn.execute("""
-        SELECT customer_id, amount, currency, status, payment_session_id, context_hash
+        SELECT customer_id, amount, currency, status, payment_session_id, context_hash, environment
         FROM cashfree_payment_orders WHERE order_id=?
     """, (order_id,)).fetchone()
     booking_count = conn.execute(
@@ -416,6 +416,7 @@ def test_cashfree_order_creation_persists_pending_order_only(
     assert order[0:4] == (1, 50.0, "INR", "PENDING")
     assert order[4] == "isolated-session-test"
     assert len(order[5]) == 64
+    assert order[6] == "sandbox"
     assert booking_count == 0
 
 
