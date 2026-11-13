@@ -107,9 +107,19 @@ def ensure_finance_schema(conn) -> None:
         "cf_payment_id": "TEXT",
         "payment_method": "TEXT",
         "booking_id": "TEXT",
+        "payment_type": "TEXT NOT NULL DEFAULT 'advance'",
         "verified_at": "TEXT",
         "updated_at": "TEXT DEFAULT CURRENT_TIMESTAMP",
     })
+
+    # Keep one active Cashfree balance checkout per booking. Advance orders
+    # retain their existing lifecycle and are excluded from this index.
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_cashfree_balance_active
+        ON cashfree_payment_orders(customer_id, booking_id, environment)
+        WHERE payment_type='balance'
+          AND status IN ('CREATING', 'PENDING', 'SUCCESS')
+    """)
 
     # Manual Cashfree Dashboard refund audit. This table records references
     # only; it never sends money or calls the Cashfree refund API.
