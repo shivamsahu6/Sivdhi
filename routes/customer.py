@@ -3264,10 +3264,9 @@ def pay_booking_balance(booking_ref):
 
             environment = os.getenv("CASHFREE_ENV", "sandbox").strip().lower()
             existing_order = db.execute("""
-                SELECT order_id, amount, payment_session_id, status
+                SELECT order_id, amount, payment_session_id, status, environment
                 FROM cashfree_payment_orders
                 WHERE customer_id=? AND booking_id=? AND payment_type='balance'
-                  AND environment=?
                   AND status IN (
                       'CREATING','PENDING','SUCCESS','BOOKED',
                       'PAID_NO_WORKER','REFUND_PENDING'
@@ -3275,7 +3274,7 @@ def pay_booking_balance(booking_ref):
                 ORDER BY created_at DESC
                 LIMIT 1
             """, (
-                customer_row["id"], str(booking["booking_id"]), environment
+                customer_row["id"], str(booking["booking_id"])
             )).fetchone()
 
             if existing_order and existing_order["status"] == "CREATING":
@@ -3294,6 +3293,7 @@ def pay_booking_balance(booking_ref):
             if existing_order:
                 if (
                     existing_order["status"] == "PENDING"
+                    and str(existing_order["environment"] or "").lower() == environment
                     and existing_order["payment_session_id"]
                     and existing_order["payment_session_id"] != "CREATING"
                     and abs(money(existing_order["amount"]) - balance_due) <= 0.004
