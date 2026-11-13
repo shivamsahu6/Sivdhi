@@ -954,4 +954,3 @@ def test_cashfree_balance_pending_order_is_not_replaced_after_environment_switch
     """).fetchall()
     conn.close()
     assert rows == [(first_order_id, "sandbox", "PENDING")]
-
