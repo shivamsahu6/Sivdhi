@@ -309,3 +309,23 @@ def test_failed_manual_refund_reopens_verified_unbooked_order(
     ).fetchone()[0]
     conn.close()
     assert restored == "SUCCESS"
+
+def test_cashfree_refund_queue_labels_balance_orders(tmp_path, monkeypatch):
+    client, path, routes = _admin_refund_client(
+        tmp_path, monkeypatch, order_status="PAID_NO_WORKER", environment="sandbox"
+    )
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        UPDATE cashfree_payment_orders
+        SET payment_type='balance', booking_id='SIV-BALANCE-REFUND'
+        WHERE order_id='sivdhi_1_refundtest'
+    """)
+    conn.commit()
+    conn.close()
+
+    response = client.get(routes.ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+    assert response.status_code == 200
+    assert b"Payment type" in response.data
+    assert b"Balance" in response.data
+
