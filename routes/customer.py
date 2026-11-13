@@ -2554,7 +2554,66 @@ def payment():
                 )
                 if not candidate:
                     return jsonify({"ok": False, "message": "This slot is no longer available. No payment was initiated."}), 409
-                new_order_id = f"sivdhi_{customer_row['id']}_{secrets.token_hex(8)}"
+                # Reserve the checkout context under SQLite's write lock. This
+                # prevents parallel requests from creating separate Cashfree orders.
+                try:
+                    db.execute("BEGIN IMMEDIATE")
+                    existing_order = db.execute("""
+                        SELECT order_id, amount, payment_session_id, status
+                        FROM cashfree_payment_orders
+                        WHERE customer_id=? AND context_hash=? AND currency='INR'
+                          AND ABS(amount-?) < 0.005
+                          AND status='PENDING'
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    """, (customer_row["id"], cashfree_context_hash, advance_amount)).fetchone()
+                    if existing_order and existing_order["payment_session_id"]:
+                        db.commit()
+                        return jsonify({
+                            "ok": True,
+                            "order_id": existing_order["order_id"],
+                            "payment_session_id": existing_order["payment_session_id"],
+                            "environment": os.getenv("CASHFREE_ENV", "sandbox").strip().lower(),
+                            "reused": True,
+                        })
+
+                    creating_order = db.execute("""
+                        SELECT order_id, created_at
+                        FROM cashfree_payment_orders
+                        WHERE customer_id=? AND context_hash=? AND currency='INR'
+                          AND ABS(amount-?) < 0.005 AND status='CREATING'
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    """, (customer_row["id"], cashfree_context_hash, advance_amount)).fetchone()
+                    if creating_order:
+                        db.execute("""
+                            UPDATE cashfree_payment_orders
+                            SET status='FAILED', updated_at=CURRENT_TIMESTAMP
+                            WHERE order_id=? AND status='CREATING'
+                              AND datetime(created_at) < datetime('now', '-2 minutes')
+                        """, (creating_order["order_id"],))
+                        still_creating = db.execute("""
+                            SELECT order_id FROM cashfree_payment_orders
+                            WHERE order_id=? AND status='CREATING'
+                        """, (creating_order["order_id"],)).fetchone()
+                        if still_creating:
+                            db.commit()
+                            return jsonify({
+                                "ok": False,
+                                "message": "Checkout is already being prepared. Please wait a moment and try again.",
+                            }), 409
+
+                    new_order_id = f"sivdhi_{customer_row['id']}_{secrets.token_hex(8)}"
+                    db.execute("""
+                        INSERT INTO cashfree_payment_orders
+                            (order_id, customer_id, amount, currency, status, payment_session_id, context_hash, created_at)
+                        VALUES (?, ?, ?, 'INR', 'CREATING', 'CREATING', ?, CURRENT_TIMESTAMP)
+                    """, (new_order_id, customer_row["id"], advance_amount, cashfree_context_hash))
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                    raise
+
                 return_url = (
                     os.getenv("SIVDHI_PUBLIC_BASE_URL", "https://sivdhi.duckdns.org").rstrip("/")
                     + url_for("customer.cashfree_return")
@@ -2564,20 +2623,31 @@ def payment():
                         new_order_id, advance_amount, dict(customer_row), return_url
                     )
                     db.execute("""
-                        INSERT INTO cashfree_payment_orders
-                            (order_id, customer_id, amount, currency, status, payment_session_id, context_hash, created_at)
-                        VALUES (?, ?, ?, 'INR', 'PENDING', ?, ?, CURRENT_TIMESTAMP)
-                    """, (new_order_id, customer_row["id"], advance_amount,
-                          created_order["payment_session_id"], cashfree_context_hash))
+                        UPDATE cashfree_payment_orders
+                        SET status='PENDING', payment_session_id=?, updated_at=CURRENT_TIMESTAMP
+                        WHERE order_id=? AND status='CREATING'
+                    """, (created_order["payment_session_id"], new_order_id))
+                    if db.execute("SELECT changes()").fetchone()[0] != 1:
+                        db.rollback()
+                        return jsonify({
+                            "ok": False,
+                            "message": "Checkout reservation changed unexpectedly. Please contact support before retrying.",
+                        }), 409
                     db.commit()
                     return jsonify({
                         "ok": True,
                         "order_id": new_order_id,
                         "payment_session_id": created_order["payment_session_id"],
                         "environment": created_order["environment"],
+                        "reused": False,
                     })
                 except CashfreeGatewayError as gateway_error:
-                    db.rollback()
+                    db.execute("""
+                        UPDATE cashfree_payment_orders
+                        SET status='FAILED', updated_at=CURRENT_TIMESTAMP
+                        WHERE order_id=? AND status='CREATING'
+                    """, (new_order_id,))
+                    db.commit()
                     return jsonify({"ok": False, "message": str(gateway_error)}), 502
 
             if payment_action != "confirm_cashfree":
