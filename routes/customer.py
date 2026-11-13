@@ -2563,10 +2563,10 @@ def payment():
                         FROM cashfree_payment_orders
                         WHERE customer_id=? AND context_hash=? AND currency='INR'
                           AND ABS(amount-?) < 0.005
-                          AND status='PENDING'
+                          AND environment=? AND status='PENDING'
                         ORDER BY created_at DESC
                         LIMIT 1
-                    """, (customer_row["id"], cashfree_context_hash, advance_amount)).fetchone()
+                    """, (customer_row["id"], cashfree_context_hash, advance_amount, os.getenv("CASHFREE_ENV", "sandbox").strip().lower())).fetchone()
                     if existing_order and existing_order["payment_session_id"]:
                         db.commit()
                         return jsonify({
@@ -2581,10 +2581,10 @@ def payment():
                         SELECT order_id, created_at
                         FROM cashfree_payment_orders
                         WHERE customer_id=? AND context_hash=? AND currency='INR'
-                          AND ABS(amount-?) < 0.005 AND status='CREATING'
+                          AND ABS(amount-?) < 0.005 AND environment=? AND status='CREATING'
                         ORDER BY created_at DESC
                         LIMIT 1
-                    """, (customer_row["id"], cashfree_context_hash, advance_amount)).fetchone()
+                    """, (customer_row["id"], cashfree_context_hash, advance_amount, os.getenv("CASHFREE_ENV", "sandbox").strip().lower())).fetchone()
                     if creating_order:
                         db.execute("""
                             UPDATE cashfree_payment_orders
@@ -2660,7 +2660,7 @@ def payment():
 
             cashfree_order_id = (request.form.get("cashfree_order_id") or "").strip()
             paid_order = db.execute("""
-                SELECT order_id, amount, cf_payment_id, status, context_hash
+                SELECT order_id, amount, cf_payment_id, status, context_hash, environment
                 FROM cashfree_payment_orders
                 WHERE order_id=? AND customer_id=? LIMIT 1
             """, (cashfree_order_id, customer_row["id"])).fetchone()
@@ -2719,7 +2719,8 @@ def payment():
                 except (TypeError, ValueError):
                     pass
         payment_is_demo, ledger_payment_mode = payment_audit_metadata(
-            demo_mode, payment_method, os.getenv("CASHFREE_ENV", "sandbox")
+            demo_mode, payment_method,
+            paid_order["environment"] if cashfree_payment_id else os.getenv("CASHFREE_ENV", "sandbox")
         )
         payment_status = "PARTIALLY_PAID_DEMO" if payment_is_demo else "PARTIALLY_PAID"
         advance_status = "DEMO_PAID" if payment_is_demo else "PAID"
@@ -2877,7 +2878,7 @@ def cashfree_return():
     try:
         ensure_finance_schema(db)
         order = db.execute("""
-            SELECT order_id, amount, status FROM cashfree_payment_orders
+            SELECT order_id, amount, status, environment FROM cashfree_payment_orders
             WHERE order_id=? AND customer_id=? LIMIT 1
         """, (order_id, customer_db_id())).fetchone()
         if not order:
@@ -2890,7 +2891,9 @@ def cashfree_return():
             return redirect(url_for("customer.bookings"))
         if order["status"] != "SUCCESS":
             try:
-                verified = verify_cashfree_order_payment(order_id, money(order["amount"]))
+                verified = verify_cashfree_order_payment(
+                    order_id, money(order["amount"]), environment=order["environment"]
+                )
             except CashfreeGatewayError as gateway_error:
                 current_app.logger.warning("Cashfree verification failed for %s: %s", order_id, gateway_error)
                 flash("Payment status could not be verified yet. Do not retry payment; refresh this page or contact support.", "warning")
