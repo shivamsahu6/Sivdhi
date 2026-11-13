@@ -1905,12 +1905,20 @@ def admin_update_cashfree_refund_status(refund_attempt_id):
                 if booking:
                     conn.execute("""
                         UPDATE bookings
-                        SET refund_status='refunded',
+                        SET refund_status=CASE
+                                WHEN COALESCE(refund_amount,0)+? >= MAX(
+                                    COALESCE(advance_paid_amount,0)+COALESCE(balance_paid_amount,0),
+                                    ?
+                                ) THEN 'refunded'
+                                ELSE 'partially_refunded'
+                            END,
                             refund_amount=COALESCE(refund_amount,0)+?,
                             refund_reference=?, refund_processed_at=CURRENT_TIMESTAMP,
                             updated_at=CURRENT_TIMESTAMP
                         WHERE id=?
-                    """, (amount, refund_id_value, booking["id"]))
+                    """, (
+                        amount, amount, amount, refund_id_value, booking["id"]
+                    ))
                     payment_mode = (
                         "cashfree_sandbox"
                         if str(refund["environment"] or "").lower() == "sandbox"
