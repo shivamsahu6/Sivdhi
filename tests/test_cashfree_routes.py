@@ -581,3 +581,42 @@ def test_pending_checkout_from_other_cashfree_environment_is_not_reused(
         (first_order_id, "production"),
         (second_payload["order_id"], "sandbox"),
     ]
+
+def test_cashfree_return_does_not_reverify_refund_locked_orders(
+    tmp_path, monkeypatch
+):
+    import routes.customer as customer_routes
+
+    for status in ("REFUND_PENDING", "REFUNDED"):
+        client, path, routes = _cashfree_callback_client(
+            tmp_path / status.lower(), monkeypatch, order_status=status
+        )
+        calls = []
+
+        def unexpected_verification(*args, **kwargs):
+            calls.append((args, kwargs))
+            return {
+                "cf_payment_id": "must-not-be-used",
+                "payment_group": "upi",
+                "payment_amount": "50.00",
+            }
+
+        monkeypatch.setattr(
+            routes, "verify_cashfree_order_payment", unexpected_verification
+        )
+
+        response = client.get(
+            "/customer/cashfree/return?order_id=sivdhi_1_callbacktest"
+        )
+
+        assert response.status_code == 302
+        assert "payment" in response.location
+        assert calls == []
+
+        conn = sqlite3.connect(path)
+        stored_status = conn.execute(
+            "SELECT status FROM cashfree_payment_orders"
+        ).fetchone()[0]
+        conn.close()
+        assert stored_status == status
+
