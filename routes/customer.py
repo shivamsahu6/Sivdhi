@@ -2865,9 +2865,299 @@ def payment():
 
 
 
+def _finalize_cashfree_balance_payment(db, order, verified, customer_id):
+    """Atomically apply one verified Cashfree payment to an arrived booking balance.
+
+    A captured payment that no longer matches an eligible unpaid balance is
+    retained in the manual Cashfree refund queue instead of being discarded.
+    """
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        current_order = db.execute("""
+            SELECT * FROM cashfree_payment_orders
+            WHERE order_id=? AND customer_id=? AND payment_type='balance'
+            LIMIT 1
+        """, (order["order_id"], customer_id)).fetchone()
+        if not current_order:
+            db.rollback()
+            return "missing"
+        if current_order["status"] == "BOOKED":
+            db.commit()
+            return "already_booked"
+        if current_order["status"] != "PENDING":
+            db.rollback()
+            return "not_pending"
+
+        booking = db.execute("""
+            SELECT * FROM bookings
+            WHERE CAST(booking_id AS TEXT)=CAST(? AS TEXT)
+              AND customer_id=?
+            LIMIT 1
+        """, (str(current_order["booking_id"] or ""), customer_id)).fetchone()
+
+        payment_id = str(verified.get("cf_payment_id") or "").strip()
+        payment_method = str(verified.get("payment_group") or "online")[:40]
+        environment = str(current_order["environment"] or "unknown").strip().lower()
+
+        def hold_for_reconciliation():
+            cursor = db.execute("""
+                UPDATE cashfree_payment_orders
+                SET status='PAID_NO_WORKER', cf_payment_id=?, payment_method=?,
+                    verified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+                WHERE order_id=? AND customer_id=? AND status='PENDING'
+                  AND payment_type='balance'
+            """, (payment_id, payment_method, current_order["order_id"], customer_id))
+            if cursor.rowcount != 1:
+                raise RuntimeError("Balance order changed during payment reconciliation")
+            db.commit()
+            return "reconciliation"
+
+        if not booking or not booking["worker_arrived_at"] or not payment_id:
+            return hold_for_reconciliation()
+
+        lifecycle = str(
+            booking["booking_status"] or booking["status"] or "pending"
+        ).strip().lower()
+        if lifecycle in {"cancelled", "canceled", "refunded", "failed", "completed", "complete"}:
+            return hold_for_reconciliation()
+
+        total = money(booking["total_amount"] if booking["total_amount"] is not None else booking["amount"])
+        advance_paid = money(booking["advance_paid_amount"])
+        previous_balance_paid = money(booking["balance_paid_amount"])
+        saved_due = money(booking["balance_due_amount"])
+        balance_due = saved_due if saved_due > 0 else money(
+            max(0.0, total - advance_paid - previous_balance_paid)
+        )
+        paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
+        balance_state = str(booking["balance_payment_status"] or "DUE").upper()
+
+        if (
+            balance_due <= 0
+            or abs(balance_due - money(current_order["amount"])) > 0.004
+            or balance_state in paid_states
+            or not (booking["worker_id"] or booking["assigned_worker_id"])
+        ):
+            return hold_for_reconciliation()
+
+        duplicate_payment = db.execute("""
+            SELECT 1 FROM customer_payment_records
+            WHERE payment_id=? LIMIT 1
+        """, (payment_id,)).fetchone()
+        if duplicate_payment:
+            return hold_for_reconciliation()
+
+        is_demo_payment, ledger_payment_mode = payment_audit_metadata(
+            False, "cashfree", environment
+        )
+        payment_status = "DEMO_PAID" if is_demo_payment else "PAID"
+        booking_payment_status = "PAID_DEMO" if is_demo_payment else "PAID"
+
+        updated = db.execute("""
+            UPDATE bookings
+            SET balance_paid_amount=?,
+                balance_due_amount=0,
+                balance_payment_status=?,
+                balance_payment_id=?,
+                payment_status=?,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=? AND customer_id=? AND worker_arrived_at IS NOT NULL
+              AND UPPER(COALESCE(balance_payment_status, 'DUE')) NOT IN
+                  ('PAID','SUCCESS','DEMO_PAID','COLLECTED','COMPLETED')
+        """, (
+            money(previous_balance_paid + balance_due),
+            payment_status,
+            payment_id,
+            booking_payment_status,
+            booking["id"],
+            customer_id,
+        ))
+        if updated.rowcount != 1:
+            return hold_for_reconciliation()
+
+        db.execute("""
+            INSERT INTO customer_payment_records
+                (customer_id, booking_id, payment_id, amount, method, status, payment_type, is_demo)
+            VALUES (?, ?, ?, ?, 'cashfree', ?, 'balance', ?)
+        """, (
+            customer_id,
+            str(booking["booking_id"]),
+            payment_id,
+            balance_due,
+            payment_status,
+            1 if is_demo_payment else 0,
+        ))
+        add_finance_ledger_entry(
+            db,
+            str(booking["booking_id"]),
+            "customer_balance",
+            balance_due,
+            "demo_paid" if is_demo_payment else "paid",
+            ledger_payment_mode,
+            payment_id,
+            "Cashfree remaining balance verified server-side; "
+            + ("sandbox only, no real money collected." if is_demo_payment else "live payment verified."),
+        )
+
+        consumed = db.execute("""
+            UPDATE cashfree_payment_orders
+            SET status='BOOKED', cf_payment_id=?, payment_method=?,
+                verified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+            WHERE order_id=? AND customer_id=? AND status='PENDING'
+              AND payment_type='balance'
+        """, (
+            payment_id, payment_method, current_order["order_id"], customer_id
+        ))
+        if consumed.rowcount != 1:
+            raise RuntimeError("Verified balance order could not be consumed exactly once")
+
+        worker_id = booking["worker_id"] or booking["assigned_worker_id"]
+        if table_exists(db, "notifications") and worker_id:
+            db.execute("""
+                INSERT INTO notifications
+                    (user_type, user_id, title, message, is_read, created_at)
+                VALUES ('worker', ?, ?, ?, 0, CURRENT_TIMESTAMP)
+            """, (
+                str(worker_id),
+                "Customer Balance Paid",
+                f"Customer's remaining balance of ₹{balance_due:.2f} for booking "
+                f"{booking['booking_id']} was verified by Cashfree."
+                + (" Sandbox payment only; no real money was collected." if is_demo_payment else ""),
+            ))
+
+        partner_id = booking["assigned_partner_id"] or booking["partner_id"]
+        if not partner_id and worker_id:
+            partner_id = find_partner_for_worker(db, int(worker_id))
+        if table_exists(db, "notifications") and partner_id:
+            db.execute("""
+                INSERT INTO notifications
+                    (user_type, user_id, title, message, is_read, created_at)
+                VALUES ('partner', ?, ?, ?, 0, CURRENT_TIMESTAMP)
+            """, (
+                str(partner_id),
+                "Customer Balance Paid",
+                f"Remaining balance of ₹{balance_due:.2f} for booking "
+                f"{booking['booking_id']} was verified by Cashfree.",
+            ))
+
+        db.commit()
+        return "booked"
+    except Exception:
+        db.rollback()
+        raise
+
+
 @customer_bp.route("/cashfree/return", methods=["GET"])
 @customer_login_required
 def cashfree_return():
+    """Verify Cashfree payment server-side before applying a payment."""
+    order_id = (request.args.get("order_id") or "").strip()
+    if not order_id or len(order_id) > 50:
+        flash("Cashfree order reference is missing. If money was debited, contact Sivdhi Support.", "warning")
+        return redirect(url_for("customer.payment"))
+
+    db = get_db()
+    try:
+        ensure_finance_schema(db)
+        order = db.execute("""
+            SELECT order_id, amount, status, environment, payment_type,
+                   booking_id, cf_payment_id, payment_method
+            FROM cashfree_payment_orders
+            WHERE order_id=? AND customer_id=? LIMIT 1
+        """, (order_id, customer_db_id())).fetchone()
+        if not order:
+            flash("This Cashfree order does not belong to your account.", "danger")
+            return redirect(url_for("customer.payment"))
+        payment_type = str(order["payment_type"] or "advance").strip().lower()
+        if order["status"] == "BOOKED":
+            return redirect(url_for("customer.bookings"))
+        if order["status"] == "PAID_NO_WORKER":
+            flash(
+                "Cashfree payment was received but could not be applied to the booking. "
+                "Contact Sivdhi Support; do not pay again.",
+                "warning",
+            )
+            return redirect(url_for("customer.bookings"))
+        if order["status"] in {"REFUND_PENDING", "REFUNDED"}:
+            flash("This payment is locked for refund processing or has already been refunded. Do not retry payment; contact Sivdhi Support if you need an update.", "warning")
+            return redirect(url_for("customer.payment"))
+        if order["status"] not in {"PENDING", "SUCCESS"}:
+            flash("This payment order is not available for verification. Do not retry payment; contact Sivdhi Support.", "warning")
+            return redirect(url_for("customer.payment"))
+
+        if payment_type == "balance":
+            if order["status"] != "PENDING":
+                flash(
+                    "This balance payment needs manual reconciliation. Do not pay again; contact Sivdhi Support.",
+                    "warning",
+                )
+                return redirect(url_for("customer.bookings"))
+            try:
+                verified = verify_cashfree_order_payment(
+                    order_id, money(order["amount"]), environment=order["environment"]
+                )
+            except CashfreeGatewayError as gateway_error:
+                current_app.logger.warning(
+                    "Cashfree balance verification failed for %s: %s", order_id, gateway_error
+                )
+                flash(
+                    "Balance payment status could not be verified yet. Do not pay again; "
+                    "refresh your bookings or contact support.",
+                    "warning",
+                )
+                return redirect(url_for("customer.bookings"))
+            if not verified:
+                flash(
+                    "Cashfree has not confirmed the balance payment. If your bank shows a debit, "
+                    "do not pay again; contact Sivdhi Support.",
+                    "warning",
+                )
+                return redirect(url_for("customer.bookings"))
+
+            outcome = _finalize_cashfree_balance_payment(
+                db, order, verified, customer_db_id()
+            )
+            if outcome == "booked":
+                is_demo_payment, _mode = payment_audit_metadata(
+                    False, "cashfree", order["environment"]
+                )
+                flash(
+                    "Remaining balance verified by Cashfree. "
+                    + ("Sandbox only; no real money was collected." if is_demo_payment else "Payment recorded successfully."),
+                    "success",
+                )
+            elif outcome == "already_booked":
+                flash("Remaining balance is already recorded as paid.", "info")
+            else:
+                flash(
+                    "Cashfree received the balance payment, but it could not safely be applied "
+                    "to this booking. It has been flagged for refund/support reconciliation. "
+                    "Do not pay again.",
+                    "warning",
+                )
+            return redirect(url_for("customer.bookings"))
+
+        if order["status"] == "PENDING":
+            try:
+                verified = verify_cashfree_order_payment(
+                    order_id, money(order["amount"]), environment=order["environment"]
+                )
+            except CashfreeGatewayError as gateway_error:
+                current_app.logger.warning("Cashfree verification failed for %s: %s", order_id, gateway_error)
+                flash("Payment status could not be verified yet. Do not retry payment; refresh this page or contact support.", "warning")
+                return redirect(url_for("customer.payment"))
+            if not verified:
+                flash("Cashfree has not confirmed a successful payment. If your bank shows a debit, wait a moment and retry verification; do not pay again.", "warning")
+                return redirect(url_for("customer.payment"))
+            db.execute("""
+                UPDATE cashfree_payment_orders
+                SET status='SUCCESS', cf_payment_id=?, payment_method=?,
+                    verified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+                WHERE order_id=? AND customer_id=? AND status='PENDING'
+            """, (verified["cf_payment_id"], verified["payment_group"], order_id, customer_db_id()))
+            db.commit()
+        return redirect(url_for("customer.payment", cashfree_order_id=order_id))
+    finally:
+        db.close()
     """Verify Cashfree payment server-side before allowing booking confirmation."""
     order_id = (request.args.get("order_id") or "").strip()
     if not order_id or len(order_id) > 50:
