@@ -116,7 +116,7 @@ def ensure_finance_schema(conn) -> None:
     # retain their existing lifecycle and are excluded from this index.
     conn.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS idx_cashfree_balance_active
-        ON cashfree_payment_orders(customer_id, booking_id, environment)
+        ON cashfree_payment_orders(customer_id, booking_id)
         WHERE payment_type='balance'
           AND status IN ('CREATING', 'PENDING', 'SUCCESS')
     """)
