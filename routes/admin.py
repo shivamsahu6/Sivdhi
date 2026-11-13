@@ -1811,6 +1811,18 @@ def admin_record_cashfree_refund(order_id):
             order_id, refund_id, refund_amount, reason or None,
             str(session.get("admin_id") or ""),
         ))
+        # Lock a verified-but-unbooked order while its external refund is
+        # pending, so the customer cannot consume the same payment as a booking.
+        if order["status"] == "SUCCESS":
+            cur = conn.execute("""
+                UPDATE cashfree_payment_orders
+                SET status='REFUND_PENDING', updated_at=CURRENT_TIMESTAMP
+                WHERE order_id=? AND status='SUCCESS' AND booking_id IS NULL
+            """, (order_id,))
+            if cur.rowcount != 1:
+                conn.rollback()
+                flash("This payment changed while the refund was being recorded. Refresh and verify its state.", "warning")
+                return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
         conn.commit()
         flash(
             f"Cashfree refund {refund_id} recorded as initiated. "
@@ -1870,6 +1882,14 @@ def admin_update_cashfree_refund_status(refund_attempt_id):
             conn.rollback()
             flash("Refund status changed in another session. Refresh and verify it.", "warning")
             return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        if refund["order_status"] == "REFUND_PENDING":
+            restored_order_status = "REFUNDED" if new_status == "SUCCESS" else "SUCCESS"
+            conn.execute("""
+                UPDATE cashfree_payment_orders
+                SET status=?, updated_at=CURRENT_TIMESTAMP
+                WHERE order_id=? AND status='REFUND_PENDING'
+            """, (restored_order_status, str(refund["order_id"])))
 
         if new_status == "SUCCESS":
             amount = finance_money(refund["amount"])
