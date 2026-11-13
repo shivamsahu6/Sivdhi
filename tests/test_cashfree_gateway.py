@@ -293,4 +293,3 @@ def test_cashfree_create_order_accepts_a_distinct_balance_order_note(monkeypatch
     )
 
     assert captured["payload"]["order_note"] == "Sivdhi remaining balance"
-
