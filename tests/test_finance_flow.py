@@ -158,10 +158,6 @@ class FinanceSettlementTests(unittest.TestCase):
         platform = self.db.execute("SELECT SUM(amount) FROM wallet_transactions WHERE user_type='platform' AND transaction_type='platform_commission'").fetchone()[0]
         self.assertAlmostEqual(platform, 50)
 
-
-if __name__ == '__main__':
-    unittest.main()
-
     def test_cashfree_sandbox_balance_cannot_credit_real_wallets(self):
         booking_id = self.add_booking('SIV-TEST-CASHFREE-BALANCE')
         self.db.execute("""
@@ -186,4 +182,8 @@ if __name__ == '__main__':
             self.db.execute("SELECT COUNT(*) FROM wallet_transactions").fetchone()[0],
             0,
         )
+
+
+if __name__ == '__main__':
+    unittest.main()
 
