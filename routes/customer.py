@@ -2889,7 +2889,13 @@ def cashfree_return():
         if order["status"] == "PAID_NO_WORKER":
             flash("Payment was received, but this slot could not be booked. Please contact Sivdhi Support; do not pay again.", "warning")
             return redirect(url_for("customer.bookings"))
-        if order["status"] != "SUCCESS":
+        if order["status"] in {"REFUND_PENDING", "REFUNDED"}:
+            flash("This payment is locked for refund processing or has already been refunded. Do not retry payment; contact Sivdhi Support if you need an update.", "warning")
+            return redirect(url_for("customer.payment"))
+        if order["status"] not in {"PENDING", "SUCCESS"}:
+            flash("This payment order is not available for verification. Do not retry payment; contact Sivdhi Support.", "warning")
+            return redirect(url_for("customer.payment"))
+        if order["status"] == "PENDING":
             try:
                 verified = verify_cashfree_order_payment(
                     order_id, money(order["amount"]), environment=order["environment"]
