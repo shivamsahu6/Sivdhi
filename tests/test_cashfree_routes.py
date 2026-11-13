@@ -871,3 +871,53 @@ def test_cashfree_balance_capture_with_changed_due_is_flagged_for_refund(
     assert booking == (40.0, "DUE")
     assert payments == 0
 
+def test_cashfree_balance_stale_creating_order_fails_closed_without_new_order(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    _seed_arrived_balance_booking(path)
+    create_calls = []
+
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        INSERT INTO cashfree_payment_orders
+            (order_id, customer_id, amount, currency, status,
+             payment_session_id, environment, booking_id, payment_type,
+             created_at)
+        VALUES (
+            'sivdhi_1_balancecreating', 1, 50, 'INR', 'CREATING',
+            'CREATING', 'sandbox', 'SIV-BALANCE-CASHFREE-1',
+            'balance', datetime('now', '-10 minutes')
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(
+        routes,
+        "create_cashfree_order",
+        lambda *args, **kwargs: create_calls.append((args, kwargs)),
+    )
+
+    response = client.post(
+        "/customer/booking/SIV-BALANCE-CASHFREE-1/balance-payment",
+        data={"payment_action": "create_cashfree_balance_order"},
+    )
+
+    assert response.status_code == 409
+    assert create_calls == []
+    conn = sqlite3.connect(path)
+    row = conn.execute("""
+        SELECT status, payment_session_id
+        FROM cashfree_payment_orders
+        WHERE order_id='sivdhi_1_balancecreating'
+    """).fetchone()
+    count = conn.execute(
+        "SELECT COUNT(*) FROM cashfree_payment_orders"
+    ).fetchone()[0]
+    conn.close()
+    assert row == ("CREATING", "CREATING")
+    assert count == 1
+
