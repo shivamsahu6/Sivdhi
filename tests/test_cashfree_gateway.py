@@ -261,3 +261,36 @@ def test_cashfree_verification_refuses_credentials_from_wrong_environment(monkey
             "sivdhi_4_sandbox_order", 50, environment="sandbox"
         )
     assert calls == []
+
+def test_cashfree_create_order_accepts_a_distinct_balance_order_note(monkeypatch):
+    monkeypatch.setenv("SIVDHI_PAYMENT_MODE", "cashfree")
+    monkeypatch.setenv("CASHFREE_ENV", "sandbox")
+    monkeypatch.setenv("CASHFREE_APP_ID", "sandbox-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "sandbox-secret")
+    captured = {}
+
+    class Response:
+        ok = True
+        status_code = 200
+
+        def json(self):
+            return {
+                "order_id": "sivdhi_4_balance1234",
+                "payment_session_id": "balance-session-test",
+            }
+
+    def fake_post(url, json, headers, timeout):
+        captured.update(payload=json)
+        return Response()
+
+    monkeypatch.setattr(gateway.requests, "post", fake_post)
+    gateway.create_cashfree_order(
+        "sivdhi_4_balance1234",
+        50,
+        {"id": 4, "fullname": "Test Customer", "mobile": "9876543210"},
+        "https://sivdhi.duckdns.org/customer/cashfree/return",
+        order_note="Sivdhi remaining balance",
+    )
+
+    assert captured["payload"]["order_note"] == "Sivdhi remaining balance"
+
