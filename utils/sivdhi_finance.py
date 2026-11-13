@@ -271,15 +271,15 @@ def settle_completed_booking(conn, booking_db_id: int) -> tuple[bool, str]:
     booking = conn.execute("SELECT * FROM bookings WHERE id=? LIMIT 1", (booking_db_id,)).fetchone()
     if not booking:
         return False, "Booking not found."
-    sandbox_advance = conn.execute("""
+    sandbox_cashfree_payment = conn.execute("""
         SELECT 1
         FROM sivdhi_finance_ledger
         WHERE booking_id=?
-          AND entry_type='customer_advance'
+          AND entry_type IN ('customer_advance', 'customer_balance')
           AND payment_mode='cashfree_sandbox'
         LIMIT 1
     """, (str(booking["booking_id"]),)).fetchone()
-    if sandbox_advance:
+    if sandbox_cashfree_payment:
         return False, "Cashfree Sandbox bookings cannot credit real worker, partner, or platform wallets."
 
     if booking["commission_settled_at"]:
