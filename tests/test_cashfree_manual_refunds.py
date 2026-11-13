@@ -328,3 +328,70 @@ def test_cashfree_refund_queue_labels_balance_orders(tmp_path, monkeypatch):
     assert response.status_code == 200
     assert b"Payment type" in response.data
     assert b"Balance" in response.data
+
+def test_separate_advance_and_balance_refunds_accumulate_on_booking(
+    tmp_path, monkeypatch
+):
+    client, path, routes = _admin_refund_client(
+        tmp_path, monkeypatch, order_status="BOOKED", environment="sandbox"
+    )
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        INSERT INTO bookings(
+            booking_id, customer_id, status, booking_status
+        ) VALUES('SIV-REFUND-BOTH', 1, 'cancelled', 'cancelled')
+    """)
+    conn.execute("""
+        UPDATE cashfree_payment_orders
+        SET booking_id='SIV-REFUND-BOTH', payment_type='advance'
+        WHERE order_id='sivdhi_1_refundtest'
+    """)
+    conn.execute("""
+        INSERT INTO cashfree_payment_orders(
+            order_id, customer_id, amount, currency, status,
+            payment_session_id, environment, cf_payment_id,
+            booking_id, payment_type
+        ) VALUES(
+            'sivdhi_1_balance_refund', 1, 50, 'INR', 'BOOKED',
+            'balance-session', 'sandbox', 'cf-balance-refund',
+            'SIV-REFUND-BOTH', 'balance'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+    base = routes.ADMIN_PANEL_BASE + "/admin/cashfree-refunds"
+    for order_id, refund_id in (
+        ("sivdhi_1_refundtest", "refund-advance"),
+        ("sivdhi_1_balance_refund", "refund-balance"),
+    ):
+        recorded = client.post(
+            f"{base}/{order_id}/record",
+            data={"refund_id": refund_id, "environment": "sandbox"},
+        )
+        assert recorded.status_code == 302
+
+    for attempt_id in (1, 2):
+        updated = client.post(
+            f"{base}/{attempt_id}/status",
+            data={"status": "SUCCESS"},
+        )
+        assert updated.status_code == 302
+
+    conn = sqlite3.connect(path)
+    booking = conn.execute("""
+        SELECT refund_status, refund_amount, refund_reference
+        FROM bookings WHERE booking_id='SIV-REFUND-BOTH'
+    """).fetchone()
+    ledger_total = conn.execute("""
+        SELECT COALESCE(SUM(amount),0)
+        FROM sivdhi_finance_ledger
+        WHERE booking_id='SIV-REFUND-BOTH' AND entry_type='customer_refund'
+    """).fetchone()[0]
+    conn.close()
+
+    assert booking[0] == "refunded"
+    assert booking[1] == 100.0
+    assert booking[2] == "refund-balance"
+    assert ledger_total == 100.0
+
