@@ -349,6 +349,50 @@ def _create_test_cashfree_order(client, routes, monkeypatch):
     return payload["order_id"]
 
 
+def test_cashfree_order_creation_reuses_same_pending_checkout(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+
+    create_calls = []
+
+    def create_order(order_id, amount, customer, return_url):
+        create_calls.append(order_id)
+        return {
+            "order_id": order_id,
+            "payment_session_id": "isolated-session-test",
+            "environment": "sandbox",
+        }
+
+    monkeypatch.setattr(routes, "create_cashfree_order", create_order)
+
+    first = client.post(
+        "/customer/payment",
+        data={"payment_action": "create_cashfree_order"},
+    )
+    second = client.post(
+        "/customer/payment",
+        data={"payment_action": "create_cashfree_order"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.get_json()
+    second_payload = second.get_json()
+    assert first_payload["order_id"] == second_payload["order_id"]
+    assert first_payload["payment_session_id"] == second_payload["payment_session_id"]
+    assert len(create_calls) == 1
+
+    conn = sqlite3.connect(path)
+    order_count = conn.execute(
+        "SELECT COUNT(*) FROM cashfree_payment_orders"
+    ).fetchone()[0]
+    conn.close()
+    assert order_count == 1
+
+
 def test_cashfree_order_creation_persists_pending_order_only(
     tmp_path, monkeypatch
 ):
