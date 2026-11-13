@@ -194,3 +194,19 @@ def test_cashfree_manual_refund_page_requires_admin_and_lists_paid_no_worker(
     assert b"sivdhi_1_refundtest" in response.data
     assert b"Cashfree Payment ID" in response.data
     assert b"never transfers money" in response.data
+
+
+
+def test_cashfree_booking_cannot_use_legacy_manual_bank_refund_path():
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[1] / "routes/admin.py"
+    ).read_text(encoding="utf-8")
+    refund_route = source.split(
+        'def admin_process_booking_refund', 1
+    )[1].split(
+        '# CASHFREE DASHBOARD REFUND RECONCILIATION', 1
+    )[0]
+    assert "cashfree_payment_orders" in refund_route
+    assert "Use the Cashfree Refunds page" in refund_route
