@@ -120,4 +120,3 @@ def test_cashfree_balance_payment_button_is_only_rendered_in_cashfree_mode():
     assert "create_cashfree_balance_order" in bookings_template
     assert "cashfree_mode = not demo_mode and cashfree_enabled()" in customer_routes
     assert "Cashfree Sandbox checkout only. No real money will be collected." in bookings_template
-
