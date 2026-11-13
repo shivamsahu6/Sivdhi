@@ -1558,7 +1558,7 @@ def admin_process_booking_refund(booking_id):
             conn.rollback()
             flash(
                 "This booking was paid through Cashfree. Use the Cashfree Refunds page "
-                to record the refund after processing it in the Cashfree Dashboard.",
+                "to record the refund after processing it in the Cashfree Dashboard.",
                 "warning",
             )
             return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
