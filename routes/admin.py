@@ -1905,7 +1905,8 @@ def admin_update_cashfree_refund_status(refund_attempt_id):
                 if booking:
                     conn.execute("""
                         UPDATE bookings
-                        SET refund_status='refunded', refund_amount=?,
+                        SET refund_status='refunded',
+                            refund_amount=COALESCE(refund_amount,0)+?,
                             refund_reference=?, refund_processed_at=CURRENT_TIMESTAMP,
                             updated_at=CURRENT_TIMESTAMP
                         WHERE id=?
