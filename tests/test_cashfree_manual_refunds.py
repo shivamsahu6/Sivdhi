@@ -58,10 +58,11 @@ def _admin_refund_client(tmp_path, monkeypatch, *, order_status="PAID_NO_WORKER"
     monkeypatch.setattr(admin_mfa, "is_admin_authorized", lambda _admin_id: True)
     monkeypatch.setattr(admin_decorators, "get_db", db_factory)
 
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder="../templates")
     app.secret_key = "isolated-admin-refund-test-secret"
     app.config["TESTING"] = True
     app.jinja_env.globals["csrf_token"] = lambda: "test-csrf-token"
+    app.jinja_env.globals["admin_base_path"] = admin_routes.ADMIN_PANEL_BASE
     app.register_blueprint(admin_routes.admin_bp)
     client = app.test_client()
     now = int(time.time())
