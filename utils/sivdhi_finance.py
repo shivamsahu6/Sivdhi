@@ -90,6 +90,7 @@ def ensure_finance_schema(conn) -> None:
             currency TEXT NOT NULL DEFAULT 'INR',
             status TEXT NOT NULL DEFAULT 'PENDING',
             payment_session_id TEXT NOT NULL,
+            environment TEXT NOT NULL DEFAULT 'unknown',
             context_hash TEXT,
             cf_payment_id TEXT,
             payment_method TEXT,
@@ -101,6 +102,7 @@ def ensure_finance_schema(conn) -> None:
     """)
 
     _add_columns(conn, "cashfree_payment_orders", {
+        "environment": "TEXT NOT NULL DEFAULT 'unknown'",
         "context_hash": "TEXT",
         "cf_payment_id": "TEXT",
         "payment_method": "TEXT",
@@ -108,6 +110,27 @@ def ensure_finance_schema(conn) -> None:
         "verified_at": "TEXT",
         "updated_at": "TEXT DEFAULT CURRENT_TIMESTAMP",
     })
+
+    # Manual Cashfree Dashboard refund audit. This table records references
+    # only; it never sends money or calls the Cashfree refund API.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cashfree_manual_refunds (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id TEXT NOT NULL,
+            refund_id TEXT NOT NULL UNIQUE,
+            amount REAL NOT NULL,
+            status TEXT NOT NULL DEFAULT 'INITIATED',
+            reason TEXT,
+            admin_id TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            completed_at TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_cashfree_manual_refunds_order
+        ON cashfree_manual_refunds(order_id, id DESC)
+    """)
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS sivdhi_finance_ledger (
