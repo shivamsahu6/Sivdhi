@@ -588,8 +588,10 @@ def test_cashfree_return_does_not_reverify_refund_locked_orders(
     import routes.customer as customer_routes
 
     for status in ("REFUND_PENDING", "REFUNDED"):
+        case_dir = tmp_path / status.lower()
+        case_dir.mkdir()
         client, path, routes = _cashfree_callback_client(
-            tmp_path / status.lower(), monkeypatch, order_status=status
+            case_dir, monkeypatch, order_status=status
         )
         calls = []
 
