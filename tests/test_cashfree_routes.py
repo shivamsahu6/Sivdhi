@@ -921,3 +921,37 @@ def test_cashfree_balance_stale_creating_order_fails_closed_without_new_order(
     assert row == ("CREATING", "CREATING")
     assert count == 1
 
+def test_cashfree_balance_pending_order_is_not_replaced_after_environment_switch(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    _seed_arrived_balance_booking(path)
+    first_order_id = _create_test_cashfree_balance_order(
+        client, routes, monkeypatch
+    )
+    create_calls = []
+    monkeypatch.setenv("CASHFREE_ENV", "production")
+    monkeypatch.setattr(
+        routes,
+        "create_cashfree_order",
+        lambda *args, **kwargs: create_calls.append((args, kwargs)),
+    )
+
+    response = client.post(
+        "/customer/booking/SIV-BALANCE-CASHFREE-1/balance-payment",
+        data={"payment_action": "create_cashfree_balance_order"},
+    )
+
+    assert response.status_code == 409
+    assert create_calls == []
+    conn = sqlite3.connect(path)
+    rows = conn.execute("""
+        SELECT order_id, environment, status
+        FROM cashfree_payment_orders
+        WHERE payment_type='balance'
+    """).fetchall()
+    conn.close()
+    assert rows == [(first_order_id, "sandbox", "PENDING")]
+
