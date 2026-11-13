@@ -622,3 +622,252 @@ def test_cashfree_return_does_not_reverify_refund_locked_orders(
         conn.close()
         assert stored_status == status
 
+def _seed_arrived_balance_booking(path, *, arrived=True, balance_due=50.0):
+    from utils.sivdhi_finance import ensure_finance_schema
+
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    ensure_finance_schema(conn)
+    conn.execute("""
+        INSERT INTO bookings (
+            booking_id, customer_id, category, address, total_amount,
+            service_charge, platform_fee, payment_status, worker_id,
+            booking_status, status, worker_arrived_at, advance_amount,
+            advance_paid_amount, balance_due_amount, balance_paid_amount,
+            advance_payment_status, balance_payment_status
+        )
+        VALUES (
+            'SIV-BALANCE-CASHFREE-1', 1, 'Electrician',
+            'GPS location shared by customer', 100, 100, 0,
+            'PARTIALLY_PAID_DEMO', 1, 'accepted', 'accepted', ?,
+            50, 50, ?, 0, 'DEMO_PAID', 'DUE'
+        )
+    """, (
+        "2026-11-13T14:20:00+05:30" if arrived else None,
+        balance_due,
+    ))
+    conn.commit()
+    conn.close()
+
+
+def _create_test_cashfree_balance_order(client, routes, monkeypatch):
+    def create_order(order_id, amount, customer, return_url, order_note=None):
+        assert order_note == "Sivdhi remaining balance"
+        return {
+            "order_id": order_id,
+            "payment_session_id": "isolated-balance-session",
+            "environment": "sandbox",
+        }
+
+    monkeypatch.setattr(routes, "create_cashfree_order", create_order)
+    response = client.post(
+        "/customer/booking/SIV-BALANCE-CASHFREE-1/balance-payment",
+        data={"payment_action": "create_cashfree_balance_order"},
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+    return payload["order_id"]
+
+
+def test_cashfree_balance_order_creation_reuses_one_pending_order(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    _seed_arrived_balance_booking(path)
+    create_calls = []
+
+    def create_order(order_id, amount, customer, return_url, order_note=None):
+        create_calls.append((order_id, amount, order_note))
+        return {
+            "order_id": order_id,
+            "payment_session_id": "isolated-balance-session",
+            "environment": "sandbox",
+        }
+
+    monkeypatch.setattr(routes, "create_cashfree_order", create_order)
+    url = "/customer/booking/SIV-BALANCE-CASHFREE-1/balance-payment"
+    data = {"payment_action": "create_cashfree_balance_order"}
+
+    first = client.post(url, data=data)
+    second = client.post(url, data=data)
+
+    assert first.status_code == second.status_code == 200
+    first_payload = first.get_json()
+    second_payload = second.get_json()
+    assert first_payload["order_id"] == second_payload["order_id"]
+    assert first_payload["payment_session_id"] == second_payload["payment_session_id"]
+    assert first_payload["reused"] is False
+    assert second_payload["reused"] is True
+    assert create_calls == [
+        (first_payload["order_id"], 50.0, "Sivdhi remaining balance")
+    ]
+
+    conn = sqlite3.connect(path)
+    order = conn.execute("""
+        SELECT customer_id, amount, status, booking_id, payment_type
+        FROM cashfree_payment_orders
+    """).fetchone()
+    count = conn.execute("SELECT COUNT(*) FROM cashfree_payment_orders").fetchone()[0]
+    conn.close()
+    assert order == (
+        1, 50.0, "PENDING", "SIV-BALANCE-CASHFREE-1", "balance"
+    )
+    assert count == 1
+
+
+def test_cashfree_balance_return_records_payment_and_is_idempotent(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    _seed_arrived_balance_booking(path)
+    order_id = _create_test_cashfree_balance_order(client, routes, monkeypatch)
+    verification_calls = []
+
+    def verify_order(returned_order_id, amount, environment=None):
+        verification_calls.append((returned_order_id, amount, environment))
+        return {
+            "cf_payment_id": "cf-balance-payment-1",
+            "payment_group": "upi",
+            "payment_amount": "50.00",
+        }
+
+    monkeypatch.setattr(routes, "verify_cashfree_order_payment", verify_order)
+
+    response = client.get(
+        f"/customer/cashfree/return?order_id={order_id}"
+    )
+    assert response.status_code == 302
+    assert "bookings" in response.location
+    assert verification_calls == [(order_id, 50.0, "sandbox")]
+
+    conn = sqlite3.connect(path)
+    booking = conn.execute("""
+        SELECT balance_paid_amount, balance_due_amount,
+               balance_payment_status, balance_payment_id, payment_status
+        FROM bookings WHERE booking_id='SIV-BALANCE-CASHFREE-1'
+    """).fetchone()
+    payment = conn.execute("""
+        SELECT method, status, payment_type, is_demo, amount
+        FROM customer_payment_records
+    """).fetchone()
+    ledger = conn.execute("""
+        SELECT entry_type, amount, status, payment_mode, reference_id
+        FROM sivdhi_finance_ledger
+    """).fetchone()
+    order = conn.execute("""
+        SELECT status, booking_id, payment_type, cf_payment_id
+        FROM cashfree_payment_orders WHERE order_id=?
+    """, (order_id,)).fetchone()
+    conn.close()
+
+    assert booking == (50.0, 0.0, "DEMO_PAID", "cf-balance-payment-1", "PAID_DEMO")
+    assert payment == ("cashfree", "DEMO_PAID", "balance", 1, 50.0)
+    assert ledger == (
+        "customer_balance", 50.0, "demo_paid",
+        "cashfree_sandbox", "cf-balance-payment-1"
+    )
+    assert order == (
+        "BOOKED", "SIV-BALANCE-CASHFREE-1", "balance", "cf-balance-payment-1"
+    )
+
+    duplicate = client.get(
+        f"/customer/cashfree/return?order_id={order_id}"
+    )
+    assert duplicate.status_code == 302
+    assert verification_calls == [(order_id, 50.0, "sandbox")]
+
+    conn = sqlite3.connect(path)
+    assert conn.execute(
+        "SELECT COUNT(*) FROM customer_payment_records"
+    ).fetchone()[0] == 1
+    assert conn.execute(
+        "SELECT COUNT(*) FROM sivdhi_finance_ledger WHERE entry_type='customer_balance'"
+    ).fetchone()[0] == 1
+    conn.close()
+
+
+def test_cashfree_balance_payment_requires_worker_arrival(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    _seed_arrived_balance_booking(path, arrived=False)
+    create_calls = []
+    monkeypatch.setattr(
+        routes,
+        "create_cashfree_order",
+        lambda *args, **kwargs: create_calls.append((args, kwargs)),
+    )
+
+    response = client.post(
+        "/customer/booking/SIV-BALANCE-CASHFREE-1/balance-payment",
+        data={"payment_action": "create_cashfree_balance_order"},
+    )
+    assert response.status_code == 302
+    assert create_calls == []
+
+    conn = sqlite3.connect(path)
+    count = conn.execute(
+        "SELECT COUNT(*) FROM cashfree_payment_orders"
+    ).fetchone()[0]
+    conn.close()
+    assert count == 0
+
+
+def test_cashfree_balance_capture_with_changed_due_is_flagged_for_refund(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    _seed_arrived_balance_booking(path)
+    order_id = _create_test_cashfree_balance_order(client, routes, monkeypatch)
+
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        UPDATE bookings
+        SET balance_due_amount=40
+        WHERE booking_id='SIV-BALANCE-CASHFREE-1'
+    """)
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(
+        routes,
+        "verify_cashfree_order_payment",
+        lambda *_args, **_kwargs: {
+            "cf_payment_id": "cf-balance-payment-mismatch",
+            "payment_group": "upi",
+            "payment_amount": "50.00",
+        },
+    )
+
+    response = client.get(
+        f"/customer/cashfree/return?order_id={order_id}"
+    )
+    assert response.status_code == 302
+
+    conn = sqlite3.connect(path)
+    order_status = conn.execute(
+        "SELECT status FROM cashfree_payment_orders WHERE order_id=?",
+        (order_id,),
+    ).fetchone()[0]
+    booking = conn.execute("""
+        SELECT balance_due_amount, balance_payment_status
+        FROM bookings WHERE booking_id='SIV-BALANCE-CASHFREE-1'
+    """).fetchone()
+    payments = conn.execute(
+        "SELECT COUNT(*) FROM customer_payment_records"
+    ).fetchone()[0]
+    conn.close()
+
+    assert order_status == "PAID_NO_WORKER"
+    assert booking == (40.0, "DUE")
+    assert payments == 0
+
