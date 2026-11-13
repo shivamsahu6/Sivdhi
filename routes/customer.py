@@ -3279,21 +3279,17 @@ def pay_booking_balance(booking_ref):
             )).fetchone()
 
             if existing_order and existing_order["status"] == "CREATING":
-                db.execute("""
-                    UPDATE cashfree_payment_orders
-                    SET status='FAILED', updated_at=CURRENT_TIMESTAMP
-                    WHERE order_id=? AND status='CREATING'
-                      AND datetime(created_at) < datetime('now', '-2 minutes')
-                """, (existing_order["order_id"],))
-                existing_order = db.execute("""
-                    SELECT order_id, amount, payment_session_id, status
-                    FROM cashfree_payment_orders
-                    WHERE order_id=? AND status IN (
-                        'CREATING','PENDING','SUCCESS','BOOKED',
-                        'PAID_NO_WORKER','REFUND_PENDING'
-                    )
-                    LIMIT 1
-                """, (existing_order["order_id"],)).fetchone()
+                # Fail closed: an earlier request may have created the provider
+                # order before the local process stopped. Never create a second
+                # order merely because this reservation looks stale.
+                db.commit()
+                return jsonify({
+                    "ok": False,
+                    "message": (
+                        "A balance checkout is still being reconciled. Do not retry or pay again; "
+                        "contact Sivdhi Support if this message persists."
+                    ),
+                }), 409
 
             if existing_order:
                 if (
