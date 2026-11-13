@@ -75,12 +75,6 @@ def test_cashfree_verification_accepts_only_success_matching_order_amount_and_cu
                  "payment_currency": "INR", "payment_amount": 50,
                  "cf_payment_id": "pending"},
                 {"order_id": "sivdhi_4_abcd1234", "payment_status": "SUCCESS",
-                 "payment_currency": "USD", "payment_amount": 50,
-                 "cf_payment_id": "wrong-currency"},
-                {"order_id": "sivdhi_4_abcd1234", "payment_status": "SUCCESS",
-                 "payment_currency": "INR", "payment_amount": 49,
-                 "cf_payment_id": "wrong-amount"},
-                {"order_id": "sivdhi_4_abcd1234", "payment_status": "SUCCESS",
                  "payment_currency": "INR", "payment_amount": 50.00,
                  "cf_payment_id": "123456789"},
             ]
@@ -233,6 +227,13 @@ def test_cashfree_verification_flags_second_success_even_with_wrong_amount_or_cu
                     "payment_currency": "USD",
                     "payment_amount": 50,
                     "cf_payment_id": "payment-extra",
+                },
+                {
+                    "order_id": "sivdhi_4_abcd1234",
+                    "payment_status": "SUCCESS",
+                    "payment_currency": "INR",
+                    "payment_amount": 49,
+                    "cf_payment_id": "payment-extra-wrong-amount",
                 },
             ]
 
