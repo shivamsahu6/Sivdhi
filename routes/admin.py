@@ -1857,7 +1857,8 @@ def admin_update_cashfree_refund_status(refund_attempt_id):
         conn.commit()
         conn.execute("BEGIN IMMEDIATE")
         refund = conn.execute("""
-            SELECT r.*, o.customer_id, o.environment, o.booking_id, o.status AS order_status
+            SELECT r.*, o.customer_id, o.environment, o.booking_id,
+                   o.payment_type, o.status AS order_status
             FROM cashfree_manual_refunds r
             JOIN cashfree_payment_orders o ON o.order_id=r.order_id
             WHERE r.id=? LIMIT 1
@@ -1920,12 +1921,30 @@ def admin_update_cashfree_refund_status(refund_attempt_id):
                                 ) THEN 'refunded'
                                 ELSE 'partially_refunded'
                             END,
+                            payment_status=CASE
+                                WHEN COALESCE(refund_amount,0)+? >= MAX(
+                                    COALESCE(advance_paid_amount,0)+COALESCE(balance_paid_amount,0),
+                                    ?
+                                ) THEN 'REFUNDED'
+                                ELSE 'PARTIALLY_REFUNDED'
+                            END,
+                            advance_payment_status=CASE
+                                WHEN ?='advance' THEN 'REFUNDED'
+                                ELSE advance_payment_status
+                            END,
+                            balance_payment_status=CASE
+                                WHEN ?='balance' THEN 'REFUNDED'
+                                ELSE balance_payment_status
+                            END,
                             refund_amount=COALESCE(refund_amount,0)+?,
                             refund_reference=?, refund_processed_at=CURRENT_TIMESTAMP,
                             updated_at=CURRENT_TIMESTAMP
                         WHERE id=?
                     """, (
-                        amount, amount, amount, refund_id_value, booking["id"]
+                        amount, amount, amount, amount,
+                        str(refund["payment_type"] or "advance").strip().lower(),
+                        str(refund["payment_type"] or "advance").strip().lower(),
+                        amount, refund_id_value, booking["id"]
                     ))
                     payment_mode = (
                         "cashfree_sandbox"
