@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import render_template, redirect, url_for
+from flask import redirect, url_for
 
 import os
 from pathlib import Path
