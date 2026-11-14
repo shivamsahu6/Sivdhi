@@ -380,11 +380,15 @@ def test_separate_advance_and_balance_refunds_accumulate_on_booking(
     assert first_refund.status_code == 302
     conn = sqlite3.connect(path)
     partial_state = conn.execute("""
-        SELECT refund_status, refund_amount FROM bookings
-        WHERE booking_id='SIV-REFUND-BOTH'
+        SELECT refund_status, refund_amount, payment_status,
+               advance_payment_status, balance_payment_status
+        FROM bookings WHERE booking_id='SIV-REFUND-BOTH'
     """).fetchone()
     conn.close()
-    assert partial_state == ("partially_refunded", 50.0)
+    assert partial_state == (
+        "partially_refunded", 50.0, "PARTIALLY_REFUNDED",
+        "REFUNDED", "pending"
+    )
 
     second_refund = client.post(
         f"{base}/2/status", data={"status": "SUCCESS"}
@@ -393,7 +397,8 @@ def test_separate_advance_and_balance_refunds_accumulate_on_booking(
 
     conn = sqlite3.connect(path)
     booking = conn.execute("""
-        SELECT refund_status, refund_amount, refund_reference
+        SELECT refund_status, refund_amount, refund_reference,
+               payment_status, advance_payment_status, balance_payment_status
         FROM bookings WHERE booking_id='SIV-REFUND-BOTH'
     """).fetchone()
     ledger_total = conn.execute("""
@@ -415,4 +420,5 @@ def test_separate_advance_and_balance_refunds_accumulate_on_booking(
     assert booking[0] == "refunded"
     assert booking[1] == 100.0
     assert booking[2] == "refund-balance"
+    assert booking[3:] == ("REFUNDED", "REFUNDED", "REFUNDED")
     assert ledger_total == 100.0
