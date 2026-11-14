@@ -55,7 +55,7 @@ def test_customer_location_is_explicit_and_changeable():
 
 def test_worker_customer_phone_is_available_only_through_call_action():
     source = (ROOT / "templates/worker/job_details.html").read_text(encoding="utf-8")
-    assert 'href="tel:{{ job["customer_mobile"]' in source
+    assert "href=\"tel:{{ job['customer_mobile']" in source
     assert ">Call customer</a>" in source
     assert '<span class="value">{{ job["customer_mobile"] }}</span>' not in source
 
