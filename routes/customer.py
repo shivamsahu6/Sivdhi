@@ -3652,12 +3652,66 @@ def cancel_booking(booking_ref):
             db.rollback()
             flash("Worker assign ho chuka hai, isliye app se booking cancel nahi ki ja sakti.", "warning")
             return redirect(url_for("customer.bookings"))
+        cashfree_orders = db.execute("""
+            SELECT order_id, amount, payment_type
+            FROM cashfree_payment_orders
+            WHERE CAST(booking_id AS TEXT)=CAST(? AS TEXT)
+              AND customer_id=?
+              AND status='BOOKED'
+            ORDER BY created_at ASC
+        """, (str(booking["booking_id"]), customer_row["id"])).fetchall()
+        is_cashfree_booking = (
+            str(booking["payment_method"] or "").strip().lower() == "cashfree"
+            or bool(cashfree_orders)
+        )
+
         db.execute("""
             UPDATE bookings SET booking_status='cancelled', status='cancelled',
                 cancellation_reason='Cancelled by customer before assignment',
                 updated_at=CURRENT_TIMESTAMP WHERE id=?
         """, (booking["id"],))
-        if float(booking["advance_paid_amount"] or 0) > 0:
+
+        if is_cashfree_booking:
+            # Cashfree captures real money in Production. Never label one as
+            # REFUNDED by inserting a simulated/demo refund ledger entry.
+            captured_amount = sum(money(order["amount"]) for order in cashfree_orders)
+            if captured_amount <= 0:
+                captured_amount = money(booking["advance_paid_amount"])
+            has_advance_order = any(
+                str(order["payment_type"] or "advance").strip().lower() == "advance"
+                for order in cashfree_orders
+            )
+            db.execute("""
+                UPDATE bookings
+                SET payment_status='REFUND_PENDING',
+                    advance_payment_status=CASE
+                        WHEN ? OR COALESCE(advance_paid_amount,0)>0
+                        THEN 'REFUND_PENDING' ELSE advance_payment_status END,
+                    refund_status='pending_admin',
+                    refund_amount=0,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+            """, (1 if has_advance_order else 0, booking["id"]))
+            notification_message = (
+                f"Your Cashfree-paid booking {booking['booking_id']} was cancelled before worker assignment. "
+                f"A refund request for ₹{captured_amount:.2f} is pending Admin processing in the Cashfree Dashboard. "
+                "No automatic refund has been issued yet. You will receive a separate confirmation after the refund succeeds."
+            )
+            db.execute("""
+                INSERT INTO notifications
+                    (user_type,user_id,title,message,is_read,created_at)
+                VALUES ('customer',?,?,?,0,CURRENT_TIMESTAMP)
+            """, (
+                str(customer_row["id"]),
+                "Cashfree Refund Pending",
+                notification_message,
+            ))
+            flash(
+                "Booking cancelled. Cashfree refund is pending Admin processing; no automatic refund has been issued.",
+                "warning",
+            )
+        elif float(booking["advance_paid_amount"] or 0) > 0:
+            # Demo refunds are simulated only; no real money was collected.
             refund_id = payment_number()
             db.execute("""
                 INSERT INTO customer_payment_records
@@ -3666,8 +3720,11 @@ def cancel_booking(booking_ref):
             """, (customer_row["id"], booking["booking_id"], refund_id, float(booking["advance_paid_amount"] or 0)))
             add_finance_ledger_entry(db, booking["booking_id"], "customer_refund", float(booking["advance_paid_amount"] or 0), "refunded", "demo", refund_id, "Advance refunded after pre-assignment cancellation")
             db.execute("UPDATE bookings SET advance_payment_status='REFUNDED', payment_status='REFUNDED' WHERE id=?", (booking["id"],))
+            flash("Booking cancelled. Demo advance refund record ho gaya; real money collect nahi hua.", "success")
+        else:
+            flash("Booking cancelled before worker assignment.", "success")
+
         db.commit()
-        flash("Booking cancelled before worker assignment.", "success")
         return redirect(url_for("customer.bookings"))
     except Exception as error:
         db.rollback()
