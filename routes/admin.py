@@ -1890,6 +1890,14 @@ def admin_update_cashfree_refund_status(refund_attempt_id):
                 SET status=?, updated_at=CURRENT_TIMESTAMP
                 WHERE order_id=? AND status='REFUND_PENDING'
             """, (restored_order_status, str(refund["order_id"])))
+        elif refund["order_status"] == "BOOKED" and new_status == "SUCCESS":
+            # A cancelled booking's linked Cashfree order becomes terminal only
+            # after Admin confirms success in the matching provider Dashboard.
+            conn.execute("""
+                UPDATE cashfree_payment_orders
+                SET status='REFUNDED', updated_at=CURRENT_TIMESTAMP
+                WHERE order_id=? AND status='BOOKED'
+            """, (str(refund["order_id"]),))
 
         if new_status == "SUCCESS":
             amount = finance_money(refund["amount"])
