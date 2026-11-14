@@ -401,8 +401,17 @@ def test_separate_advance_and_balance_refunds_accumulate_on_booking(
         FROM sivdhi_finance_ledger
         WHERE booking_id='SIV-REFUND-BOTH' AND entry_type='customer_refund'
     """).fetchone()[0]
+    order_statuses = conn.execute("""
+        SELECT order_id, status FROM cashfree_payment_orders
+        WHERE booking_id='SIV-REFUND-BOTH'
+        ORDER BY order_id
+    """).fetchall()
     conn.close()
 
+    assert order_statuses == [
+        ("sivdhi_1_balance_refund", "REFUNDED"),
+        ("sivdhi_1_refundtest", "REFUNDED"),
+    ]
     assert booking[0] == "refunded"
     assert booking[1] == 100.0
     assert booking[2] == "refund-balance"
