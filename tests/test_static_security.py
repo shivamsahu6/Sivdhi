@@ -43,6 +43,23 @@ def test_all_state_changing_html_forms_include_csrf_token():
     assert not missing, "Forms missing CSRF protection:\n" + "\n".join(missing)
 
 
+def test_customer_location_is_explicit_and_changeable():
+    source = (ROOT / "templates/customer/home.html").read_text(encoding="utf-8")
+    assert 'id="allowLocationButton"' in source
+    assert 'id="changeLocationButton"' in source
+    assert 'changeLocationButton.addEventListener("click", requestLocation)' in source
+    assert "maximumAge: 0" in source
+    initialization = source.split("updateModeButtons();", 1)[1].split("</script>", 1)[0]
+    assert "requestLocation();" not in initialization
+
+
+def test_worker_customer_phone_is_available_only_through_call_action():
+    source = (ROOT / "templates/worker/job_details.html").read_text(encoding="utf-8")
+    assert 'href="tel:{{ job["customer_mobile"]' in source
+    assert ">Call customer</a>" in source
+    assert '<span class="value">{{ job["customer_mobile"] }}</span>' not in source
+
+
 def test_admin_search_uses_text_nodes_not_untrusted_inner_html():
     source = (ROOT / "templates/admin/dashboard.html").read_text(encoding="utf-8")
     assert "strong.textContent=String(item.name||'')" in source
