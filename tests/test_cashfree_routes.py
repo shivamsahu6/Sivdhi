@@ -965,8 +965,9 @@ def test_customer_cancellation_of_cashfree_booking_does_not_record_fake_demo_ref
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     routes.ensure_finance_schema(conn)
-    # Match the legacy booking column that the customer cancellation route reads.
+    # Match booking fields used by the cancellation route in the app schema.
     conn.execute("ALTER TABLE bookings ADD COLUMN assigned_worker_id INTEGER")
+    conn.execute("ALTER TABLE bookings ADD COLUMN cancellation_reason TEXT")
     conn.execute("""
         INSERT INTO bookings (
             booking_id, customer_id, service_id, category, address,
