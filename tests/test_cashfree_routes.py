@@ -954,3 +954,81 @@ def test_cashfree_balance_pending_order_is_not_replaced_after_environment_switch
     """).fetchall()
     conn.close()
     assert rows == [(first_order_id, "sandbox", "PENDING")]
+
+
+def test_customer_cancellation_of_cashfree_booking_does_not_record_fake_demo_refund(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    routes.ensure_finance_schema(conn)
+    conn.execute("""
+        INSERT INTO bookings (
+            booking_id, customer_id, service_id, category, address,
+            latitude, longitude, total_amount, payment_method, payment_id,
+            payment_status, booking_status, status, advance_amount,
+            advance_paid_amount, balance_due_amount, balance_paid_amount,
+            advance_payment_status, balance_payment_status
+        ) VALUES (
+            'SIV-CF-CANCEL-1', 1, 1, 'Electrician', 'Test address',
+            28.36, 79.43, 100, 'cashfree', 'cf-cancel-payment-1',
+            'PARTIALLY_PAID', 'pending', 'pending', 50, 50, 50, 0,
+            'PAID', 'DUE'
+        )
+    """)
+    conn.execute("""
+        INSERT INTO cashfree_payment_orders (
+            order_id, customer_id, amount, currency, status,
+            payment_session_id, environment, cf_payment_id,
+            booking_id, payment_type
+        ) VALUES (
+            'sivdhi_1_cancel001', 1, 50, 'INR', 'BOOKED',
+            'cancel-session', 'sandbox', 'cf-cancel-payment-1',
+            'SIV-CF-CANCEL-1', 'advance'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+    response = client.post("/customer/booking/SIV-CF-CANCEL-1/cancel")
+    assert response.status_code == 302
+
+    conn = sqlite3.connect(path)
+    booking = conn.execute("""
+        SELECT booking_status, status, payment_status,
+               advance_payment_status, refund_status, refund_amount
+        FROM bookings WHERE booking_id='SIV-CF-CANCEL-1'
+    """).fetchone()
+    order_status = conn.execute("""
+        SELECT status FROM cashfree_payment_orders
+        WHERE order_id='sivdhi_1_cancel001'
+    """).fetchone()[0]
+    payment_records = conn.execute(
+        "SELECT COUNT(*) FROM customer_payment_records"
+    ).fetchone()[0]
+    fake_refunds = conn.execute("""
+        SELECT COUNT(*) FROM sivdhi_finance_ledger
+        WHERE booking_id='SIV-CF-CANCEL-1'
+          AND entry_type='customer_refund'
+          AND payment_mode='demo'
+    """).fetchone()[0]
+    notification = conn.execute("""
+        SELECT title, message FROM notifications
+        WHERE user_type='customer' AND user_id='1'
+        ORDER BY id DESC LIMIT 1
+    """).fetchone()
+    conn.close()
+
+    assert booking == (
+        "cancelled", "cancelled", "REFUND_PENDING",
+        "REFUND_PENDING", "pending_admin", 0.0
+    )
+    assert order_status == "BOOKED"
+    assert payment_records == 0
+    assert fake_refunds == 0
+    assert notification is not None
+    assert notification[0] == "Cashfree Refund Pending"
+    assert "No automatic refund has been issued yet" in notification[1]
