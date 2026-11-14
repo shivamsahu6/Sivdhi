@@ -502,7 +502,7 @@
             {% if job["customer_mobile"] %}
             <div class="row">
                 <span class="label">Customer contact</span>
-                <a class="value call-customer-button" href="tel:{{ job["customer_mobile"]|replace(' ', '')|replace('-', '')|replace('+', '') }}">Call customer</a>
+                <a class="value call-customer-button" href="tel:{{ job['customer_mobile']|replace(' ', '')|replace('-', '')|replace('+', '') }}">Call customer</a>
             </div>
             {% endif %}
 
