@@ -20,6 +20,7 @@ def _admin_refund_client(tmp_path, monkeypatch, *, order_status="PAID_NO_WORKER"
             customer_id INTEGER,
             status TEXT DEFAULT 'pending',
             booking_status TEXT DEFAULT 'pending',
+            payment_status TEXT DEFAULT 'pending',
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE customers (
