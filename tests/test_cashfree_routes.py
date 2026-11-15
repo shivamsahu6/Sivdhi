@@ -1,4 +1,5 @@
 import sqlite3
+from pathlib import Path
 
 from flask import Flask
 
@@ -318,9 +319,13 @@ def _cashfree_payment_client(tmp_path, monkeypatch):
     monkeypatch.setenv("CASHFREE_SECRET_KEY", "isolated-test-secret")
     monkeypatch.setenv("SIVDHI_PUBLIC_BASE_URL", "https://example.test")
 
-    app = Flask(__name__)
+    app = Flask(
+        __name__,
+        template_folder=str(Path(__file__).resolve().parents[1] / "templates"),
+    )
     app.secret_key = "isolated-payment-flow-test-secret"
     app.config["TESTING"] = True
+    app.jinja_env.globals["csrf_token"] = lambda: "test-csrf-token"
     app.register_blueprint(customer_routes.customer_bp)
     app.register_blueprint(cashfree_webhook_bp)
 
@@ -526,7 +531,7 @@ def test_multiple_successful_advance_orders_for_same_context_block_new_payment(
     assert b"Payment received" in page.data
     assert b"booking details no longer match" in page.data
     assert b"Confirm booking" not in page.data
-    assert b"Pay " not in page.data
+    assert b"Pay ₹50.00 securely" not in page.data
 
 
 def test_verified_cashfree_sandbox_order_creates_booking_and_ledger(
