@@ -55,6 +55,9 @@ def test_cashfree_create_order_uses_sandbox_and_server_credentials(monkeypatch):
     assert captured["headers"]["x-client-id"] == "sandbox-app"
     assert captured["headers"]["x-client-secret"] == "sandbox-secret"
     assert captured["headers"]["x-api-version"] == "2025-01-01"
+    assert captured["payload"]["order_meta"]["notify_url"] == "https://sivdhi.duckdns.org/customer/cashfree/webhook"
+    import uuid
+    assert str(uuid.UUID(captured["headers"]["x-idempotency-key"])) == captured["headers"]["x-idempotency-key"]
 
 
 def test_cashfree_verification_accepts_only_success_matching_order_amount_and_currency(monkeypatch):
@@ -293,3 +296,98 @@ def test_cashfree_create_order_accepts_a_distinct_balance_order_note(monkeypatch
     )
 
     assert captured["payload"]["order_note"] == "Sivdhi remaining balance"
+
+
+
+def test_cashfree_live_payments_require_production_and_explicit_opt_in(monkeypatch):
+    monkeypatch.setenv("SIVDHI_PAYMENT_MODE", "cashfree")
+    monkeypatch.setenv("CASHFREE_ENV", "production")
+    monkeypatch.setenv("CASHFREE_APP_ID", "production-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "production-secret")
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("CASHFREE_LIVE_PAYMENTS_ENABLED", "1")
+    assert gateway.cashfree_enabled() is False
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("CASHFREE_LIVE_PAYMENTS_ENABLED", "0")
+    assert gateway.cashfree_enabled() is False
+
+    monkeypatch.setenv("CASHFREE_LIVE_PAYMENTS_ENABLED", "1")
+    assert gateway.cashfree_enabled() is True
+
+
+def test_cashfree_sandbox_on_production_requires_explicit_test_override(monkeypatch):
+    monkeypatch.setenv("SIVDHI_PAYMENT_MODE", "cashfree")
+    monkeypatch.setenv("CASHFREE_ENV", "sandbox")
+    monkeypatch.setenv("CASHFREE_APP_ID", "sandbox-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "sandbox-secret")
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("CASHFREE_ALLOW_SANDBOX_IN_PRODUCTION", "0")
+    assert gateway.cashfree_enabled() is False
+
+    monkeypatch.setenv("CASHFREE_ALLOW_SANDBOX_IN_PRODUCTION", "1")
+    assert gateway.cashfree_enabled() is True
+
+
+def test_cashfree_webhook_signature_uses_exact_raw_body_and_timestamp(monkeypatch):
+    import base64
+    import hashlib
+    import hmac
+
+    secret = "webhook-test-secret"
+    timestamp = "1730000000000"
+    raw_body = b'{"type":"PAYMENT_SUCCESS_WEBHOOK","data":{}}'
+    signature = base64.b64encode(
+        hmac.new(
+            secret.encode(),
+            timestamp.encode() + raw_body,
+            hashlib.sha256,
+        ).digest()
+    ).decode()
+
+    assert gateway.verify_cashfree_webhook_signature(
+        signature, timestamp, raw_body, secret
+    )
+    assert not gateway.verify_cashfree_webhook_signature(
+        signature, timestamp, raw_body + b" ", secret
+    )
+    assert not gateway.verify_cashfree_webhook_signature(
+        signature, timestamp, raw_body, "wrong-secret"
+    )
+
+
+def test_cashfree_minimum_payment_amount_is_one_rupee(monkeypatch):
+    import pytest
+
+    monkeypatch.setenv("CASHFREE_ENV", "sandbox")
+    monkeypatch.setenv("CASHFREE_APP_ID", "sandbox-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "sandbox-secret")
+    with pytest.raises(gateway.CashfreeGatewayError, match="minimum amount"):
+        gateway.create_cashfree_order(
+            "sivdhi_4_tinyamount",
+            0.50,
+            {"id": 4, "fullname": "Test Customer", "mobile": "9876543210"},
+            "https://sivdhi.duckdns.org/customer/cashfree/return",
+        )
+
+
+def test_cashfree_order_connection_failure_is_retryable(monkeypatch):
+    import pytest
+    import requests
+
+    monkeypatch.setenv("CASHFREE_ENV", "sandbox")
+    monkeypatch.setenv("CASHFREE_APP_ID", "sandbox-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "sandbox-secret")
+
+    def timeout(*args, **kwargs):
+        raise requests.Timeout("simulated timeout")
+
+    monkeypatch.setattr(gateway.requests, "post", timeout)
+    with pytest.raises(gateway.CashfreeGatewayError) as error:
+        gateway.create_cashfree_order(
+            "sivdhi_4_retryorder",
+            50,
+            {"id": 4, "fullname": "Test Customer", "mobile": "9876543210"},
+            "https://sivdhi.duckdns.org/customer/cashfree/return",
+        )
+    assert error.value.retryable is True
