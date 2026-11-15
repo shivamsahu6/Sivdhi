@@ -56,6 +56,23 @@
         <strong>Important:</strong> First open the matching order/payment in the correct Cashfree Dashboard environment and initiate the full refund there. Then record the exact Cashfree Refund ID below. Mark it Successful only after the Dashboard confirms success. This Sivdhi page never transfers money or calls the refund API.
     </div>
 
+    {% if webhook_alerts %}
+    <section class="card">
+        <h2>Payment events requiring manual review</h2>
+        <p class="muted">These signed Cashfree events could not be safely matched to a local payment. Verify the exact payment in the matching Cashfree Dashboard before taking any booking or refund action.</p>
+        {% for event in webhook_alerts %}
+        <div class="attempt">
+            <div>
+                <strong>{{ event['processing_status']|replace('_', ' ')|title }}</strong>
+                <div class="muted">Order: {{ event['order_id'] or 'Unknown' }} · Payment ID: {{ event['cf_payment_id'] or 'Not provided' }}</div>
+                <div class="muted">{{ event['event_type'] }} · {{ event['received_at'] or 'Time unavailable' }}</div>
+            </div>
+            <span class="pill warn">Review required</span>
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
     <section class="card">
         <h2>Payments requiring attention</h2>
         {% for order in orders %}
