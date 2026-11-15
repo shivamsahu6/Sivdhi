@@ -1695,6 +1695,19 @@ def admin_cashfree_refunds():
             ORDER BY r.id DESC
             LIMIT 300
         """).fetchall()
+        webhook_alerts = conn.execute("""
+            SELECT event_type, order_id, cf_payment_id, processing_status, received_at
+            FROM cashfree_webhook_events
+            WHERE processing_status IN (
+                'AMOUNT_OR_CURRENCY_MISMATCH',
+                'PAYMENT_ID_ALREADY_LINKED',
+                'MULTIPLE_SUCCESSFUL_PAYMENTS',
+                'INVALID_SUCCESS_EVENT',
+                'UNKNOWN_ORDER'
+            )
+            ORDER BY id DESC
+            LIMIT 100
+        """).fetchall()
     finally:
         conn.close()
 
@@ -1702,6 +1715,7 @@ def admin_cashfree_refunds():
         "admin/cashfree_refunds.html",
         orders=orders,
         refunds=refunds,
+        webhook_alerts=webhook_alerts,
         page_title="Cashfree Refunds",
     )
 
