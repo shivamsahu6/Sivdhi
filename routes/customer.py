@@ -2586,33 +2586,33 @@ def payment():
                         LIMIT 1
                     """, (customer_row["id"], cashfree_context_hash, advance_amount, os.getenv("CASHFREE_ENV", "sandbox").strip().lower())).fetchone()
                     if creating_order:
-                        db.execute("""
-                            UPDATE cashfree_payment_orders
-                            SET status='FAILED', updated_at=CURRENT_TIMESTAMP
-                            WHERE order_id=? AND status='CREATING'
-                              AND datetime(created_at) < datetime('now', '-2 minutes')
-                        """, (creating_order["order_id"],))
-                        still_creating = db.execute("""
-                            SELECT order_id FROM cashfree_payment_orders
-                            WHERE order_id=? AND status='CREATING'
-                        """, (creating_order["order_id"],)).fetchone()
-                        if still_creating:
+                        stale_creating = db.execute("""
+                            SELECT CASE WHEN datetime(?) < datetime('now', '-2 minutes')
+                                THEN 1 ELSE 0 END
+                        """, (creating_order["created_at"],)).fetchone()[0]
+                        if not stale_creating:
                             db.commit()
                             return jsonify({
                                 "ok": False,
-                                "message": "Checkout is already being prepared. Please wait a moment and try again.",
+                                "message": "Checkout is already being prepared. Please retry shortly; do not start another payment.",
                             }), 409
-
-                    new_order_id = f"sivdhi_{customer_row['id']}_{secrets.token_hex(8)}"
-                    db.execute("""
-                        INSERT INTO cashfree_payment_orders
-                            (order_id, customer_id, amount, currency, status, payment_session_id, environment, context_hash, created_at)
-                        VALUES (?, ?, ?, 'INR', 'CREATING', 'CREATING', ?, ?, CURRENT_TIMESTAMP)
-                    """, (
-                        new_order_id, customer_row["id"], advance_amount,
-                        os.getenv("CASHFREE_ENV", "sandbox").strip().lower(),
-                        cashfree_context_hash,
-                    ))
+                        # Reuse the exact local/provider order ID after an
+                        # ambiguous timeout. The deterministic provider
+                        # idempotency key prevents a duplicate Cashfree order.
+                        new_order_id = str(creating_order["order_id"])
+                        reused_creating_order = True
+                    else:
+                        new_order_id = f"sivdhi_{customer_row['id']}_{secrets.token_hex(8)}"
+                        reused_creating_order = False
+                        db.execute("""
+                            INSERT INTO cashfree_payment_orders
+                                (order_id, customer_id, amount, currency, status, payment_session_id, environment, context_hash, created_at)
+                            VALUES (?, ?, ?, 'INR', 'CREATING', 'CREATING', ?, ?, CURRENT_TIMESTAMP)
+                        """, (
+                            new_order_id, customer_row["id"], advance_amount,
+                            os.getenv("CASHFREE_ENV", "sandbox").strip().lower(),
+                            cashfree_context_hash,
+                        ))
                     db.commit()
                 except Exception:
                     db.rollback()
@@ -2643,14 +2643,15 @@ def payment():
                         "order_id": new_order_id,
                         "payment_session_id": created_order["payment_session_id"],
                         "environment": created_order["environment"],
-                        "reused": False,
+                        "reused": reused_creating_order,
                     })
                 except CashfreeGatewayError as gateway_error:
-                    db.execute("""
-                        UPDATE cashfree_payment_orders
-                        SET status='FAILED', updated_at=CURRENT_TIMESTAMP
-                        WHERE order_id=? AND status='CREATING'
-                    """, (new_order_id,))
+                    if not gateway_error.retryable:
+                        db.execute("""
+                            UPDATE cashfree_payment_orders
+                            SET status='FAILED', updated_at=CURRENT_TIMESTAMP
+                            WHERE order_id=? AND status='CREATING'
+                        """, (new_order_id,))
                     db.commit()
                     return jsonify({"ok": False, "message": str(gateway_error)}), 502
 
