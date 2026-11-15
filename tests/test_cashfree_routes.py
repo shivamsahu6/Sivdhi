@@ -1052,3 +1052,181 @@ def test_customer_cancellation_of_cashfree_booking_does_not_record_fake_demo_ref
     assert notification is not None
     assert notification[0] == "Cashfree Refund Pending"
     assert "No automatic refund has been issued yet" in notification[1]
+
+
+
+def _cashfree_success_webhook_body(order_id, payment_id, *, amount=50.0):
+    import json
+
+    payload = {
+        "type": "PAYMENT_SUCCESS_WEBHOOK",
+        "data": {
+            "order": {
+                "order_id": order_id,
+                "order_amount": amount,
+                "order_currency": "INR",
+            },
+            "payment": {
+                "cf_payment_id": payment_id,
+                "payment_status": "SUCCESS",
+                "payment_amount": amount,
+                "payment_currency": "INR",
+                "payment_group": "upi",
+            },
+        },
+    }
+    return json.dumps(payload, separators=(",", ":")).encode("utf-8")
+
+
+def _post_signed_cashfree_webhook(client, body, event_key="event-test-1", signature_override=None):
+    import base64
+    import hashlib
+    import hmac
+
+    timestamp = "1730000000000"
+    signature = base64.b64encode(
+        hmac.new(
+            b"isolated-test-secret",
+            timestamp.encode("utf-8") + body,
+            hashlib.sha256,
+        ).digest()
+    ).decode("ascii")
+    if signature_override is not None:
+        signature = signature_override
+    return client.post(
+        "/customer/cashfree/webhook",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "x-webhook-timestamp": timestamp,
+            "x-webhook-signature": signature,
+            "x-idempotency-header": event_key,
+        },
+    )
+
+
+def test_cashfree_signed_webhook_confirms_advance_payment_and_deduplicates(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    order_id = _create_test_cashfree_order(client, routes, monkeypatch)
+    body = _cashfree_success_webhook_body(order_id, "cf-webhook-advance-1")
+
+    first = _post_signed_cashfree_webhook(client, body)
+    duplicate = _post_signed_cashfree_webhook(client, body)
+
+    assert first.status_code == 200
+    assert first.get_json()["payment_verified"] is True
+    assert duplicate.status_code == 200
+    assert duplicate.get_json()["duplicate"] is True
+
+    conn = sqlite3.connect(path)
+    order = conn.execute("""
+        SELECT status, cf_payment_id, payment_method
+        FROM cashfree_payment_orders WHERE order_id=?
+    """, (order_id,)).fetchone()
+    event_count = conn.execute(
+        "SELECT COUNT(*) FROM cashfree_webhook_events"
+    ).fetchone()[0]
+    conn.close()
+    assert order == ("SUCCESS", "cf-webhook-advance-1", "upi")
+    assert event_count == 1
+
+
+def test_cashfree_webhook_rejects_invalid_signature_without_changing_payment(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    order_id = _create_test_cashfree_order(client, routes, monkeypatch)
+    body = _cashfree_success_webhook_body(order_id, "cf-webhook-invalid-1")
+
+    response = _post_signed_cashfree_webhook(
+        client, body, signature_override="invalid-signature"
+    )
+
+    assert response.status_code == 400
+    conn = sqlite3.connect(path)
+    status = conn.execute(
+        "SELECT status FROM cashfree_payment_orders WHERE order_id=?",
+        (order_id,),
+    ).fetchone()[0]
+    event_count = conn.execute(
+        "SELECT COUNT(*) FROM cashfree_webhook_events"
+    ).fetchone()[0]
+    conn.close()
+    assert status == "PENDING"
+    assert event_count == 0
+
+
+def test_cashfree_balance_webhook_applies_balance_once(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    _seed_arrived_balance_booking(path)
+    order_id = _create_test_cashfree_balance_order(client, routes, monkeypatch)
+    body = _cashfree_success_webhook_body(order_id, "cf-webhook-balance-1")
+
+    first = _post_signed_cashfree_webhook(
+        client, body, event_key="event-balance-1"
+    )
+    duplicate = _post_signed_cashfree_webhook(
+        client, body, event_key="event-balance-1"
+    )
+
+    assert first.status_code == 200
+    assert first.get_json()["balance_result"] == "booked"
+    assert duplicate.status_code == 200
+    assert duplicate.get_json()["duplicate"] is True
+
+    conn = sqlite3.connect(path)
+    booking = conn.execute("""
+        SELECT balance_paid_amount, balance_due_amount, balance_payment_status
+        FROM bookings WHERE booking_id='SIV-BALANCE-CASHFREE-1'
+    """).fetchone()
+    payments = conn.execute(
+        "SELECT COUNT(*) FROM customer_payment_records WHERE payment_type='balance'"
+    ).fetchone()[0]
+    order_status = conn.execute(
+        "SELECT status FROM cashfree_payment_orders WHERE order_id=?",
+        (order_id,),
+    ).fetchone()[0]
+    conn.close()
+    assert booking == (50.0, 0.0, "DEMO_PAID")
+    assert payments == 1
+    assert order_status == "BOOKED"
+
+
+def test_cashfree_webhook_does_not_apply_mismatched_amount(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    order_id = _create_test_cashfree_order(client, routes, monkeypatch)
+    body = _cashfree_success_webhook_body(
+        order_id, "cf-webhook-wrong-amount", amount=49.0
+    )
+
+    response = _post_signed_cashfree_webhook(
+        client, body, event_key="event-wrong-amount"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["reconciliation_required"] is True
+    conn = sqlite3.connect(path)
+    status = conn.execute(
+        "SELECT status FROM cashfree_payment_orders WHERE order_id=?",
+        (order_id,),
+    ).fetchone()[0]
+    event_status = conn.execute(
+        "SELECT processing_status FROM cashfree_webhook_events"
+    ).fetchone()[0]
+    conn.close()
+    assert status == "PENDING"
+    assert event_status == "AMOUNT_OR_CURRENCY_MISMATCH"
