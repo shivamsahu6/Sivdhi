@@ -531,7 +531,7 @@ def test_multiple_successful_advance_orders_for_same_context_block_new_payment(
     assert b"Payment received" in page.data
     assert b"booking details no longer match" in page.data
     assert b"Confirm booking" not in page.data
-    assert b"Pay ₹50.00 securely" not in page.data
+    assert "Pay ₹50.00 securely".encode("utf-8") not in page.data
 
 
 def test_verified_cashfree_sandbox_order_creates_booking_and_ledger(
