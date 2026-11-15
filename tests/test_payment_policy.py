@@ -109,7 +109,7 @@ def test_worker_ui_has_arrival_action_and_balance_wait_state():
 
 def test_checkout_payment_button_is_for_advance_not_full_amount():
     source = _source("templates/customer/payment.html")
-    assert "Pay a ₹50 booking advance now" in source
+    assert "Pay ₹{{ '%.2f'|format(advance_value|float) }} securely" in source
     assert "Record ₹{{ '%.2f'|format(advance_value|float) }} demo advance" in source
     assert "Balance at worker arrival" in source
 
