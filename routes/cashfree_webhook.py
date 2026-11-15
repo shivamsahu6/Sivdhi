@@ -33,7 +33,7 @@ def receive_cashfree_webhook():
     signature = request.headers.get("x-webhook-signature", "")
     timestamp = request.headers.get("x-webhook-timestamp", "")
     try:
-        _environment, _base_url, _app_id, secret_key = cashfree_settings()
+        webhook_environment, _base_url, _app_id, secret_key = cashfree_settings()
     except CashfreeGatewayError:
         current_app.logger.exception("Cashfree webhook credentials are unavailable")
         return jsonify({"ok": False, "message": "Webhook verification is not configured."}), 503
@@ -136,6 +136,35 @@ def receive_cashfree_webhook():
             db.commit()
             current_app.logger.warning("Cashfree webhook referenced unknown order %s", order_id)
             return jsonify({"ok": True, "ignored": True}), 200
+
+        if str(order["environment"] or "").strip().lower() != webhook_environment:
+            db.execute("""
+                UPDATE cashfree_webhook_events
+                SET processing_status='ENVIRONMENT_MISMATCH',
+                    processed_at=CURRENT_TIMESTAMP
+                WHERE event_key=?
+            """, (event_key,))
+            db.commit()
+            current_app.logger.error(
+                "Cashfree webhook environment did not match local order %s",
+                order_id,
+            )
+            return jsonify({"ok": True, "reconciliation_required": True}), 200
+
+        payment_order_id = str(payment_data.get("order_id") or "").strip()
+        if payment_order_id and payment_order_id != order_id:
+            db.execute("""
+                UPDATE cashfree_webhook_events
+                SET processing_status='PAYMENT_ORDER_ID_MISMATCH',
+                    processed_at=CURRENT_TIMESTAMP
+                WHERE event_key=?
+            """, (event_key,))
+            db.commit()
+            current_app.logger.error(
+                "Cashfree payment/order ID mismatch for local order %s",
+                order_id,
+            )
+            return jsonify({"ok": True, "reconciliation_required": True}), 200
 
         try:
             expected_amount = money(order["amount"])
