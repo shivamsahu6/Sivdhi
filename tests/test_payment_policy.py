@@ -109,6 +109,14 @@ def test_worker_ui_has_arrival_action_and_balance_wait_state():
 
 def test_checkout_payment_button_is_for_advance_not_full_amount():
     source = _source("templates/customer/payment.html")
-    assert "Pay a ₹50 booking advance now" in source
+    assert "Pay ₹{{ '%.2f'|format(advance_value|float) }} securely" in source
     assert "Record ₹{{ '%.2f'|format(advance_value|float) }} demo advance" in source
     assert "Balance at worker arrival" in source
+
+def test_cashfree_balance_payment_button_is_only_rendered_in_cashfree_mode():
+    bookings_template = _source("templates/customer/bookings.html")
+    customer_routes = _source("routes/customer.py")
+    assert "cashfree-balance-button" in bookings_template
+    assert "create_cashfree_balance_order" in bookings_template
+    assert "cashfree_mode = not demo_mode and cashfree_enabled()" in customer_routes
+    assert "Cashfree Sandbox checkout only. No real money will be collected." in bookings_template

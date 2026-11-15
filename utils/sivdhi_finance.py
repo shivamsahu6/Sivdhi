@@ -83,6 +83,86 @@ def ensure_finance_schema(conn) -> None:
     })
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS cashfree_payment_orders (
+            order_id TEXT PRIMARY KEY,
+            customer_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'INR',
+            status TEXT NOT NULL DEFAULT 'PENDING',
+            payment_session_id TEXT NOT NULL,
+            environment TEXT NOT NULL DEFAULT 'unknown',
+            context_hash TEXT,
+            cf_payment_id TEXT,
+            payment_method TEXT,
+            booking_id TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            verified_at TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    _add_columns(conn, "cashfree_payment_orders", {
+        "environment": "TEXT NOT NULL DEFAULT 'unknown'",
+        "context_hash": "TEXT",
+        "cf_payment_id": "TEXT",
+        "payment_method": "TEXT",
+        "booking_id": "TEXT",
+        "payment_type": "TEXT NOT NULL DEFAULT 'advance'",
+        "verified_at": "TEXT",
+        "updated_at": "TEXT DEFAULT CURRENT_TIMESTAMP",
+    })
+
+    # Keep one active Cashfree balance checkout per booking. Advance orders
+    # retain their existing lifecycle and are excluded from this index.
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_cashfree_balance_active
+        ON cashfree_payment_orders(customer_id, booking_id)
+        WHERE payment_type='balance'
+          AND status IN ('CREATING', 'PENDING', 'SUCCESS')
+    """)
+
+    # Manual Cashfree Dashboard refund audit. This table records references
+    # only; it never sends money or calls the Cashfree refund API.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cashfree_manual_refunds (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id TEXT NOT NULL,
+            refund_id TEXT NOT NULL UNIQUE,
+            amount REAL NOT NULL,
+            status TEXT NOT NULL DEFAULT 'INITIATED',
+            reason TEXT,
+            admin_id TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            completed_at TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_cashfree_manual_refunds_order
+        ON cashfree_manual_refunds(order_id, id DESC)
+    """)
+
+    # Signed Cashfree webhook receipts are retained without storing raw payloads.
+    # The unique event key makes at-least-once provider delivery idempotent.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cashfree_webhook_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_key TEXT NOT NULL UNIQUE,
+            event_type TEXT NOT NULL,
+            order_id TEXT,
+            cf_payment_id TEXT,
+            payload_sha256 TEXT NOT NULL,
+            processing_status TEXT NOT NULL DEFAULT 'RECEIVED',
+            received_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            processed_at TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_cashfree_webhook_order
+        ON cashfree_webhook_events(order_id, id DESC)
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS sivdhi_finance_ledger (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             booking_id TEXT NOT NULL,
@@ -127,6 +207,24 @@ def is_demo_mode() -> bool:
     if app_env == "production" and explicit_prod_override not in {"1", "true", "yes", "on"}:
         return False
     return mode in {"demo", "test", "simulation"}
+
+
+def payment_audit_metadata(
+    demo_mode: bool,
+    payment_method: str,
+    gateway_environment: str = "",
+) -> tuple[bool, str]:
+    """Classify payment records so Cashfree Sandbox cannot look like real money."""
+    if demo_mode:
+        return True, "demo"
+
+    method = str(payment_method or "").strip().lower()
+    environment = str(gateway_environment or "").strip().lower()
+
+    if method == "cashfree" and environment == "sandbox":
+        return True, "cashfree_sandbox"
+
+    return False, "live"
 
 
 def money(value: Any) -> float:
@@ -193,6 +291,17 @@ def settle_completed_booking(conn, booking_db_id: int) -> tuple[bool, str]:
     booking = conn.execute("SELECT * FROM bookings WHERE id=? LIMIT 1", (booking_db_id,)).fetchone()
     if not booking:
         return False, "Booking not found."
+    sandbox_cashfree_payment = conn.execute("""
+        SELECT 1
+        FROM sivdhi_finance_ledger
+        WHERE booking_id=?
+          AND entry_type IN ('customer_advance', 'customer_balance')
+          AND payment_mode='cashfree_sandbox'
+        LIMIT 1
+    """, (str(booking["booking_id"]),)).fetchone()
+    if sandbox_cashfree_payment:
+        return False, "Cashfree Sandbox bookings cannot credit real worker, partner, or platform wallets."
+
     if booking["commission_settled_at"]:
         return True, "Commission was already settled."
 

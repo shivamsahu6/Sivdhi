@@ -13,10 +13,11 @@ def test_admin_route_group_is_not_exposed_at_default_admin_paths():
     assert f"{ADMIN_PANEL_BASE}/admin/login" in rules
     assert "/admin/login" not in rules
     assert "/admin/dashboard" not in rules
-    assert f"{ADMIN_PANEL_BASE}/bootstrap" in rules
+    assert f"{ADMIN_PANEL_BASE}/bootstrap" not in rules
     assert f"{ADMIN_PANEL_BASE}/admin/mfa/setup" in rules
     assert f"{ADMIN_PANEL_BASE}/admin/mfa/verify" in rules
     assert "/setup-admin" not in rules
+    assert not any(rule.endpoint == "temporary_admin_setup" for rule in app.url_map.iter_rules())
 
 
 def test_admin_session_expiry_has_idle_and_absolute_limits():
