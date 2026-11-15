@@ -423,3 +423,30 @@ def test_separate_advance_and_balance_refunds_accumulate_on_booking(
     assert booking[2] == "refund-balance"
     assert booking[3:] == ("REFUNDED", "REFUNDED", "REFUNDED")
     assert ledger_total == 100.0
+
+
+
+def test_cashfree_admin_page_shows_signed_webhook_reconciliation_alerts(
+    tmp_path, monkeypatch
+):
+    client, path, routes = _admin_refund_client(tmp_path, monkeypatch)
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        INSERT INTO cashfree_webhook_events(
+            event_key, event_type, order_id, cf_payment_id,
+            payload_sha256, processing_status
+        ) VALUES(
+            'evt-conflict-1', 'PAYMENT_SUCCESS_WEBHOOK',
+            'sivdhi_1_refundtest', 'cf-extra-payment',
+            'payload-hash-test', 'MULTIPLE_SUCCESSFUL_PAYMENTS'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+    response = client.get(routes.ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+    assert response.status_code == 200
+    assert b"Payment events requiring manual review" in response.data
+    assert b"cf-extra-payment" in response.data
+    assert b"MULTIPLE SUCCESSFUL PAYMENTS" in response.data
