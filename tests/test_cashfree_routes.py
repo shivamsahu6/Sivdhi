@@ -8,6 +8,7 @@ def _cashfree_callback_client(
 ):
     import routes.customer as customer_routes
     import routes.decorators as customer_decorators
+    import routes.cashfree_webhook as cashfree_webhook_routes
     from routes.cashfree_webhook import cashfree_webhook_bp
     from utils.sivdhi_finance import ensure_finance_schema
 
@@ -55,6 +56,7 @@ def _cashfree_callback_client(
     # Both the route and its authentication decorator use get_db.
     monkeypatch.setattr(customer_routes, "get_db", db_factory)
     monkeypatch.setattr(customer_decorators, "get_db", db_factory)
+    monkeypatch.setattr(cashfree_webhook_routes, "get_db", db_factory)
 
     app = Flask(__name__)
     app.secret_key = "isolated-cashfree-route-test-secret"
@@ -194,6 +196,8 @@ def test_cashfree_return_does_not_reverify_booked_order(
 def _cashfree_payment_client(tmp_path, monkeypatch):
     import routes.customer as customer_routes
     import routes.decorators as customer_decorators
+    import routes.cashfree_webhook as cashfree_webhook_routes
+    from routes.cashfree_webhook import cashfree_webhook_bp
     import utils.assignment_monitor as assignment_monitor
     from routes.customer import ensure_customer_schema
 
@@ -284,6 +288,7 @@ def _cashfree_payment_client(tmp_path, monkeypatch):
 
     monkeypatch.setattr(customer_routes, "get_db", db_factory)
     monkeypatch.setattr(customer_decorators, "get_db", db_factory)
+    monkeypatch.setattr(cashfree_webhook_routes, "get_db", db_factory)
 
     monkeypatch.setattr(
         customer_routes,
@@ -317,6 +322,7 @@ def _cashfree_payment_client(tmp_path, monkeypatch):
     app.secret_key = "isolated-payment-flow-test-secret"
     app.config["TESTING"] = True
     app.register_blueprint(customer_routes.customer_bp)
+    app.register_blueprint(cashfree_webhook_bp)
 
     client = app.test_client()
     with client.session_transaction() as session:
