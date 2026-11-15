@@ -110,6 +110,9 @@ def create_cashfree_order(
     return_parts = urlsplit(str(return_url or ""))
     if return_parts.scheme not in {"https", "http"} or not return_parts.netloc:
         raise CashfreeGatewayError("A valid public Cashfree return URL is required.")
+    app_environment = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "development")).strip().lower()
+    if app_environment == "production" and return_parts.scheme != "https":
+        raise CashfreeGatewayError("The Cashfree return URL must use HTTPS in production.")
     notify_url = os.getenv("SIVDHI_CASHFREE_WEBHOOK_URL", "").strip()
     if not notify_url:
         notify_url = f"{return_parts.scheme}://{return_parts.netloc}/customer/cashfree/webhook"
