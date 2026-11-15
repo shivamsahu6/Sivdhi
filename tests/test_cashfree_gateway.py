@@ -17,6 +17,16 @@ def test_cashfree_requires_credentials(monkeypatch):
     assert gateway.cashfree_enabled() is False
 
 
+def test_env_example_does_not_route_cashfree_webhooks_to_production():
+    from pathlib import Path
+
+    env_example = (
+        Path(__file__).resolve().parents[1] / ".env.example"
+    ).read_text(encoding="utf-8")
+    assert "SIVDHI_CASHFREE_WEBHOOK_URL=" in env_example
+    assert "SIVDHI_CASHFREE_WEBHOOK_URL=https://sivdhi.duckdns.org" not in env_example
+
+
 def test_cashfree_create_order_uses_sandbox_and_server_credentials(monkeypatch):
     monkeypatch.setenv("SIVDHI_PAYMENT_MODE", "cashfree")
     monkeypatch.setenv("CASHFREE_ENV", "sandbox")
