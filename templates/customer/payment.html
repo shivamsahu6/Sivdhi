@@ -736,7 +736,7 @@
                 <h1>Payment</h1>
 
                 <p class="intro-text">
-                    Pay a ₹50 booking advance now. The remaining amount is due when your assigned worker arrives.
+                    Pay a ₹{{ '%.2f'|format(advance_value|float) }} booking advance now. The remaining amount is due when your assigned worker arrives.
                 </p>
             </section>
 
