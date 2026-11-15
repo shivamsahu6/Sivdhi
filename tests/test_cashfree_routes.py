@@ -430,6 +430,105 @@ def test_cashfree_order_creation_persists_pending_order_only(
     assert booking_count == 0
 
 
+def test_successful_advance_is_recovered_when_customer_misses_return_url(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    order_id = _create_test_cashfree_order(client, routes, monkeypatch)
+
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        UPDATE cashfree_payment_orders
+        SET status='SUCCESS', cf_payment_id='cf-captured-without-return'
+        WHERE order_id=?
+    """, (order_id,))
+    conn.commit()
+    conn.close()
+
+    # The customer returns to the same payment page without Cashfree's
+    # order_id query parameter. The captured payment must be recovered.
+    page = client.get("/customer/payment")
+    assert page.status_code == 200
+    assert b"Cashfree payment verified" in page.data
+    assert b"Confirm booking" in page.data
+    assert f'value="{order_id}"'.encode() in page.data
+
+    # Confirming the recovered payment creates one booking and consumes the
+    # existing order; it must not create a second Cashfree order.
+    response = client.post(
+        "/customer/payment",
+        data={
+            "payment_action": "confirm_cashfree",
+            "payment_method": "cashfree",
+            "cashfree_order_id": order_id,
+        },
+    )
+    assert response.status_code == 302
+
+    conn = sqlite3.connect(path)
+    order = conn.execute(
+        "SELECT status, booking_id FROM cashfree_payment_orders WHERE order_id=?",
+        (order_id,),
+    ).fetchone()
+    order_count = conn.execute(
+        "SELECT COUNT(*) FROM cashfree_payment_orders"
+    ).fetchone()[0]
+    booking_count = conn.execute(
+        "SELECT COUNT(*) FROM bookings"
+    ).fetchone()[0]
+    payment_count = conn.execute(
+        "SELECT COUNT(*) FROM customer_payment_records"
+    ).fetchone()[0]
+    conn.close()
+
+    assert order[0] == "BOOKED"
+    assert order[1]
+    assert order_count == 1
+    assert booking_count == 1
+    assert payment_count == 1
+
+
+def test_multiple_successful_advance_orders_for_same_context_block_new_payment(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    first_order_id = _create_test_cashfree_order(client, routes, monkeypatch)
+
+    conn = sqlite3.connect(path)
+    first = conn.execute("""
+        SELECT customer_id, amount, currency, environment, context_hash
+        FROM cashfree_payment_orders WHERE order_id=?
+    """, (first_order_id,)).fetchone()
+    conn.execute("""
+        UPDATE cashfree_payment_orders
+        SET status='SUCCESS', cf_payment_id='cf-captured-first'
+        WHERE order_id=?
+    """, (first_order_id,))
+    conn.execute("""
+        INSERT INTO cashfree_payment_orders (
+            order_id, customer_id, amount, currency, status,
+            payment_session_id, environment, context_hash, cf_payment_id,
+            payment_type
+        ) VALUES (?, ?, ?, ?, 'SUCCESS', ?, ?, ?, ?, 'advance')
+    """, (
+        "sivdhi_1_secondcapture", first[0], first[1], first[2],
+        "second-session", first[3], first[4], "cf-captured-second",
+    ))
+    conn.commit()
+    conn.close()
+
+    page = client.get("/customer/payment")
+    assert page.status_code == 200
+    assert b"Payment received" in page.data
+    assert b"booking details no longer match" in page.data
+    assert b"Confirm booking" not in page.data
+    assert b"Pay " not in page.data
+
+
 def test_verified_cashfree_sandbox_order_creates_booking_and_ledger(
     tmp_path, monkeypatch
 ):
