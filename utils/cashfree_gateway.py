@@ -40,8 +40,9 @@ def cashfree_settings(expected_environment: str | None = None):
     live_enabled = os.getenv("CASHFREE_LIVE_PAYMENTS_ENABLED", "0").strip().lower() in {"1", "true", "yes", "on"}
     if environment == "production" and (app_environment != "production" or not live_enabled):
         raise CashfreeGatewayError("Live Cashfree payments are disabled. Production mode and explicit live-payment approval are both required.")
-    if app_environment == "production" and environment != "production":
-        raise CashfreeGatewayError("Cashfree Sandbox checkout is blocked on the production Sivdhi server.")
+    sandbox_prod_allowed = os.getenv("CASHFREE_ALLOW_SANDBOX_IN_PRODUCTION", "0").strip().lower() in {"1", "true", "yes", "on"}
+    if app_environment == "production" and environment == "sandbox" and not sandbox_prod_allowed:
+        raise CashfreeGatewayError("Cashfree Sandbox is disabled on the production Sivdhi server unless its explicit test-only override is enabled.")
     if not app_id or not secret_key:
         raise CashfreeGatewayError("Cashfree API credentials are not configured on the server.")
     base_url = "https://sandbox.cashfree.com/pg" if environment == "sandbox" else "https://api.cashfree.com/pg"
