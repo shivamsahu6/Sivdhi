@@ -2871,7 +2871,8 @@ def _finalize_cashfree_balance_payment(db, order, verified, customer_id):
     A captured payment that no longer matches an eligible unpaid balance is
     retained in the manual Cashfree refund queue instead of being discarded.
     """
-    db.execute("BEGIN IMMEDIATE")
+    if not db.in_transaction:
+        db.execute("BEGIN IMMEDIATE")
     try:
         current_order = db.execute("""
             SELECT * FROM cashfree_payment_orders
