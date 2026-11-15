@@ -32,6 +32,7 @@ from routes.worker import worker_bp
 from routes.partner import partner_bp
 from routes.admin import admin_bp, _ensure_admin_catalog_schema, ADMIN_PANEL_BASE
 from routes.customer import customer_bp
+from routes.cashfree_webhook import cashfree_webhook_bp
 
 # ==========================
 # Flask App
@@ -335,6 +336,9 @@ app.register_blueprint(worker_bp)
 app.register_blueprint(partner_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(customer_bp)
+app.register_blueprint(cashfree_webhook_bp)
+# Only the dedicated provider webhook endpoint is exempt from browser CSRF tokens.
+csrf.exempt(cashfree_webhook_bp)
 app.register_blueprint(push_bp)
 
 
