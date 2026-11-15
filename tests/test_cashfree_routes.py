@@ -961,7 +961,7 @@ def test_cashfree_balance_pending_order_is_not_replaced_after_environment_switch
         data={"payment_action": "create_cashfree_balance_order"},
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 302
     assert create_calls == []
     conn = sqlite3.connect(path)
     rows = conn.execute("""
@@ -1230,3 +1230,67 @@ def test_cashfree_webhook_does_not_apply_mismatched_amount(
     conn.close()
     assert status == "PENDING"
     assert event_status == "AMOUNT_OR_CURRENCY_MISMATCH"
+
+
+
+def test_cashfree_advance_timeout_reuses_same_order_and_idempotency_identity(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    calls = []
+
+    def create_order(order_id, amount, customer, return_url):
+        calls.append(order_id)
+        if len(calls) == 1:
+            raise routes.CashfreeGatewayError(
+                "simulated provider timeout", retryable=True
+            )
+        return {
+            "order_id": order_id,
+            "payment_session_id": "recovered-advance-session",
+            "environment": "sandbox",
+        }
+
+    monkeypatch.setattr(routes, "create_cashfree_order", create_order)
+    first = client.post(
+        "/customer/payment",
+        data={"payment_action": "create_cashfree_order"},
+    )
+    assert first.status_code == 502
+
+    conn = sqlite3.connect(path)
+    row = conn.execute("""
+        SELECT order_id, status FROM cashfree_payment_orders
+    """).fetchone()
+    conn.execute("""
+        UPDATE cashfree_payment_orders
+        SET created_at=datetime('now', '-10 minutes')
+    """)
+    conn.commit()
+    conn.close()
+    assert row is not None
+    assert row[1] == "CREATING"
+
+    second = client.post(
+        "/customer/payment",
+        data={"payment_action": "create_cashfree_order"},
+    )
+    assert second.status_code == 200
+    payload = second.get_json()
+    assert payload["order_id"] == row[0]
+    assert payload["reused"] is True
+    assert calls == [row[0], row[0]]
+
+    conn = sqlite3.connect(path)
+    final_order = conn.execute("""
+        SELECT order_id, status, payment_session_id
+        FROM cashfree_payment_orders
+    """).fetchone()
+    count = conn.execute("SELECT COUNT(*) FROM cashfree_payment_orders").fetchone()[0]
+    conn.close()
+    assert final_order == (
+        row[0], "PENDING", "recovered-advance-session"
+    )
+    assert count == 1
