@@ -2527,27 +2527,48 @@ def payment():
             # another Pay button. Multiple captures must be reconciled, never
             # silently selecting one and risking another charge.
             if not cashfree_verified_order_id and not cashfree_context_mismatch:
-                successful_orders = db.execute("""
-                    SELECT order_id, amount, environment, cf_payment_id
-                    FROM cashfree_payment_orders
-                    WHERE customer_id=? AND context_hash=? AND currency='INR'
-                      AND payment_type='advance' AND status='SUCCESS'
-                      AND ABS(amount-?) < 0.005
-                    ORDER BY created_at DESC
+                captured_orders = db.execute("""
+                    SELECT o.order_id, o.amount, o.environment, o.cf_payment_id,
+                           o.status
+                    FROM cashfree_payment_orders o
+                    WHERE o.customer_id=? AND o.context_hash=? AND o.currency='INR'
+                      AND o.payment_type='advance'
+                      AND ABS(o.amount-?) < 0.005
+                      AND (
+                          o.status IN ('SUCCESS', 'PAID_NO_WORKER', 'REFUND_PENDING')
+                          OR (
+                              o.status='BOOKED'
+                              AND EXISTS (
+                                  SELECT 1 FROM bookings b
+                                  WHERE CAST(b.booking_id AS TEXT)=CAST(o.booking_id AS TEXT)
+                                    AND b.customer_id=o.customer_id
+                                    AND LOWER(COALESCE(NULLIF(b.booking_status,''), b.status, ''))
+                                        IN ('cancelled', 'canceled')
+                                    AND LOWER(COALESCE(b.refund_status, '')) IN
+                                        ('pending_admin', 'partially_refunded')
+                              )
+                          )
+                      )
+                    ORDER BY o.created_at DESC
                     LIMIT 2
                 """, (
                     customer_db_id(), cashfree_context_hash, advance_amount,
                 )).fetchall()
-                if len(successful_orders) > 1:
+                if len(captured_orders) > 1:
                     cashfree_context_mismatch = True
-                elif len(successful_orders) == 1:
-                    recovered_order = successful_orders[0]
-                    if (
-                        str(recovered_order["environment"] or "").lower() == configured_environment
-                        and bool(recovered_order["cf_payment_id"])
-                    ):
-                        cashfree_verified_order_id = str(recovered_order["order_id"])
+                elif len(captured_orders) == 1:
+                    recovered_order = captured_orders[0]
+                    if recovered_order["status"] == "SUCCESS":
+                        if (
+                            str(recovered_order["environment"] or "").lower() == configured_environment
+                            and bool(recovered_order["cf_payment_id"])
+                        ):
+                            cashfree_verified_order_id = str(recovered_order["order_id"])
+                        else:
+                            cashfree_context_mismatch = True
                     else:
+                        # A captured payment already awaiting booking or refund
+                        # reconciliation must never expose another Pay button.
                         cashfree_context_mismatch = True
 
         # Check eligibility before showing/accepting any payment. Re-check on POST
