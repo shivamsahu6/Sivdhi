@@ -371,6 +371,24 @@ def test_cashfree_minimum_payment_amount_is_one_rupee(monkeypatch):
         )
 
 
+def test_cashfree_production_rejects_http_return_url(monkeypatch):
+    import pytest
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("CASHFREE_ENV", "production")
+    monkeypatch.setenv("CASHFREE_LIVE_PAYMENTS_ENABLED", "1")
+    monkeypatch.setenv("CASHFREE_APP_ID", "production-app")
+    monkeypatch.setenv("CASHFREE_SECRET_KEY", "production-secret")
+
+    with pytest.raises(gateway.CashfreeGatewayError, match="return URL must use HTTPS"):
+        gateway.create_cashfree_order(
+            "sivdhi_4_http_return",
+            50,
+            {"id": 4, "fullname": "Test Customer", "mobile": "9876543210"},
+            "http://sivdhi.duckdns.org/customer/cashfree/return",
+        )
+
+
 def test_cashfree_order_connection_failure_is_retryable(monkeypatch):
     import pytest
     import requests
