@@ -529,7 +529,7 @@ def test_multiple_successful_advance_orders_for_same_context_block_new_payment(
     page = client.get("/customer/payment")
     assert page.status_code == 200
     assert b"Payment received" in page.data
-    assert b"booking details no longer match" in page.data
+    assert b"support review required" in page.data
     assert b"Confirm booking" not in page.data
     assert "Pay ₹50.00 securely".encode("utf-8") not in page.data
 
