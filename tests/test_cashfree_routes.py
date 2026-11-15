@@ -495,6 +495,68 @@ def test_successful_advance_is_recovered_when_customer_misses_return_url(
     assert payment_count == 1
 
 
+def test_captured_advance_awaiting_reconciliation_blocks_another_charge(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    order_id = _create_test_cashfree_order(client, routes, monkeypatch)
+
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        UPDATE cashfree_payment_orders
+        SET status='PAID_NO_WORKER', cf_payment_id='cf-paid-no-worker'
+        WHERE order_id=?
+    """, (order_id,))
+    conn.commit()
+    conn.close()
+
+    page = client.get("/customer/payment")
+    assert page.status_code == 200
+    assert b"support review required" in page.data
+    assert "Pay ₹50.00 securely".encode("utf-8") not in page.data
+
+
+def test_cancelled_cashfree_booking_with_pending_refund_blocks_recharge(
+    tmp_path, monkeypatch
+):
+    client, path, routes, _candidate = _cashfree_payment_client(
+        tmp_path, monkeypatch
+    )
+    order_id = _create_test_cashfree_order(client, routes, monkeypatch)
+
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        INSERT INTO bookings (
+            booking_id, customer_id, service_id, category, description,
+            address, latitude, longitude, preferred_date, preferred_time,
+            total_amount, payment_method, payment_id, payment_status,
+            worker_id, booking_status, status, advance_paid_amount,
+            advance_payment_status, refund_status, refund_amount
+        ) VALUES (
+            'SIV-CANCELLED-CASHFREE-1', 1, 1, 'Electrician', 'Test booking',
+            'Test address', 28.36, 79.43, '2026-11-13', '10:00',
+            100, 'cashfree', 'cf-cancelled-payment', 'REFUND_PENDING',
+            NULL, 'cancelled', 'cancelled', 50, 'REFUND_PENDING',
+            'pending_admin', 0
+        )
+    """)
+    conn.execute("""
+        UPDATE cashfree_payment_orders
+        SET status='BOOKED', booking_id='SIV-CANCELLED-CASHFREE-1',
+            cf_payment_id='cf-cancelled-payment'
+        WHERE order_id=?
+    """, (order_id,))
+    conn.commit()
+    conn.close()
+
+    page = client.get("/customer/payment")
+    assert page.status_code == 200
+    assert b"support review required" in page.data
+    assert "Pay ₹50.00 securely".encode("utf-8") not in page.data
+
+
 def test_multiple_successful_advance_orders_for_same_context_block_new_payment(
     tmp_path, monkeypatch
 ):
