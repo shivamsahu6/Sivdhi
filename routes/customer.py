@@ -3266,7 +3266,7 @@ def pay_booking_balance(booking_ref):
 
             environment = os.getenv("CASHFREE_ENV", "sandbox").strip().lower()
             existing_order = db.execute("""
-                SELECT order_id, amount, payment_session_id, status, environment
+                SELECT order_id, amount, payment_session_id, status, environment, created_at
                 FROM cashfree_payment_orders
                 WHERE customer_id=? AND booking_id=? AND payment_type='balance'
                   AND status IN (
@@ -3279,20 +3279,26 @@ def pay_booking_balance(booking_ref):
                 customer_row["id"], str(booking["booking_id"])
             )).fetchone()
 
+            reused_creating_order = False
             if existing_order and existing_order["status"] == "CREATING":
-                # Fail closed: an earlier request may have created the provider
-                # order before the local process stopped. Never create a second
-                # order merely because this reservation looks stale.
-                db.commit()
-                return jsonify({
-                    "ok": False,
-                    "message": (
-                        "A balance checkout is still being reconciled. Do not retry or pay again; "
-                        "contact Sivdhi Support if this message persists."
-                    ),
-                }), 409
-
-            if existing_order:
+                stale_creating = db.execute("""
+                    SELECT CASE WHEN datetime(?) < datetime('now', '-2 minutes')
+                        THEN 1 ELSE 0 END
+                """, (existing_order["created_at"],)).fetchone()[0]
+                if not stale_creating:
+                    db.commit()
+                    return jsonify({
+                        "ok": False,
+                        "message": (
+                            "A balance checkout is still being prepared. Retry shortly; "
+                            "do not start another payment."
+                        ),
+                    }), 409
+                # Retry with the same local order ID and deterministic Cashfree
+                # idempotency key after an ambiguous provider timeout.
+                new_order_id = str(existing_order["order_id"])
+                reused_creating_order = True
+            elif existing_order:
                 if (
                     existing_order["status"] == "PENDING"
                     and str(existing_order["environment"] or "").lower() == environment
@@ -3326,28 +3332,30 @@ def pay_booking_balance(booking_ref):
                 flash("This booking has no assigned worker. Balance payment is unavailable.", "warning")
                 return redirect(url_for("customer.bookings"))
 
-            new_order_id = f"sivdhi_{customer_row['id']}_{secrets.token_hex(8)}"
+            if not reused_creating_order:
+                new_order_id = f"sivdhi_{customer_row['id']}_{secrets.token_hex(8)}"
             balance_context = hashlib.sha256(
                 (
                     f"balance|{customer_row['id']}|{booking['booking_id']}|"
                     f"{balance_due:.2f}|{booking['worker_arrived_at']}"
                 ).encode("utf-8")
             ).hexdigest()
-            db.execute("""
-                INSERT INTO cashfree_payment_orders
-                    (order_id, customer_id, amount, currency, status,
-                     payment_session_id, environment, context_hash, booking_id,
-                     payment_type, created_at)
-                VALUES (?, ?, ?, 'INR', 'CREATING', 'CREATING', ?, ?, ?,
-                        'balance', CURRENT_TIMESTAMP)
-            """, (
-                new_order_id,
-                customer_row["id"],
-                balance_due,
-                environment,
-                balance_context,
-                str(booking["booking_id"]),
-            ))
+            if not reused_creating_order:
+                db.execute("""
+                    INSERT INTO cashfree_payment_orders
+                        (order_id, customer_id, amount, currency, status,
+                         payment_session_id, environment, context_hash, booking_id,
+                         payment_type, created_at)
+                    VALUES (?, ?, ?, 'INR', 'CREATING', 'CREATING', ?, ?, ?,
+                            'balance', CURRENT_TIMESTAMP)
+                """, (
+                    new_order_id,
+                    customer_row["id"],
+                    balance_due,
+                    environment,
+                    balance_context,
+                    str(booking["booking_id"]),
+                ))
             db.commit()
 
             return_url = (
@@ -3387,11 +3395,12 @@ def pay_booking_balance(booking_ref):
                     "reused": False,
                 })
             except CashfreeGatewayError as gateway_error:
-                db.execute("""
-                    UPDATE cashfree_payment_orders
-                    SET status='FAILED', updated_at=CURRENT_TIMESTAMP
-                    WHERE order_id=? AND status='CREATING'
-                """, (new_order_id,))
+                if not gateway_error.retryable:
+                    db.execute("""
+                        UPDATE cashfree_payment_orders
+                        SET status='FAILED', updated_at=CURRENT_TIMESTAMP
+                        WHERE order_id=? AND status='CREATING'
+                    """, (new_order_id,))
                 db.commit()
                 return jsonify({"ok": False, "message": str(gateway_error)}), 502
 
