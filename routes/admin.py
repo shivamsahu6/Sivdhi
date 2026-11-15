@@ -1703,7 +1703,9 @@ def admin_cashfree_refunds():
                 'PAYMENT_ID_ALREADY_LINKED',
                 'MULTIPLE_SUCCESSFUL_PAYMENTS',
                 'INVALID_SUCCESS_EVENT',
-                'UNKNOWN_ORDER'
+                'UNKNOWN_ORDER',
+                'ENVIRONMENT_MISMATCH',
+                'PAYMENT_ORDER_ID_MISMATCH'
             )
             ORDER BY id DESC
             LIMIT 100
