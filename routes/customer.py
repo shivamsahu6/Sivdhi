@@ -2496,17 +2496,59 @@ def payment():
             valid_date, valid_time, latitude, longitude, selected, amount["problems"],
         )
         requested_cashfree_order_id = (request.args.get("cashfree_order_id") or "").strip()
-        if cashfree_mode and requested_cashfree_order_id:
-            verified_order = db.execute("""
-                SELECT order_id, status, context_hash FROM cashfree_payment_orders
-                WHERE order_id=? AND customer_id=?
-                LIMIT 1
-            """, (requested_cashfree_order_id, customer_db_id())).fetchone()
-            if verified_order and verified_order["status"] == "SUCCESS":
-                if verified_order["context_hash"] == cashfree_context_hash:
-                    cashfree_verified_order_id = str(verified_order["order_id"])
-                else:
+        if cashfree_mode:
+            configured_environment = os.getenv("CASHFREE_ENV", "sandbox").strip().lower()
+            if requested_cashfree_order_id:
+                verified_order = db.execute("""
+                    SELECT order_id, status, context_hash, amount, environment,
+                           payment_type, cf_payment_id
+                    FROM cashfree_payment_orders
+                    WHERE order_id=? AND customer_id=?
+                    LIMIT 1
+                """, (requested_cashfree_order_id, customer_db_id())).fetchone()
+                if verified_order and verified_order["status"] == "SUCCESS":
+                    order_matches_context = (
+                        verified_order["context_hash"] == cashfree_context_hash
+                        and abs(money(verified_order["amount"]) - advance_amount) <= 0.004
+                        and str(verified_order["payment_type"] or "advance").lower() == "advance"
+                        and bool(verified_order["cf_payment_id"])
+                    )
+                    if (
+                        order_matches_context
+                        and str(verified_order["environment"] or "").lower() == configured_environment
+                    ):
+                        cashfree_verified_order_id = str(verified_order["order_id"])
+                    else:
+                        cashfree_context_mismatch = True
+
+            # A customer may close the browser after Cashfree captures the
+            # advance and never reach the return URL. Recover the one verified
+            # successful order for this exact checkout context before showing
+            # another Pay button. Multiple captures must be reconciled, never
+            # silently selecting one and risking another charge.
+            if not cashfree_verified_order_id and not cashfree_context_mismatch:
+                successful_orders = db.execute("""
+                    SELECT order_id, amount, environment, cf_payment_id
+                    FROM cashfree_payment_orders
+                    WHERE customer_id=? AND context_hash=? AND currency='INR'
+                      AND payment_type='advance' AND status='SUCCESS'
+                      AND ABS(amount-?) < 0.005
+                    ORDER BY created_at DESC
+                    LIMIT 2
+                """, (
+                    customer_db_id(), cashfree_context_hash, advance_amount,
+                )).fetchall()
+                if len(successful_orders) > 1:
                     cashfree_context_mismatch = True
+                elif len(successful_orders) == 1:
+                    recovered_order = successful_orders[0]
+                    if (
+                        str(recovered_order["environment"] or "").lower() == configured_environment
+                        and bool(recovered_order["cf_payment_id"])
+                    ):
+                        cashfree_verified_order_id = str(recovered_order["order_id"])
+                    else:
+                        cashfree_context_mismatch = True
 
         # Check eligibility before showing/accepting any payment. Re-check on POST
         # under a write lock to avoid recording a payment when no worker is available.
