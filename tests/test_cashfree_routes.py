@@ -8,6 +8,7 @@ def _cashfree_callback_client(
 ):
     import routes.customer as customer_routes
     import routes.decorators as customer_decorators
+    from routes.cashfree_webhook import cashfree_webhook_bp
     from utils.sivdhi_finance import ensure_finance_schema
 
     database_path = tmp_path / "cashfree-callback.sqlite"
@@ -59,6 +60,7 @@ def _cashfree_callback_client(
     app.secret_key = "isolated-cashfree-route-test-secret"
     app.config["TESTING"] = True
     app.register_blueprint(customer_routes.customer_bp)
+    app.register_blueprint(cashfree_webhook_bp)
 
     client = app.test_client()
     with client.session_transaction() as session:
@@ -871,7 +873,7 @@ def test_cashfree_balance_capture_with_changed_due_is_flagged_for_refund(
     assert booking == (40.0, "DUE")
     assert payments == 0
 
-def test_cashfree_balance_stale_creating_order_fails_closed_without_new_order(
+def test_cashfree_balance_stale_creating_order_reuses_same_order_id(
     tmp_path, monkeypatch
 ):
     client, path, routes, _candidate = _cashfree_payment_client(
@@ -895,19 +897,27 @@ def test_cashfree_balance_stale_creating_order_fails_closed_without_new_order(
     conn.commit()
     conn.close()
 
-    monkeypatch.setattr(
-        routes,
-        "create_cashfree_order",
-        lambda *args, **kwargs: create_calls.append((args, kwargs)),
-    )
+    def retry_same_order(order_id, amount, customer, return_url, order_note=None):
+        create_calls.append(order_id)
+        return {
+            "order_id": order_id,
+            "payment_session_id": "recovered-balance-session",
+            "environment": "sandbox",
+        }
+
+    monkeypatch.setattr(routes, "create_cashfree_order", retry_same_order)
 
     response = client.post(
         "/customer/booking/SIV-BALANCE-CASHFREE-1/balance-payment",
         data={"payment_action": "create_cashfree_balance_order"},
     )
 
-    assert response.status_code == 409
-    assert create_calls == []
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["order_id"] == "sivdhi_1_balancecreating"
+    assert payload["payment_session_id"] == "recovered-balance-session"
+    assert create_calls == ["sivdhi_1_balancecreating"]
+
     conn = sqlite3.connect(path)
     row = conn.execute("""
         SELECT status, payment_session_id
@@ -918,8 +928,9 @@ def test_cashfree_balance_stale_creating_order_fails_closed_without_new_order(
         "SELECT COUNT(*) FROM cashfree_payment_orders"
     ).fetchone()[0]
     conn.close()
-    assert row == ("CREATING", "CREATING")
+    assert row == ("PENDING", "recovered-balance-session")
     assert count == 1
+
 
 def test_cashfree_balance_pending_order_is_not_replaced_after_environment_switch(
     tmp_path, monkeypatch
