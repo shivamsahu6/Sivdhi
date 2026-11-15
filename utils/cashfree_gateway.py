@@ -5,9 +5,14 @@ receives a payment_session_id, never the Cashfree secret key.
 """
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import os
 import re
+import uuid
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlsplit
 
 import requests
 
@@ -18,6 +23,10 @@ API_VERSION = os.getenv("CASHFREE_API_VERSION", "2025-01-01").strip()
 class CashfreeGatewayError(RuntimeError):
     """Safe, user-displayable Cashfree integration error."""
 
+    def __init__(self, message: str, *, retryable: bool = False):
+        super().__init__(message)
+        self.retryable = bool(retryable)
+
 
 def cashfree_settings(expected_environment: str | None = None):
     environment = os.getenv("CASHFREE_ENV", "sandbox").strip().lower()
@@ -27,6 +36,12 @@ def cashfree_settings(expected_environment: str | None = None):
         raise CashfreeGatewayError("Cashfree environment must be sandbox or production.")
     if expected_environment is not None and str(expected_environment).strip().lower() != environment:
         raise CashfreeGatewayError("Cashfree order environment does not match the configured credentials. Restore the matching environment to verify this payment.")
+    app_environment = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "development")).strip().lower()
+    live_enabled = os.getenv("CASHFREE_LIVE_PAYMENTS_ENABLED", "0").strip().lower() in {"1", "true", "yes", "on"}
+    if environment == "production" and (app_environment != "production" or not live_enabled):
+        raise CashfreeGatewayError("Live Cashfree payments are disabled. Production mode and explicit live-payment approval are both required.")
+    if app_environment == "production" and environment != "production":
+        raise CashfreeGatewayError("Cashfree Sandbox checkout is blocked on the production Sivdhi server.")
     if not app_id or not secret_key:
         raise CashfreeGatewayError("Cashfree API credentials are not configured on the server.")
     base_url = "https://sandbox.cashfree.com/pg" if environment == "sandbox" else "https://api.cashfree.com/pg"
@@ -63,7 +78,8 @@ def _response_json(response):
         message = payload.get("message") if isinstance(payload, dict) else None
         raise CashfreeGatewayError(
             f"Cashfree request failed (HTTP {response.status_code})."
-            + (f" {str(message)[:180]}" if message else "")
+            + (f" {str(message)[:180]}" if message else ""),
+            retryable=(int(response.status_code) == 429 or int(response.status_code) >= 500),
         )
     if not isinstance(payload, (dict, list)):
         raise CashfreeGatewayError("Cashfree returned an invalid response.")
