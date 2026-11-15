@@ -87,8 +87,20 @@ def create_cashfree_order(
         order_amount = Decimal(str(amount)).quantize(Decimal("0.01"))
     except (InvalidOperation, TypeError, ValueError):
         raise CashfreeGatewayError("Invalid Cashfree payment amount.")
-    if order_amount <= 0:
-        raise CashfreeGatewayError("Cashfree payment amount must be greater than zero.")
+    if order_amount < Decimal("1.00"):
+        raise CashfreeGatewayError("Cashfree online payments require a minimum amount of Rs 1.00.")
+
+    return_parts = urlsplit(str(return_url or ""))
+    if return_parts.scheme not in {"https", "http"} or not return_parts.netloc:
+        raise CashfreeGatewayError("A valid public Cashfree return URL is required.")
+    notify_url = os.getenv("SIVDHI_CASHFREE_WEBHOOK_URL", "").strip()
+    if not notify_url:
+        notify_url = f"{return_parts.scheme}://{return_parts.netloc}/customer/cashfree/webhook"
+    notify_parts = urlsplit(notify_url)
+    if notify_parts.scheme not in {"https", "http"} or not notify_parts.netloc:
+        raise CashfreeGatewayError("A valid Cashfree webhook URL is required.")
+    if os.getenv("APP_ENV", os.getenv("FLASK_ENV", "development")).strip().lower() == "production" and notify_parts.scheme != "https":
+        raise CashfreeGatewayError("The Cashfree webhook URL must use HTTPS in production.")
 
     customer_details = {
         "customer_id": str(customer.get("id")),
@@ -104,18 +116,26 @@ def create_cashfree_order(
         "order_amount": float(order_amount),
         "order_currency": "INR",
         "customer_details": customer_details,
-        "order_meta": {"return_url": return_url},
+        "order_meta": {"return_url": return_url, "notify_url": notify_url},
         "order_note": str(order_note or "Sivdhi booking advance")[:80],
     }
     try:
         response = requests.post(
             f"{base_url}/orders",
             json=payload,
-            headers=_headers(app_id, secret_key),
+            headers={
+                **_headers(app_id, secret_key),
+                "x-idempotency-key": str(uuid.uuid5(uuid.NAMESPACE_URL, f"sivdhi-cashfree-create-order:{order_id}")),
+            },
             timeout=(5, 25),
         )
     except requests.RequestException as exc:
-        raise CashfreeGatewayError("Could not connect to Cashfree. Please try again.") from exc
+        # The provider may have created the order before the connection timed
+        # out. Keep the same local order ID so a retry reuses the same UUID key.
+        raise CashfreeGatewayError(
+            "Cashfree connection timed out or failed. Retry this same checkout; do not start a second payment.",
+            retryable=True,
+        ) from exc
     result = _response_json(response)
     returned_order_id = str(result.get("order_id") or "").strip()
     if returned_order_id != str(order_id):
@@ -128,6 +148,20 @@ def create_cashfree_order(
         "environment": environment,
         "order_id": returned_order_id,
     }
+
+
+
+def verify_cashfree_webhook_signature(
+    signature: str, timestamp: str, raw_body: bytes, secret_key: str
+) -> bool:
+    """Verify Cashfree's HMAC-SHA256 signature against the exact raw body."""
+    if not signature or not timestamp or not secret_key or not isinstance(raw_body, bytes):
+        return False
+    signed_payload = timestamp.encode("utf-8") + raw_body
+    expected = base64.b64encode(
+        hmac.new(secret_key.encode("utf-8"), signed_payload, hashlib.sha256).digest()
+    ).decode("ascii")
+    return hmac.compare_digest(expected, signature.strip())
 
 
 def verify_cashfree_order_payment(
