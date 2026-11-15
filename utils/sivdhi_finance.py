@@ -142,6 +142,26 @@ def ensure_finance_schema(conn) -> None:
         ON cashfree_manual_refunds(order_id, id DESC)
     """)
 
+    # Signed Cashfree webhook receipts are retained without storing raw payloads.
+    # The unique event key makes at-least-once provider delivery idempotent.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cashfree_webhook_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_key TEXT NOT NULL UNIQUE,
+            event_type TEXT NOT NULL,
+            order_id TEXT,
+            cf_payment_id TEXT,
+            payload_sha256 TEXT NOT NULL,
+            processing_status TEXT NOT NULL DEFAULT 'RECEIVED',
+            received_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            processed_at TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_cashfree_webhook_order
+        ON cashfree_webhook_events(order_id, id DESC)
+    """)
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS sivdhi_finance_ledger (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
