@@ -449,4 +449,4 @@ def test_cashfree_admin_page_shows_signed_webhook_reconciliation_alerts(
     assert response.status_code == 200
     assert b"Payment events requiring manual review" in response.data
     assert b"cf-extra-payment" in response.data
-    assert b"MULTIPLE SUCCESSFUL PAYMENTS" in response.data
+    assert b"Multiple Successful Payments" in response.data
