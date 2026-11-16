@@ -2369,7 +2369,29 @@ def service_details():
 
         today_min = _minimum_booking_date(mode)
         booking_date_value = session.get("booking_date") or today_min
+        if mode != "full-day":
+            try:
+                stored_date = date.fromisoformat(str(booking_date_value))
+                minimum_date = date.fromisoformat(today_min)
+            except (TypeError, ValueError):
+                stored_date = None
+                minimum_date = date.fromisoformat(today_min)
+            if stored_date is None or stored_date < minimum_date:
+                booking_date_value = today_min
+                session["booking_date"] = today_min
+                session.pop("booking_time", None)
+
         booking_time_value = session.get("booking_time") or ("09:00" if mode == "full-day" else "")
+        if mode != "full-day" and booking_time_value:
+            _, normalized_time, time_error = validate_customer_booking_slot(
+                mode, booking_date_value, booking_time_value
+            )
+            if time_error:
+                booking_time_value = ""
+                session.pop("booking_time", None)
+            else:
+                booking_time_value = normalized_time
+                session["booking_time"] = normalized_time
 
         if mode == "full-day":
             included = (category_data or {}).get("included_work") or (selected or {}).get("included_work") or ""
