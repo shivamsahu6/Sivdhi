@@ -909,9 +909,9 @@
                                 </div>
                                 {% if mode != 'full-day' %}
                                     <div class="schedule-field">
-                                        <label for="booking_time">Service time</label>
-                                        <input id="booking_time" name="booking_time" type="time" min="08:00" max="20:00" step="900" value="{{ booking_time }}" required>
-                                        <p class="schedule-help">Slots are 8:00 AM–8:00 PM and must be at least 2 hours from now for same-day bookings.</p>
+                                        <label for="booking_time">Service time (optional)</label>
+                                        <input id="booking_time" name="booking_time" type="time" min="09:00" max="18:00" step="900" value="{{ booking_time }}">
+                                        <p class="schedule-help">Choose 9:00 AM–6:00 PM, or leave blank for automatic scheduling. Same-day bookings are set at least 2 hours ahead; after 4:00 PM, today moves to tomorrow at 9:00 AM. Future dates default to 9:00 AM.</p>
                                     </div>
                                 {% else %}
                                     <input type="hidden" name="booking_time" value="09:00">
@@ -952,24 +952,55 @@
       (function () {
         const dateInput = document.getElementById('booking_date');
         const timeInput = document.getElementById('booking_time');
-        if (!dateInput || !timeInput) return;
+        if (!dateInput || !timeInput || timeInput.type !== 'time') return;
+
         const pad = value => String(value).padStart(2, '0');
+        const serverMinDate = dateInput.min;
+
+        function dateString(value) {
+          return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+        }
+
         function applyTimeLimits() {
-          timeInput.min = '08:00';
-          timeInput.max = '20:00';
           const now = new Date();
-          const localDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-          if (dateInput.value === localDate) {
-            now.setMinutes(now.getMinutes() + 120);
-            now.setMinutes(Math.ceil(now.getMinutes()/15)*15, 0, 0);
-            const min = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-            if (min > timeInput.min && min < '20:00') timeInput.min = min;
+          const localDate = dateString(now);
+          const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          const tomorrowString = dateString(tomorrow);
+          const afterFour = now.getHours() > 16 ||
+            (now.getHours() === 16 && (now.getMinutes() > 0 || now.getSeconds() > 0 || now.getMilliseconds() > 0));
+
+          dateInput.min = afterFour && tomorrowString > serverMinDate ? tomorrowString : serverMinDate;
+          timeInput.min = '09:00';
+          timeInput.max = '18:00';
+
+          if (dateInput.value < dateInput.min) {
+            dateInput.value = dateInput.min;
+            timeInput.value = '';
           }
+
+          if (dateInput.value === localDate && !afterFour) {
+            const target = new Date(now.getTime() + 120 * 60 * 1000);
+            let targetMinutes = target.getHours() * 60 + target.getMinutes();
+            if (target.getSeconds() || target.getMilliseconds()) targetMinutes += 1;
+            const roundedMinutes = Math.ceil(targetMinutes / 15) * 15;
+
+            if (roundedMinutes > 18 * 60) {
+              dateInput.min = tomorrowString > serverMinDate ? tomorrowString : serverMinDate;
+              dateInput.value = dateInput.min;
+              timeInput.value = '';
+            } else {
+              const min = `${pad(Math.floor(roundedMinutes / 60))}:${pad(roundedMinutes % 60)}`;
+              if (min > timeInput.min) timeInput.min = min;
+            }
+          }
+
           if (timeInput.value && (timeInput.value < timeInput.min || timeInput.value > timeInput.max)) {
             timeInput.value = '';
           }
         }
+
         dateInput.addEventListener('change', applyTimeLimits);
+        if (dateInput.form) dateInput.form.addEventListener('submit', applyTimeLimits);
         applyTimeLimits();
       })();
     </script>
