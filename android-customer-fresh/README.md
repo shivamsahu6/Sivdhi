@@ -34,3 +34,6 @@ The app requires the current Sivdhi HTTPS host. It does not bundle website pages
 ## Payment safety
 
 Cashfree order/session values arrive only from the trusted Sivdhi payment page. The SDK callback is treated only as a signal to return to the server; final order/payment status remains a backend verification decision.
+
+
+Release builds produce both a signed APK for direct device QA and a signed Android App Bundle (`Sivdhi-Customer-Fresh.aab`) for Google Play Console Internal Testing. Install the internal-test build from the Play Store opt-in link when validating Cashfree Production Integrity; direct APK installation is not a trusted production installer.
