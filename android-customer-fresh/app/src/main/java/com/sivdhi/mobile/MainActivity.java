@@ -749,15 +749,19 @@ public class MainActivity extends Activity implements CFCheckoutResponseCallback
 
     @Override
     public void onPaymentVerify(String orderId) {
-        finishCashfreeCheckoutFromCallback(orderId, false);
+        finishCashfreeCheckoutFromCallback(orderId, false, null);
     }
 
     @Override
     public void onPaymentFailure(CFErrorResponse errorResponse, String orderId) {
-        finishCashfreeCheckoutFromCallback(orderId, true);
+        // Cashfree supplies the actionable failure reason here. Keep it local to
+        // this callback and show a bounded message so checkout failures are diagnosable.
+        String failureReason = errorResponse == null ? null : errorResponse.getMessage();
+        finishCashfreeCheckoutFromCallback(orderId, true, failureReason);
     }
 
-    private void finishCashfreeCheckoutFromCallback(String callbackOrderId, boolean failedCallback) {
+    private void finishCashfreeCheckoutFromCallback(
+            String callbackOrderId, boolean failedCallback, String failureReason) {
         runOnUiThread(() -> {
             String expectedOrderId = pendingCashfreeOrderId;
             if (expectedOrderId == null || callbackOrderId == null
@@ -769,7 +773,14 @@ public class MainActivity extends Activity implements CFCheckoutResponseCallback
             pendingCashfreeOrderId = null;
             cashfreeCheckoutActive = false;
             if (failedCallback) {
-                Toast.makeText(this, "Payment attempt ended. Checking its verified status…", Toast.LENGTH_LONG).show();
+                String reason = failureReason == null ? "" : failureReason.trim();
+                if (reason.length() > 110) reason = reason.substring(0, 110);
+                Log.w("SivdhiCashfree", "Cashfree checkout failure callback received: "
+                        + (reason.isEmpty() ? "No reason supplied." : reason));
+                String failureText = reason.isEmpty()
+                        ? "Cashfree checkout could not start. No payment is confirmed."
+                        : "Cashfree checkout failed: " + reason;
+                Toast.makeText(this, failureText, Toast.LENGTH_LONG).show();
             } else {
                 Toast.makeText(this, "Checking payment with Sivdhi…", Toast.LENGTH_SHORT).show();
             }
