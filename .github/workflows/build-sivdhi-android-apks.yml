@@ -92,9 +92,9 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$BUILD_TYPE" == "release" ]]; then
-            gradle --no-daemon --stacktrace :app:assembleRelease
+            gradle --no-daemon --stacktrace :app:assembleRelease :app:bundleRelease
           else
-            gradle --no-daemon --stacktrace :app:assembleDebug
+            gradle --no-daemon --stacktrace :app:assembleDebug :app:bundleDebug
           fi
 
       - name: Verify APK and package source
@@ -104,17 +104,24 @@ jobs:
           mkdir -p android-customer-fresh/dist
           if [[ "$BUILD_TYPE" == "release" ]]; then
             APK="android-customer-fresh/app/build/outputs/apk/release/app-release.apk"
+            AAB="android-customer-fresh/app/build/outputs/bundle/release/app-release.aab"
           else
             APK="android-customer-fresh/app/build/outputs/apk/debug/app-debug.apk"
+            AAB="android-customer-fresh/app/build/outputs/bundle/debug/app-debug.aab"
           fi
           test -s "$APK"
+          test -s "$AAB"
           cp "$APK" android-customer-fresh/dist/Sivdhi-Customer-Fresh.apk
+          cp "$AAB" android-customer-fresh/dist/Sivdhi-Customer-Fresh.aab
+          unzip -t android-customer-fresh/dist/Sivdhi-Customer-Fresh.aab >/dev/null
           APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
           "$APKSIGNER" verify --verbose --print-certs android-customer-fresh/dist/Sivdhi-Customer-Fresh.apk
           AAPT="$ANDROID_HOME/build-tools/36.0.0/aapt"
           "$AAPT" dump badging android-customer-fresh/dist/Sivdhi-Customer-Fresh.apk | \
             grep -E "^(package:|application-label:)" | head -5
-          sha256sum android-customer-fresh/dist/Sivdhi-Customer-Fresh.apk \
+          sha256sum \
+            android-customer-fresh/dist/Sivdhi-Customer-Fresh.apk \
+            android-customer-fresh/dist/Sivdhi-Customer-Fresh.aab \
             | tee android-customer-fresh/dist/SHA256SUMS.txt
           printf 'Build type: %s\n' "$BUILD_TYPE" > android-customer-fresh/dist/BUILD_TYPE.txt
           cd android-customer-fresh
@@ -128,6 +135,7 @@ jobs:
           name: Sivdhi-Customer-Fresh-${{ env.BUILD_TYPE }}
           path: |
             android-customer-fresh/dist/Sivdhi-Customer-Fresh.apk
+            android-customer-fresh/dist/Sivdhi-Customer-Fresh.aab
             android-customer-fresh/dist/SHA256SUMS.txt
             android-customer-fresh/dist/BUILD_TYPE.txt
             android-customer-fresh/dist/Sivdhi-Customer-Fresh-Source.zip
