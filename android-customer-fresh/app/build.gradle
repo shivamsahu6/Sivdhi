@@ -1,0 +1,67 @@
+plugins {
+    id 'com.android.application'
+    id 'com.google.gms.google-services'
+}
+
+def releaseStoreFilePath = System.getenv('SIVDHI_RELEASE_STORE_FILE')
+def releaseStorePasswordValue = System.getenv('SIVDHI_RELEASE_STORE_PASSWORD')
+def releaseKeyAliasValue = System.getenv('SIVDHI_RELEASE_KEY_ALIAS')
+def releaseKeyPasswordValue = System.getenv('SIVDHI_RELEASE_KEY_PASSWORD')
+def releaseSigningConfigured = [
+    releaseStoreFilePath,
+    releaseStorePasswordValue,
+    releaseKeyAliasValue,
+    releaseKeyPasswordValue
+].every { it != null && !it.trim().isEmpty() }
+
+android {
+    namespace 'com.sivdhi.mobile'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.sivdhi.customer'
+        minSdk 24
+        targetSdk 36
+        versionCode 4
+        versionName '1.0.3'
+        manifestPlaceholders = [
+            startUrl: 'https://sivdhi.duckdns.org/'
+        ]
+    }
+
+    signingConfigs {
+        release {
+            if (releaseSigningConfigured) {
+                storeFile file(releaseStoreFilePath)
+                storeType 'PKCS12'
+                storePassword releaseStorePasswordValue
+                keyAlias releaseKeyAliasValue
+                keyPassword releaseKeyPasswordValue
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:35.1.0')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.cashfree.pg:api:2.7.1'
+}
