@@ -265,6 +265,7 @@ def add_security_headers(response):
         request.blueprint == "admin"
         or request.path == f"{ADMIN_PANEL_BASE}/bootstrap"
         or request.path in {"/customer/login", "/customer/signup", "/signup"}
+        or request.path in {"/customer/help", "/customer/support"}
         or (request.path == "/login" and not is_public_role_login)
         or is_private_worker_partner_page
     ):
