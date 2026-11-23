@@ -207,7 +207,7 @@ def robots_txt():
 
 @app.get("/sitemap.xml")
 def sitemap_xml():
-    """Expose the public customer page and role-specific login pages."""
+    """Expose canonical public customer, registration, and role-specific login pages."""
     from xml.sax.saxutils import escape
 
     # Include only canonical public pages that are intended to be indexed.
