@@ -1466,6 +1466,18 @@ def admin_update_customer_support_status(ticket_id):
 
     conn = get_db()
     try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS customer_support_tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                booking_id TEXT,
+                subject TEXT NOT NULL,
+                message TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         cur = conn.execute(
             "UPDATE customer_support_tickets SET status=? WHERE id=?",
             (new_status, ticket_id),
