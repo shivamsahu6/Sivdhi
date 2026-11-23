@@ -270,6 +270,7 @@ def add_security_headers(response):
         request.blueprint == "admin"
         or request.path == f"{ADMIN_PANEL_BASE}/bootstrap"
         or request.path == "/customer/login"
+        or request.endpoint == "customer.privacy"
         or is_sensitive_auth_flow
         or (request.path == "/login" and not is_public_role_login)
         or is_private_worker_partner_page
