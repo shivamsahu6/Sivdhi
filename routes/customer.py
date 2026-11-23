@@ -3597,7 +3597,6 @@ def faq():
 
 
 @customer_bp.route("/privacy")
-@customer_login_required
 def privacy():
     return render_template("customer/privacy.html")
 
