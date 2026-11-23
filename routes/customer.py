@@ -3585,7 +3585,7 @@ def _create_customer_support_ticket(db, customer_row, form_data):
         message = (
             "Payment / transaction reference supplied: "
             + payment_reference
-            + "\\n\\n"
+            + "\n\n"
             + message
         )[:2000]
 
