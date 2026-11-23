@@ -198,8 +198,6 @@ def robots_txt():
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /admin\n"
-        "Disallow: /customer/login\n"
-        "Disallow: /customer/signup\n"
         "Disallow: /customer/bookings\n"
         "Disallow: /customer/profile\n"
         "Sitemap: https://sivdhi.duckdns.org/sitemap.xml\n"
@@ -212,16 +210,18 @@ def sitemap_xml():
     """Expose the public customer page and role-specific login pages."""
     from xml.sax.saxutils import escape
 
+    # Include only canonical public pages that are intended to be indexed.
+    # Password-reset flows and authenticated dashboards are deliberately excluded.
     public_urls = (
         "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/customer/signup",
         "https://sivdhi.duckdns.org/login?role=worker",
+        "https://sivdhi.duckdns.org/signup?role=worker",
         "https://sivdhi.duckdns.org/login?role=partner",
+        "https://sivdhi.duckdns.org/signup?role=partner",
     )
-    last_modified = datetime.utcnow().date().isoformat()
     url_entries = "".join(
-        f'<url><loc>{escape(public_url)}</loc>'
-        f'<lastmod>{last_modified}</lastmod>'
-        '<changefreq>weekly</changefreq><priority>0.7</priority></url>'
+        f'<url><loc>{escape(public_url)}</loc></url>'
         for public_url in public_urls
     )
     content = (
@@ -257,6 +257,11 @@ def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     role = (request.args.get("role") or "").strip().lower()
     is_public_role_login = request.path == "/login" and role in {"worker", "partner"}
+    is_sensitive_auth_flow = request.endpoint in {
+        "auth.forgot_password",
+        "auth.verify_otp",
+        "auth.new_password",
+    }
     is_private_worker_partner_page = (
         request.path.startswith(("/worker/", "/partner/"))
         and request.path not in {"/worker/login", "/partner/login"}
@@ -264,7 +269,8 @@ def add_security_headers(response):
     if (
         request.blueprint == "admin"
         or request.path == f"{ADMIN_PANEL_BASE}/bootstrap"
-        or request.path in {"/customer/login", "/customer/signup", "/signup"}
+        or request.path == "/customer/login"
+        or is_sensitive_auth_flow
         or (request.path == "/login" and not is_public_role_login)
         or is_private_worker_partner_page
     ):
