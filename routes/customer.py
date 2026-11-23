@@ -3550,6 +3550,57 @@ def settings():
         db.close()
 
 
+def _create_customer_support_ticket(db, customer_row, form_data):
+    """Validate and save a customer complaint using the existing ticket table."""
+    allowed_categories = {
+        # Current Support form categories.
+        "payment_booking_missing",
+        "payment_refund",
+        "booking_status",
+        "worker_not_arrived",
+        "work_quality",
+        "cancellation",
+        "account",
+        "technical",
+        "other",
+        # Backward-compatible values accepted by the earlier Help POST handler.
+        "booking",
+        "worker_assignment",
+        "payment",
+    }
+    category = (form_data.get("support_category") or "").strip()
+    booking_id = (form_data.get("booking_id") or "").strip()[:50]
+    payment_reference = (form_data.get("payment_reference") or "").strip()[:120]
+    subject = (form_data.get("subject") or "").strip()[:120]
+    message = (form_data.get("message") or "").strip()[:2000]
+
+    if category not in allowed_categories:
+        return None, "Choose a valid support topic."
+    if len(subject) < 4:
+        return None, "Enter a subject of at least 4 characters."
+    if len(message) < 10:
+        return None, "Describe the issue in at least 10 characters."
+
+    if payment_reference:
+        message = (
+            "Payment / transaction reference supplied: "
+            + payment_reference
+            + "\\n\\n"
+            + message
+        )[:2000]
+
+    cursor = db.execute(
+        """
+        INSERT INTO customer_support_tickets
+            (customer_id, category, booking_id, subject, message)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (customer_row["id"], category, booking_id or None, subject, message),
+    )
+    db.commit()
+    return cursor.lastrowid, None
+
+
 @customer_bp.route("/help", methods=["GET", "POST"])
 @customer_login_required
 def help():
@@ -3562,30 +3613,54 @@ def help():
             flash("Please login again.", "warning")
             return redirect(url_for("customer.login"))
 
+        # Keep legacy POST submissions working, but direct new complaints
+        # through the dedicated Support page.
         if request.method == "POST":
-            allowed_categories = {
-                "booking", "worker_assignment", "payment", "cancellation",
-                "account", "technical", "other",
-            }
-            category = (request.form.get("support_category") or "").strip()
-            booking_id = (request.form.get("booking_id") or "").strip()[:50]
-            subject = (request.form.get("subject") or "").strip()[:120]
-            message = (request.form.get("message") or "").strip()[:2000]
-            if category not in allowed_categories:
-                flash("Choose a valid support topic.", "danger")
-                return redirect(url_for("customer.help"))
-            if len(subject) < 4 or len(message) < 10:
-                flash("Enter a subject and a description of at least 10 characters.", "danger")
-                return redirect(url_for("customer.help"))
-            db.execute(
-                "INSERT INTO customer_support_tickets (customer_id,category,booking_id,subject,message) VALUES (?,?,?,?,?)",
-                (customer_row["id"], category, booking_id or None, subject, message),
+            ticket_id, error = _create_customer_support_ticket(
+                db, customer_row, request.form
             )
-            db.commit()
-            flash("Your support request has been submitted.", "success")
-            return redirect(url_for("customer.help"))
+            if error:
+                flash(error, "danger")
+                return redirect(url_for("customer.support"))
+            flash(
+                f"Your support request has been submitted. Reference: SUP-{int(ticket_id):06d}.",
+                "success",
+            )
+            return redirect(url_for("customer.support"))
 
         return render_template("customer/help.html")
+    finally:
+        db.close()
+
+
+@customer_bp.route("/support", methods=["GET", "POST"])
+@customer_login_required
+def support():
+    db = get_db()
+    try:
+        ensure_customer_schema(db)
+        customer_row = get_customer(db)
+        if not customer_row:
+            session.clear()
+            flash("Please login again.", "warning")
+            return redirect(url_for("customer.login"))
+
+        if request.method == "POST":
+            ticket_id, error = _create_customer_support_ticket(
+                db, customer_row, request.form
+            )
+            if error:
+                flash(error, "danger")
+                return redirect(url_for("customer.support"))
+
+            flash(
+                f"Your support request has been submitted. Reference: SUP-{int(ticket_id):06d}. "
+                "Keep this reference for follow-up.",
+                "success",
+            )
+            return redirect(url_for("customer.support"))
+
+        return render_template("customer/support.html")
     finally:
         db.close()
 
