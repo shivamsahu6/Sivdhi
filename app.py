@@ -301,6 +301,85 @@ def add_security_headers(response):
         if inserted:
             response.set_data(html)
 
+
+    # GA4 is restricted to explicitly approved public, anonymous pages.
+    # Never add authenticated account, booking, worker, partner or admin pages.
+    ga4_measurement_id = current_app.config.get("GA4_MEASUREMENT_ID", "")
+    analytics_public_path = (
+        request.path in {
+            "/customer/",
+            "/customer/home",
+            "/customer/signup",
+            "/partner-opportunity",
+        }
+        or (
+            request.path in {"/login", "/signup"}
+            and (request.args.get("role") or "").strip().lower()
+            in {"worker", "partner"}
+        )
+    )
+    private_session_keys = {
+        "user_id", "customer_id", "worker_id", "partner_id", "admin_id",
+        "customer_logged_in", "worker_logged_in", "partner_logged_in",
+        "admin_logged_in", "saved_user_id", "customer_code", "customer_name",
+        "customer_email", "customer_mobile", "customer_latitude",
+        "customer_longitude", "customer_location_name", "last_booking_id",
+        "selected_service_id", "selected_service_name", "selected_category",
+        "selected_category_id", "selected_problem_ids",
+        "selected_problems_snapshot", "booking_date", "booking_time",
+        "booking_description", "customer_password_reset_verified",
+    }
+    has_private_session = (
+        any(
+            session.get(key) not in (None, "", False, [], {})
+            for key in private_session_keys
+        )
+        or any(key.startswith("pending_") for key in session)
+    )
+
+    if (
+        ga4_measurement_id
+        and analytics_public_path
+        and request.method == "GET"
+        and response.status_code < 400
+        and response.mimetype == "text/html"
+        and not response.is_streamed
+        and not has_private_session
+    ):
+        # The ID is validated in Config. URLs are reduced to origin/path and
+        # referrers to origin only, so query strings are never sent by this tag.
+        analytics_tag = (
+            '<script async src="https://www.googletagmanager.com/gtag/js?id='
+            + ga4_measurement_id
+            + '"></script>'
+            + '<script>(function(){'
+            + 'var pageLocation=window.location.origin+window.location.pathname;'
+            + 'var pageReferrer="";'
+            + 'try{if(document.referrer){pageReferrer=new URL(document.referrer).origin;}}catch(e){}'
+            + 'window.dataLayer=window.dataLayer||[];'
+            + 'function gtag(){window.dataLayer.push(arguments);}'
+            + "gtag('js',new Date());"
+            + "gtag('config','" + ga4_measurement_id + "',{"
+            + 'page_location:pageLocation,'
+            + 'page_path:window.location.pathname,'
+            + 'page_title:document.title,'
+            + 'page_referrer:pageReferrer,'
+            + 'allow_google_signals:false,'
+            + 'allow_ad_personalization_signals:false'
+            + '});'
+            + '})();</script>'
+        ).encode("utf-8")
+        page_html = response.get_data()
+        page_html, analytics_inserted = re.subn(
+            rb"(<head\b[^>]*>)",
+            lambda match: match.group(1) + b"\n    " + analytics_tag,
+            page_html,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        if analytics_inserted:
+            response.set_data(page_html)
+
     return response
 
 
