@@ -350,8 +350,8 @@ def add_security_headers(response):
         ).encode("utf-8")
         page_html = response.get_data()
         page_html, analytics_inserted = re.subn(
-            rb"(<head\\b[^>]*>)",
-            lambda match: match.group(1) + b"\\n    " + analytics_tag,
+            rb"(<head\b[^>]*>)",
+            lambda match: match.group(1) + b"\n    " + analytics_tag,
             page_html,
             count=1,
             flags=re.IGNORECASE,
