@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>Customer Support | Sivdhi</title>
+    <style>
+        * { box-sizing: border-box; }
+        :root {
+            --bg: #09070f;
+            --panel: #17121f;
+            --pink: #ff438c;
+            --purple: #a44dff;
+            --text: #faf6ff;
+            --muted: #ad9dbb;
+            --border: rgba(190,130,255,.20);
+        }
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            color: var(--text);
+            background:
+                radial-gradient(ellipse at top left, rgba(255,67,140,.10), transparent 42%),
+                var(--bg);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        }
+        a { color: inherit; text-decoration: none; }
+        .header {
+            padding: 23px 20px 27px;
+            color: white;
+            background: linear-gradient(125deg,#a42470,#7625b9,#3939a8);
+            border-radius: 0 0 25px 25px;
+        }
+        .top-row { display: flex; align-items: center; gap: 13px; }
+        .back {
+            display: grid; place-items: center; flex-shrink: 0;
+            width: 42px; height: 42px;
+            border: 1px solid rgba(255,255,255,.25);
+            border-radius: 13px; color: white;
+            background: rgba(255,255,255,.10); font-size: 25px;
+        }
+        .header h1 { margin: 0; font-size: 23px; font-weight: 800; }
+        .header p { margin: 8px 0 0 55px; color: rgba(255,255,255,.85); font-size: 12px; line-height: 1.7; }
+        .page { width: 100%; max-width: 620px; margin: 0 auto; padding: 22px 15px 36px; }
+        .intro { margin: 0 3px 18px; }
+        .intro h2 { margin: 0 0 7px; font-size: 20px; font-weight: 800; }
+        .intro p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.8; }
+        .notice {
+            margin: 0 0 17px; padding: 13px 15px;
+            border: 1px solid rgba(245,179,75,.28);
+            border-radius: 14px; background: rgba(245,179,75,.07);
+            color: #f7dba8; font-size: 11px; line-height: 1.75;
+        }
+        .notice strong { display: block; margin-bottom: 3px; color: #ffe8bd; font-size: 12px; }
+        .form-card {
+            padding: 19px 17px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: rgba(23,18,31,.96);
+        }
+        .field { margin-bottom: 15px; }
+        .field label { display: block; margin-bottom: 7px; color: #eee3fa; font-size: 12px; font-weight: 700; }
+        .field label span { color: var(--muted); font-weight: 400; }
+        .field input, .field select, .field textarea {
+            width: 100%; min-height: 45px; padding: 11px 12px;
+            border: 1px solid rgba(190,130,255,.22);
+            border-radius: 11px; outline: 0;
+            color: var(--text); background: #100d17;
+            font: inherit; font-size: 12px;
+        }
+        .field select { color-scheme: dark; }
+        .field textarea { min-height: 132px; resize: vertical; line-height: 1.7; }
+        .field input:focus, .field select:focus, .field textarea:focus {
+            border-color: rgba(220,140,255,.72);
+            box-shadow: 0 0 0 3px rgba(164,77,255,.11);
+        }
+        .field input::placeholder, .field textarea::placeholder { color: #82748f; }
+        .hint { margin: 6px 1px 0; color: var(--muted); font-size: 10px; line-height: 1.65; }
+        .submit {
+            width: 100%; min-height: 47px; padding: 0 18px;
+            border: 0; border-radius: 24px;
+            color: white; background: linear-gradient(100deg,#ff347e,#c42ad8 55%,#465dff);
+            font-size: 12px; font-weight: 800; cursor: pointer;
+        }
+        .secondary-links { display: flex; flex-wrap: wrap; gap: 16px; margin: 17px 2px 0; color: #dc9dff; font-size: 11px; font-weight: 700; }
+        .ticket-history { margin-top: 29px; }
+        .ticket-history h2 { margin: 0 0 5px; font-size: 18px; }
+        .history-intro { margin: 0 0 14px; color: var(--muted); font-size: 11px; line-height: 1.7; }
+        .ticket-card { margin-bottom: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 17px; background: rgba(23,18,31,.96); scroll-margin-top: 14px; }
+        .ticket-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .ticket-ref { color: #d49aff; font-size: 10px; font-weight: 800; }
+        .ticket-card h3 { margin: 5px 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+        .ticket-meta { color: var(--muted); font-size: 10px; line-height: 1.7; }
+        .status { flex-shrink: 0; padding: 5px 8px; border-radius: 20px; background: rgba(255,190,95,.12); color: #ffd28d; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+        .status.in_progress { background: rgba(164,77,255,.16); color: #d6b0ff; }
+        .status.resolved, .status.closed { background: rgba(69,207,151,.12); color: #91eac1; }
+        .thread { display: grid; gap: 9px; margin: 14px 0; }
+        .conversation-message { padding: 11px 12px; border: 1px solid rgba(190,130,255,.13); border-radius: 12px; background: #100d17; }
+        .conversation-message.admin-message { border-color: rgba(255,67,140,.25); background: rgba(164,77,255,.09); }
+        .conversation-meta { margin-bottom: 5px; color: #d7b5fa; font-size: 10px; font-weight: 800; }
+        .conversation-message p { margin: 0; color: #f0eaf7; font-size: 11px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .reply-form { padding-top: 12px; border-top: 1px solid var(--border); }
+        .reply-form label { display: block; margin-bottom: 7px; color: #eee3fa; font-size: 11px; font-weight: 700; }
+        .reply-form textarea { width: 100%; min-height: 84px; padding: 10px 11px; border: 1px solid rgba(190,130,255,.22); border-radius: 11px; color: var(--text); background: #100d17; font: inherit; font-size: 11px; line-height: 1.7; resize: vertical; }
+        .reply-form textarea:focus { outline: 0; border-color: rgba(220,140,255,.72); box-shadow: 0 0 0 3px rgba(164,77,255,.11); }
+        .reply-form .submit { margin-top: 9px; min-height: 41px; font-size: 10px; }
+        .empty-history { padding: 18px; border: 1px dashed var(--border); border-radius: 14px; color: var(--muted); text-align: center; font-size: 11px; line-height: 1.7; }
+        @media (max-width: 380px) {
+            .header { padding: 21px 15px 24px; }
+            .header h1 { font-size: 20px; }
+            .page { padding-right: 12px; padding-left: 12px; }
+            .form-card { padding: 16px 13px; }
+        }
+    </style>
+</head>
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+    <header class="header">
+        <div class="top-row">
+            <a class="back" href="{{ url_for('customer.profile') }}" aria-label="Back to profile">‹</a>
+            <h1>Customer Support</h1>
+        </div>
+        <p>Report a payment, booking or service problem to Sivdhi</p>
+    </header>
+
+    <main class="page">
+        <section class="intro">
+            <h2>How can we help resolve it?</h2>
+            <p>Submit the details below. Your report will be saved as a support ticket for the Sivdhi team.</p>
+        </section>
+
+        <aside class="notice">
+            <strong>Payment deducted but booking not created?</strong>
+            Select “Payment deducted, booking not created”. You can leave Booking ID blank and add the payment or transaction reference if available.
+        </aside>
+
+        <section class="form-card">
+            <form method="POST" action="{{ url_for('customer.support') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="new_ticket">
+
+                <div class="field">
+                    <label for="supportCategory">What do you need help with? <span>(required)</span></label>
+                    <select id="supportCategory" name="support_category" required>
+                        <option value="" selected disabled>Select an issue</option>
+                        <option value="payment_booking_missing">Payment deducted, booking not created</option>
+                        <option value="payment_refund">Payment, refund or duplicate charge</option>
+                        <option value="booking_status">Booking or worker assignment issue</option>
+                        <option value="worker_not_arrived">Worker did not arrive</option>
+                        <option value="work_quality">Work incomplete or service quality issue</option>
+                        <option value="cancellation">Cancellation issue</option>
+                        <option value="account">Account or login issue</option>
+                        <option value="technical">App or website technical issue</option>
+                        <option value="other">Other complaint or report</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="bookingId">Booking ID <span>(optional)</span></label>
+                    <input id="bookingId" name="booking_id" type="text" maxlength="50" placeholder="Enter your booking ID, if one was created">
+                </div>
+
+                <div class="field">
+                    <label for="paymentReference">Payment / transaction reference <span>(optional)</span></label>
+                    <input id="paymentReference" name="payment_reference" type="text" maxlength="120" autocomplete="off" placeholder="Enter UPI or payment reference, if available">
+                    <p class="hint">Do not enter your UPI PIN, OTP, card PIN, CVV, password or full bank/card details.</p>
+                </div>
+
+                <div class="field">
+                    <label for="subject">Subject <span>(required)</span></label>
+                    <input id="subject" name="subject" type="text" minlength="4" maxlength="120" required placeholder="Briefly describe the problem">
+                </div>
+
+                <div class="field">
+                    <label for="message">Explain the issue <span>(required)</span></label>
+                    <textarea id="message" name="message" minlength="10" maxlength="2000" required placeholder="Tell us what happened, when it happened and what you need help with."></textarea>
+                    <p class="hint">Please do not share passwords, OTPs, UPI PINs or full payment credentials.</p>
+                </div>
+
+                <button class="submit" type="submit">SUBMIT SUPPORT REQUEST</button>
+            </form>
+        </section>
+
+        <section class="ticket-history" aria-labelledby="supportHistoryTitle">
+            <h2 id="supportHistoryTitle">Your Support Requests</h2>
+            <p class="history-intro">Track every complaint here. Sivdhi Support replies will appear inside the same ticket.</p>
+
+            {% if tickets %}
+                {% for ticket in tickets %}
+                    {% set current_status = (ticket['status'] or 'open')|lower %}
+                    <article class="ticket-card" id="ticket-{{ ticket['id'] }}">
+                        <div class="ticket-top">
+                            <div>
+                                <div class="ticket-ref">SUP-{{ '%06d'|format(ticket['id']|int) }}</div>
+                                <h3>{{ ticket['subject'] }}</h3>
+                                <div class="ticket-meta">
+                                    {{ category_labels.get(ticket['category'], ticket['category']|replace('_',' ')|title) }}
+                                    {% if ticket['booking_id'] %} · Booking: {{ ticket['booking_id'] }}{% endif %}
+                                    <br>Submitted: {{ ticket['created_at'] or 'Date unavailable' }}
+                                </div>
+                            </div>
+                            <span class="status {{ current_status }}">{{ current_status|replace('_',' ') }}</span>
+                        </div>
+
+                        <div class="thread" aria-label="Conversation history">
+                            <div class="conversation-message customer-message">
+                                <div class="conversation-meta">You · Original report · {{ ticket['created_at'] or 'Date unavailable' }}</div>
+                                <p>{{ ticket['message'] }}</p>
+                            </div>
+                            {% for reply in ticket['replies'] %}
+                                <div class="conversation-message {{ 'admin-message' if reply['sender_role'] == 'admin' else 'customer-message' }}">
+                                    <div class="conversation-meta">
+                                        {% if reply['sender_role'] == 'admin' %}Sivdhi Support Team{% else %}You · Follow-up{% endif %}
+                                        · {{ reply['created_at'] or 'Date unavailable' }}
+                                    </div>
+                                    <p>{{ reply['message'] }}</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <form class="reply-form" method="POST" action="{{ url_for('customer.support') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="reply">
+                            <input type="hidden" name="ticket_id" value="{{ ticket['id'] }}">
+                            <label for="reply-{{ ticket['id'] }}">Reply or add more details</label>
+                            <textarea id="reply-{{ ticket['id'] }}" name="reply_message" minlength="10" maxlength="2000" required placeholder="Write your follow-up message to Sivdhi Support"></textarea>
+                            <p class="hint">Sending a follow-up reopens the ticket for the Support team.</p>
+                            <button class="submit" type="submit">SEND FOLLOW-UP</button>
+                        </form>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <div class="empty-history">You have not submitted any support requests yet. Your new complaints and their replies will appear here.</div>
+            {% endif %}
+        </section>
+
+        <nav class="secondary-links" aria-label="More help">
+            <a href="{{ url_for('customer.help') }}">Read Help &amp; FAQs</a>
+            <a href="{{ url_for('customer.bookings') }}">View My Bookings</a>
+        </nav>
+    </main>
+</body>
+</html>
