@@ -1352,6 +1352,263 @@ def delete_customer(customer_id):
 
 
 # =========================================================
+# CUSTOMER SUPPORT TICKETS
+# =========================================================
+
+def _ensure_customer_support_replies_schema(conn):
+    """Create the additive conversation table used by customer support tickets."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS customer_support_replies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticket_id INTEGER NOT NULL,
+            sender_role TEXT NOT NULL CHECK (sender_role IN ('admin', 'customer')),
+            sender_id INTEGER,
+            message TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_customer_support_replies_ticket_id
+        ON customer_support_replies (ticket_id, id)
+    """)
+
+
+@admin_bp.route("/admin/customer-support")
+@admin_required
+def admin_customer_support():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS customer_support_tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                booking_id TEXT,
+                subject TEXT NOT NULL,
+                message TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        _ensure_customer_support_replies_schema(conn)
+
+        customer_columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(customers)").fetchall()
+        }
+        name_columns = [
+            column for column in ("fullname", "name", "customer_name")
+            if column in customer_columns
+        ]
+        if name_columns:
+            name_expression = "COALESCE(" + ", ".join(
+                f"NULLIF(c.\"{column}\", '')" for column in name_columns
+            ) + ", 'Customer')"
+        else:
+            name_expression = "'Customer'"
+        mobile_expression = (
+            'COALESCE(c."mobile", \'\')'
+            if "mobile" in customer_columns else "''"
+        )
+        email_expression = (
+            'COALESCE(c."email", \'\')'
+            if "email" in customer_columns else "''"
+        )
+
+        if customer_columns:
+            tickets = conn.execute(f"""
+                SELECT
+                    t.id, t.customer_id, t.category, t.booking_id,
+                    t.subject, t.message, t.status, t.created_at,
+                    {name_expression} AS customer_name,
+                    {mobile_expression} AS customer_mobile,
+                    {email_expression} AS customer_email
+                FROM customer_support_tickets AS t
+                LEFT JOIN customers AS c ON c.id = t.customer_id
+                ORDER BY
+                    CASE LOWER(COALESCE(t.status, 'open'))
+                        WHEN 'open' THEN 0
+                        WHEN 'in_progress' THEN 1
+                        WHEN 'resolved' THEN 2
+                        ELSE 3
+                    END,
+                    t.id DESC
+                LIMIT 300
+            """).fetchall()
+        else:
+            tickets = conn.execute("""
+                SELECT
+                    id, customer_id, category, booking_id,
+                    subject, message, status, created_at,
+                    'Customer' AS customer_name,
+                    '' AS customer_mobile,
+                    '' AS customer_email
+                FROM customer_support_tickets
+                ORDER BY id DESC
+                LIMIT 300
+            """).fetchall()
+
+        ticket_rows = tickets
+        tickets = [
+            {key: row[key] for key in row.keys()}
+            for row in ticket_rows
+        ]
+        ticket_ids = [int(ticket["id"]) for ticket in tickets]
+        replies_by_ticket = {ticket_id: [] for ticket_id in ticket_ids}
+        if ticket_ids:
+            placeholders = ",".join("?" for _ in ticket_ids)
+            reply_rows = conn.execute(
+                f"""
+                SELECT ticket_id, sender_role, message, created_at
+                FROM customer_support_replies
+                WHERE ticket_id IN ({placeholders})
+                ORDER BY id ASC
+                """,
+                ticket_ids,
+            ).fetchall()
+            for reply in reply_rows:
+                replies_by_ticket[int(reply["ticket_id"])].append(reply)
+        for ticket in tickets:
+            ticket["replies"] = replies_by_ticket[int(ticket["id"])]
+
+        conn.commit()
+    finally:
+        conn.close()
+
+    category_labels = {
+        "payment_booking_missing": "Payment deducted, booking not created",
+        "payment_refund": "Payment, refund or duplicate charge",
+        "booking_status": "Booking or worker assignment issue",
+        "worker_not_arrived": "Worker did not arrive",
+        "work_quality": "Work incomplete or service quality issue",
+        "cancellation": "Cancellation issue",
+        "account": "Account or login issue",
+        "technical": "App or website technical issue",
+        "other": "Other complaint or report",
+        "booking": "Booking issue",
+        "worker_assignment": "Worker assignment issue",
+        "payment": "Payment issue",
+    }
+    return render_template(
+        "admin/customer_support.html",
+        tickets=tickets,
+        category_labels=category_labels,
+    )
+
+
+@admin_bp.route(
+    "/admin/customer-support/<int:ticket_id>/reply",
+    methods=["POST"],
+)
+@admin_required
+def admin_reply_customer_support(ticket_id):
+    """Append a private Admin response to an existing customer ticket."""
+    reply_message = (request.form.get("reply_message") or "").strip()
+    if len(reply_message) < 10 or len(reply_message) > 2000:
+        flash("Your reply must contain 10 to 2,000 characters.", "danger")
+        return redirect(url_for("admin.admin_customer_support"))
+
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS customer_support_tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                booking_id TEXT,
+                subject TEXT NOT NULL,
+                message TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        _ensure_customer_support_replies_schema(conn)
+        ticket = conn.execute(
+            "SELECT id FROM customer_support_tickets WHERE id=? LIMIT 1",
+            (ticket_id,),
+        ).fetchone()
+        if not ticket:
+            flash("Support ticket was not found.", "danger")
+            return redirect(url_for("admin.admin_customer_support"))
+
+        try:
+            admin_id = int(session.get("admin_id"))
+        except (TypeError, ValueError):
+            admin_id = None
+
+        conn.execute(
+            """
+            INSERT INTO customer_support_replies
+                (ticket_id, sender_role, sender_id, message)
+            VALUES (?, 'admin', ?, ?)
+            """,
+            (ticket_id, admin_id, reply_message),
+        )
+        conn.execute(
+            """
+            UPDATE customer_support_tickets
+            SET status='in_progress'
+            WHERE id=? AND LOWER(COALESCE(status, 'open'))='open'
+            """,
+            (ticket_id,),
+        )
+        conn.commit()
+    except sqlite3.Error:
+        conn.rollback()
+        flash("Your reply could not be saved. Please try again.", "danger")
+        return redirect(url_for("admin.admin_customer_support"))
+    finally:
+        conn.close()
+
+    flash(f"Reply sent for ticket SUP-{ticket_id:06d}.", "success")
+    return redirect(url_for("admin.admin_customer_support") + f"#ticket-{ticket_id}")
+
+
+@admin_bp.route(
+    "/admin/customer-support/<int:ticket_id>/status",
+    methods=["POST"],
+)
+@admin_required
+def admin_update_customer_support_status(ticket_id):
+    new_status = (request.form.get("status") or "").strip().lower()
+    allowed_statuses = {"open", "in_progress", "resolved", "closed"}
+    if new_status not in allowed_statuses:
+        flash("Choose a valid support ticket status.", "danger")
+        return redirect(url_for("admin.admin_customer_support"))
+
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS customer_support_tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                booking_id TEXT,
+                subject TEXT NOT NULL,
+                message TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur = conn.execute(
+            "UPDATE customer_support_tickets SET status=? WHERE id=?",
+            (new_status, ticket_id),
+        )
+        conn.commit()
+    except sqlite3.Error:
+        conn.rollback()
+        flash("Support ticket status could not be updated.", "danger")
+        return redirect(url_for("admin.admin_customer_support"))
+    finally:
+        conn.close()
+
+    if cur.rowcount:
+        flash("Support ticket status updated.", "success")
+    else:
+        flash("Support ticket was not found.", "danger")
+    return redirect(url_for("admin.admin_customer_support"))
+
+
+# =========================================================
 # BOOKINGS
 # =========================================================
 
