@@ -105,8 +105,6 @@ def robots_txt():
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /admin\n"
-        "Disallow: /customer/login\n"
-        "Disallow: /customer/signup\n"
         "Disallow: /customer/bookings\n"
         "Disallow: /customer/profile\n"
         "Sitemap: https://sivdhi.duckdns.org/sitemap.xml\n"
@@ -116,17 +114,20 @@ def robots_txt():
 
 @app.get("/sitemap.xml")
 def sitemap_xml():
-    """Expose the public customer homepage only."""
+    """Expose canonical public customer, registration, and role-specific login pages."""
     from xml.sax.saxutils import escape
 
+    # Password-reset/OTP flows and authenticated account pages are deliberately excluded.
     public_urls = (
         "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/customer/signup",
+        "https://sivdhi.duckdns.org/login?role=worker",
+        "https://sivdhi.duckdns.org/signup?role=worker",
+        "https://sivdhi.duckdns.org/login?role=partner",
+        "https://sivdhi.duckdns.org/signup?role=partner",
     )
-    last_modified = datetime.now(timezone.utc).date().isoformat()
     url_entries = "".join(
-        f'<url><loc>{escape(public_url)}</loc>'
-        f'<lastmod>{last_modified}</lastmod>'
-        '<changefreq>weekly</changefreq><priority>0.7</priority></url>'
+        f'<url><loc>{escape(public_url)}</loc></url>'
         for public_url in public_urls
     )
     content = (
@@ -166,12 +167,25 @@ def add_security_headers(response):
     )
     is_private_customer_page = (
         request.blueprint == "customer"
-        and request.path not in {"/customer/", "/customer/home"}
+        and request.path not in {
+            "/customer/",
+            "/customer/home",
+            "/customer/signup",
+        }
     )
+    role = (request.args.get("role") or "").strip().lower()
+    is_public_role_login = request.path == "/login" and role in {"worker", "partner"}
+    is_sensitive_auth_flow = request.endpoint in {
+        "auth.forgot_password",
+        "auth.verify_otp",
+        "auth.new_password",
+    }
     if (
         request.blueprint == "admin"
-        or request.path in {"/customer/login", "/customer/signup", "/signup"}
-        or request.path == "/login"
+        or request.path == "/customer/login"
+        or request.endpoint == "customer.privacy"
+        or is_sensitive_auth_flow
+        or (request.path == "/login" and not is_public_role_login)
         or is_private_worker_partner_page
         or is_private_customer_page
     ):

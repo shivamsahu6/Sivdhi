@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#09070f">
-    <title>Sivdhi Home Services | Find &amp; Book Local Services</title>
-    <meta name="description" content="Find home services available in your area with Sivdhi. Check local availability and book home-service professionals online.">
-    <meta name="robots" content="index, follow">
+    <title>Sivdhi – Home Services</title>
+    <meta name="description" content="Home Services, Customer Booking, Worker Jobs and Partner Services with Sivdhi.">
+    <meta name="robots" content="index, follow, max-image-preview:large">
     <link rel="canonical" href="https://sivdhi.duckdns.org/customer/">
     <link rel="icon" type="image/png" sizes="512x512" href="/static/pwa/customer/icon-512.png">
     <link rel="apple-touch-icon" href="/static/pwa/customer/icon-192.png">
@@ -17,7 +17,7 @@
     <meta property="og:site_name" content="Sivdhi">
     <meta property="og:locale" content="en_IN">
     <meta property="og:title" content="Sivdhi Home Services | Find &amp; Book Local Services">
-    <meta property="og:description" content="Find home services available in your area with Sivdhi. Check local availability and book home-service professionals online.">
+    <meta property="og:description" content="Home Services, Customer Booking, Worker Jobs and Partner Services with Sivdhi.">
     <meta property="og:url" content="https://sivdhi.duckdns.org/customer/">
     <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
     <meta property="og:image:width" content="512">
@@ -25,7 +25,7 @@
     <meta property="og:image:alt" content="Sivdhi app icon">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Sivdhi Home Services | Find &amp; Book Local Services">
-    <meta name="twitter:description" content="Find home services available in your area with Sivdhi. Check local availability and book home-service professionals online.">
+    <meta name="twitter:description" content="Home Services, Customer Booking, Worker Jobs and Partner Services with Sivdhi.">
     <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
     <meta name="twitter:image:alt" content="Sivdhi app icon">
     <script type="application/ld+json">
@@ -34,9 +34,9 @@
       "@graph": [
         {
           "@type": "Organization",
-          "@id": "https://sivdhi.duckdns.org/customer/#organization",
+          "@id": "https://sivdhi.duckdns.org/#organization",
           "name": "Sivdhi",
-          "url": "https://sivdhi.duckdns.org/customer/",
+          "url": "https://sivdhi.duckdns.org/",
           "logo": {
             "@type": "ImageObject",
             "url": "https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png",
@@ -46,13 +46,13 @@
         },
         {
           "@type": "WebSite",
-          "@id": "https://sivdhi.duckdns.org/customer/#website",
+          "@id": "https://sivdhi.duckdns.org/#website",
           "name": "Sivdhi",
-          "url": "https://sivdhi.duckdns.org/customer/",
-          "description": "Home services discovery and booking platform.",
+          "url": "https://sivdhi.duckdns.org/",
+          "description": "Sivdhi brings home services, customer booking, worker jobs and partner services together in one platform.",
           "inLanguage": "en-IN",
           "publisher": {
-            "@id": "https://sivdhi.duckdns.org/customer/#organization"
+            "@id": "https://sivdhi.duckdns.org/#organization"
           }
         }
       ]
@@ -286,6 +286,28 @@
             color: var(--muted);
             font-size: 12px;
             line-height: 1.8;
+        }
+
+        .home-quick-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 9px;
+            margin-top: 16px;
+        }
+
+        .home-quick-link {
+            min-height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 13px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255,255,255,.025);
+            color: #e8d6fa;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
         }
 
         .location-line {
@@ -830,6 +852,10 @@
                     <button type="button" class="location-change-button" id="changeLocationButton" {% if not location_allowed %}hidden{% endif %}>Change</button>
                 </div>
                 <div class="location-change-status" id="locationChangeStatus" role="status" aria-live="polite" hidden></div>
+                <nav class="home-quick-links" aria-label="Quick links">
+                    <a class="home-quick-link" href="{{ url_for('customer.signup') }}">Create Account</a>
+                    <a class="home-quick-link" href="{{ url_for('customer.home') }}">Find Worker</a>
+                </nav>
             </section>
 
             <label class="search">
