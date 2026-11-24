@@ -852,9 +852,11 @@
                     <button type="button" class="location-change-button" id="changeLocationButton" {% if not location_allowed %}hidden{% endif %}>Change</button>
                 </div>
                 <div class="location-change-status" id="locationChangeStatus" role="status" aria-live="polite" hidden></div>
-                <nav class="home-quick-links" aria-label="Quick links">
+                <nav class="home-quick-links" aria-label="Customer, worker and partner links">
                     <a class="home-quick-link" href="{{ url_for('customer.signup') }}">Create Account</a>
                     <a class="home-quick-link" href="{{ url_for('customer.home') }}">Find Worker</a>
+                    <a class="home-quick-link" href="/signup?role=worker">Join as Worker</a>
+                    <a class="home-quick-link" href="/signup?role=partner">Become a Partner</a>
                 </nav>
             </section>
 
