@@ -2369,11 +2369,6 @@ def home():
                 "Current location" if location_allowed else "",
             ),
             booking_mode=mode,
-            ga4_measurement_id=(
-                current_app.config.get("GA4_MEASUREMENT_ID", "")
-                if not session.get("customer_id")
-                else ""
-            ),
         )
 
     finally:
