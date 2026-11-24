@@ -10,8 +10,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {% if role == "worker" %}
-    <title>Sivdhi Worker Login | Worker Account Access</title>
-    <meta name="description" content="Sign in to your Sivdhi Worker account to manage assigned service bookings and your work profile.">
+    <title>Sivdhi Worker</title>
+    <meta name="description" content="Find Service Jobs, Manage Bookings and Track Your Work with Sivdhi.">
     <link rel="canonical" href="https://sivdhi.duckdns.org/login?role=worker">
     <meta property="og:title" content="Sivdhi Worker Login | Worker Account Access">
     <meta property="og:description" content="Sign in to your Sivdhi Worker account to manage assigned service bookings and your work profile.">
@@ -19,8 +19,8 @@
     <meta name="twitter:title" content="Sivdhi Worker Login | Worker Account Access">
     <meta name="twitter:description" content="Sign in to your Sivdhi Worker account to manage assigned service bookings and your work profile.">
     {% else %}
-    <title>Sivdhi Partner Login | Referral Partner Account Access</title>
-    <meta name="description" content="Sign in to your Sivdhi Referral Partner account to manage your partner profile, workers and service activity.">
+    <title>Sivdhi Partner</title>
+    <meta name="description" content="Manage Workers, Coordinate Service Bookings and Track Partner Activities with Sivdhi.">
     <link rel="canonical" href="https://sivdhi.duckdns.org/login?role=partner">
     <meta property="og:title" content="Sivdhi Partner Login | Referral Partner Account Access">
     <meta property="og:description" content="Sign in to your Sivdhi Referral Partner account to manage your partner profile, workers and service activity.">
@@ -28,7 +28,7 @@
     <meta name="twitter:title" content="Sivdhi Partner Login | Referral Partner Account Access">
     <meta name="twitter:description" content="Sign in to your Sivdhi Referral Partner account to manage your partner profile, workers and service activity.">
     {% endif %}
-    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="robots" content="index,follow">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Sivdhi">
     <meta property="og:locale" content="en_IN">
@@ -218,14 +218,18 @@
 
         <h1>
             {% if role == "worker" %}
-                Worker Login
+                Sivdhi Worker
             {% else %}
-                Referral Partner Login
+                Sivdhi Partner
             {% endif %}
         </h1>
 
         <p>
-            Welcome Back
+            {% if role == "worker" %}
+                Find Service Jobs, Manage Bookings and Track Your Work.
+            {% else %}
+                Manage Workers, Coordinate Service Bookings and Track Partner Activities.
+            {% endif %}
         </p>
 
         {% with messages = get_flashed_messages() %}

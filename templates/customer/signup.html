@@ -1,13 +1,28 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-IN">
 <head>
-    <link rel="manifest" href="/static/pwa/customer/manifest.json">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#050507">
-    <title>Create Account | Sivdhi</title>
+    <title>Sivdhi Customer Registration | Create Account</title>
+    <meta name="description" content="Create your free Sivdhi customer account to explore home services, check local availability and place service booking requests.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://sivdhi.duckdns.org/customer/signup">
+    <link rel="manifest" href="/static/pwa/customer/manifest.json">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Sivdhi">
+    <meta property="og:locale" content="en_IN">
+    <meta property="og:title" content="Sivdhi Customer Registration | Create Account">
+    <meta property="og:description" content="Create your free Sivdhi customer account to explore home services, check local availability and place service booking requests.">
+    <meta property="og:url" content="https://sivdhi.duckdns.org/customer/signup">
+    <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
+    <meta property="og:image:alt" content="Sivdhi app icon">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Sivdhi Customer Registration | Create Account">
+    <meta name="twitter:description" content="Create your free Sivdhi customer account to explore home services, check local availability and place service booking requests.">
+    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -799,7 +814,11 @@
                             <span>
                                 I agree to the
                                 <a href="#" id="termsLink">Terms &amp; Conditions</a>
-                                and Sivdhi's privacy practices.
+                                and Sivdhi's
+                                <a href="{{ url_for('customer.privacy') }}"
+                                   id="privacyPolicyLink"
+                                   target="_blank"
+                                   rel="noopener noreferrer">Privacy Policy</a>.
                             </span>
                         </label>
 

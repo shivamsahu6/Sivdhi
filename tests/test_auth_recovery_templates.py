@@ -36,7 +36,7 @@ def test_worker_and_partner_password_reset_otp_forms_post_with_csrf():
         assert 'pattern="[0-9]{6}"' in text
         assert f"role='{role}'" in text
 
-def test_public_entrypoint_and_sitemap_advertise_only_customer_home():
+def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pages():
     import xml.etree.ElementTree as ET
 
     from app import app
@@ -51,33 +51,71 @@ def test_public_entrypoint_and_sitemap_advertise_only_customer_home():
 
     document = ET.fromstring(sitemap_response.data)
     namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-    locations = [
+    locations = {
         node.text
         for node in document.findall(".//sm:loc", namespace)
-    ]
-    assert locations == ["https://sivdhi.duckdns.org/customer/"]
+    }
+    assert locations == {
+        "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/partner-opportunity",
+        "https://sivdhi.duckdns.org/customer/signup",
+        "https://sivdhi.duckdns.org/login?role=worker",
+        "https://sivdhi.duckdns.org/signup?role=worker",
+        "https://sivdhi.duckdns.org/login?role=partner",
+        "https://sivdhi.duckdns.org/signup?role=partner",
+    }
+
+    robots_response = client.get("/robots.txt")
+    assert robots_response.status_code == 200
+    robots = robots_response.get_data(as_text=True)
+    assert "Disallow: /admin" in robots
+    assert "Disallow: /customer/bookings" in robots
+    assert "Disallow: /customer/profile" in robots
+    assert "Disallow: /customer/login" not in robots
+    assert "Disallow: /customer/signup" not in robots
 
 
-def test_worker_and_partner_login_pages_are_noindex_but_accessible():
+def test_worker_and_partner_login_and_signup_pages_are_indexable_but_reset_flows_are_not():
     from app import app
 
     client = app.test_client()
-    expected_robots = "noindex, nofollow, noarchive"
-
-    for role in ("worker", "partner"):
+    for role, heading, tagline in (
+        (
+            "worker",
+            "Sivdhi Worker",
+            "Find Service Jobs, Manage Bookings and Track Your Work.",
+        ),
+        (
+            "partner",
+            "Sivdhi Partner",
+            "Manage Workers, Coordinate Service Bookings and Track Partner Activities.",
+        ),
+    ):
         response = client.get(f"/login?role={role}")
         assert response.status_code == 200
-        assert response.headers.get("X-Robots-Tag") == expected_robots
-
+        assert response.headers.get("X-Robots-Tag") is None
         page = response.get_data(as_text=True)
-        assert f'<meta name="robots" content="{expected_robots}">' in page
+        assert '<meta name="robots" content="index,follow">' in page
+        assert heading in page
+        assert tagline in page
+        assert "Forgot Password?" in page
+        assert "Create Account" in page
 
-    for role in ("worker", "partner"):
-        response = client.get(f"/signup?role={role}")
-        assert response.status_code == 200
-        assert response.headers.get("X-Robots-Tag") == expected_robots
+        signup = client.get(f"/signup?role={role}")
+        assert signup.status_code == 200
+        assert signup.headers.get("X-Robots-Tag") is None
+        signup_page = signup.get_data(as_text=True)
+        assert '<meta name="robots" content="index, follow">' in signup_page
+        assert "Create Account" in signup_page
 
-def test_customer_private_pages_are_noindex_but_public_home_remains_indexable():
+        forgot = client.get(f"/forgot-password?role={role}")
+        assert forgot.headers.get("X-Robots-Tag") == "noindex, nofollow, noarchive"
+
+        verify = client.get(f"/verify-otp?role={role}")
+        assert verify.headers.get("X-Robots-Tag") == "noindex, nofollow, noarchive"
+
+
+def test_customer_private_pages_are_noindex_but_home_and_signup_are_indexable():
     from app import app
 
     client = app.test_client()
@@ -88,19 +126,50 @@ def test_customer_private_pages_are_noindex_but_public_home_remains_indexable():
         response = client.get(path)
         assert response.status_code == 200
         assert response.headers.get("X-Robots-Tag") is None
-        assert '<meta name="robots" content="index, follow">' in response.get_data(as_text=True)
+        assert '<meta name="robots" content="index, follow, max-image-preview:large">' in response.get_data(as_text=True)
 
-    # Protected customer pages must carry noindex even on login redirects.
+    # The public homepage should give crawlers and visitors direct role links.
+    home_page = client.get("/customer/").get_data(as_text=True)
+    assert 'href="/signup?role=worker"' in home_page
+    assert 'Join as Worker' in home_page
+    assert 'href="/signup?role=partner"' in home_page
+    assert 'Become a Partner' in home_page
+    assert 'href="/partner-opportunity"' in home_page
+
+    # Customer registration is public and intentionally indexable.
+    signup_response = client.get("/customer/signup")
+    assert signup_response.status_code == 200
+    assert signup_response.headers.get("X-Robots-Tag") is None
+    assert '<meta name="robots" content="index, follow">' in signup_response.get_data(as_text=True)
+
+    # The public privacy policy can be read before registration, but is not a search landing page.
+    privacy_response = client.get("/customer/privacy")
+    assert privacy_response.status_code == 200
+    assert privacy_response.headers.get("X-Robots-Tag") == expected_robots
+
+    # Protected customer pages remain noindex even on login redirects.
     for path in (
+        "/customer/login",
         "/customer/bookings",
         "/customer/profile",
         "/customer/edit-profile",
     ):
         response = client.get(path, follow_redirects=False)
-        assert response.status_code == 302
         assert response.headers.get("X-Robots-Tag") == expected_robots
 
-    # The customer signup page remains accessible but not indexable.
-    signup_response = client.get("/customer/signup")
-    assert signup_response.status_code == 200
-    assert signup_response.headers.get("X-Robots-Tag") == expected_robots
+
+def test_partner_opportunity_page_is_public_indexable_and_explains_commission_terms():
+    from app import app
+
+    client = app.test_client()
+    response = client.get("/partner-opportunity")
+    assert response.status_code == 200
+    assert response.headers.get("X-Robots-Tag") is None
+    page = response.get_data(as_text=True)
+    assert '<meta name="robots" content="index, follow, max-image-preview:large">' in page
+    assert '<link rel="canonical" href="https://sivdhi.duckdns.org/partner-opportunity">' in page
+    assert "Become a Sivdhi Partner" in page
+    assert "mobile phone or laptop" in page
+    assert "commission-based" in page
+    assert "not a fixed-salary job" in page
+    assert "guaranteed monthly income" in page

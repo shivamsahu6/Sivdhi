@@ -1,14 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-IN">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-<meta charset="UTF-8">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Signup | Sivdhi</title>
+{% if role == "worker" %}
+    {% set signup_title = "Sivdhi Sivdhi Worker Registration | Create a Worker Account" %}
+    {% set signup_description = "Create a Sivdhi Worker account to register for service jobs, manage assigned bookings and keep track of your work." %}
+{% else %}
+    {% set signup_title = "Sivdhi Partner Registration | Create a Partner Account" %}
+    {% set signup_description = "Create a Sivdhi Partner account to coordinate workers, manage service bookings and track partner activity." %}
+{% endif %}
+    <title>{{ signup_title }}</title>
+    <meta name="description" content="{{ signup_description }}">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://sivdhi.duckdns.org/signup?role={{ role|urlencode }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Sivdhi">
+    <meta property="og:locale" content="en_IN">
+    <meta property="og:title" content="{{ signup_title }}">
+    <meta property="og:description" content="{{ signup_description }}">
+    <meta property="og:url" content="https://sivdhi.duckdns.org/signup?role={{ role|urlencode }}">
+    <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/workpartner/icon-512.png">
+    <meta property="og:image:alt" content="Sivdhi Worker and Partner app icon">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ signup_title }}">
+    <meta name="twitter:description" content="{{ signup_description }}">
+    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/pwa/workpartner/icon-512.png">
 
 <style>
 
@@ -198,11 +218,11 @@ S
 
 {% if role=="worker" %}
 
-Worker Registration
+Sivdhi Worker Registration
 
 {% else %}
 
-Referral Partner Registration
+Sivdhi Partner Registration
 
 {% endif %}
 
