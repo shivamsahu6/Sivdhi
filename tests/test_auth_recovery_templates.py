@@ -74,7 +74,7 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
     assert "Disallow: /customer/signup" not in robots
 
 
-def test_worker_and_partner_login_and_signup_pages_are_indexable_but_reset_flows_are_not():
+def test_worker_and_partner_signup_pages_are_indexable_but_login_and_reset_flows_are_not():
     from app import app
 
     client = app.test_client()
@@ -251,6 +251,21 @@ def test_ga4_tracks_only_allowlisted_anonymous_public_pages(monkeypatch):
     assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
 
 
+
+
+def test_customer_homepage_has_focused_search_metadata():
+    from app import app
+
+    client = app.test_client()
+    response = client.get("/customer/")
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert "<title>Sivdhi | Home Services &amp; Online Booking</title>" in page
+    assert (
+        'name="description" content="Explore home services available in your area '
+        'with Sivdhi. Check service details and prices, then request a booking online."'
+    ) in page
+    assert "Sivdhi Sivdhi" not in page
 
 def test_public_privacy_notice_describes_ga4_and_no_longer_calls_it_a_draft():
     from pathlib import Path
