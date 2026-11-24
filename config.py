@@ -66,6 +66,12 @@ class Config:
     # Store only digits so this value cannot inject a URL scheme into tel:/wa.me links.
     _support_phone = re.sub(r"\D", "", os.getenv("SUPPORT_PHONE", ""))
     SUPPORT_PHONE = _support_phone if 8 <= len(_support_phone) <= 15 else ""
+    _ga4_measurement_id = os.getenv("GA4_MEASUREMENT_ID", "").strip()
+    GA4_MEASUREMENT_ID = (
+        _ga4_measurement_id
+        if re.fullmatch(r"G-[A-Z0-9]{6,20}", _ga4_measurement_id)
+        else ""
+    )
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024
     ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
     SESSION_COOKIE_HTTPONLY = True
