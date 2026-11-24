@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from flask import redirect, url_for
+from flask import redirect, url_for, render_template
 
 import os
 from pathlib import Path
@@ -98,6 +98,11 @@ def customer_entrypoint():
     return redirect("/customer/")
 
 
+@app.get("/partner-opportunity")
+def partner_opportunity():
+    """Public information page for Sivdhi Partner role."""
+    return render_template("partner_opportunity.html")
+
 @app.get("/robots.txt")
 def robots_txt():
     """Publish crawler rules for public pages only."""
@@ -120,6 +125,7 @@ def sitemap_xml():
     # Password-reset/OTP flows and authenticated account pages are deliberately excluded.
     public_urls = (
         "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/partner-opportunity",
         "https://sivdhi.duckdns.org/customer/signup",
         "https://sivdhi.duckdns.org/login?role=worker",
         "https://sivdhi.duckdns.org/signup?role=worker",
