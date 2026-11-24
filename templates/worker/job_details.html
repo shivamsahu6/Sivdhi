@@ -502,7 +502,7 @@
             {% if job["customer_mobile"] %}
             <div class="row">
                 <span class="label">Customer contact</span>
-                <span class="value">{{ job["customer_mobile"] }}</span>
+                <a class="value call-customer-button" href="tel:{{ job['customer_mobile']|replace(' ', '')|replace('-', '')|replace('+', '') }}">Call customer</a>
             </div>
             {% endif %}
 
@@ -639,13 +639,26 @@
 
                 {% elif status == 'accepted' and not worker_arrived %}
 
-                <button class="action arrived" type="button" onclick="runAction('arrived', this)">
-                    📍 Mark Arrival
-                </button>
+                    {% if can_arrive %}
+                    <button class="action arrived" type="button" onclick="runAction('arrived', this)">
+                        📍 Mark Arrival
+                    </button>
+                    {% elif arrive_available_at %}
+                    <div class="notice">
+                        Arrive will be available one hour before the customer's
+                        booked time: {{ arrive_available_at.strftime('%d %b %Y, %I:%M %p') }}.
+                    </div>
+                    {% else %}
+                    <div class="notice">
+                        Booking date/time is unavailable. Please contact support
+                        before marking arrival.
+                    </div>
+                    {% endif %}
 
                 <p class="muted">
-                    This records arrival only. It does not itself mark the
-                    remaining balance as paid.
+                    This records arrival only. Start Job becomes available
+                    after arrival is recorded and the customer pays any
+                    remaining balance.
                 </p>
 
                 {% elif status == 'accepted' and worker_arrived %}

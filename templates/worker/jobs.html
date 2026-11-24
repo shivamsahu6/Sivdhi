@@ -273,14 +273,11 @@
                 </div>
 
             {% elif status == 'accepted' %}
-                <div class="buttons">
-                    <button
-                        type="button"
-                        class="accept job-action"
-                        data-job-id="{{ job['id'] }}"
-                        data-action="start"
-                    >Start Job</button>
-                </div>
+                <p class="muted">
+                    Open job details to mark arrival. Start Job is available
+                    only after arrival is recorded and the remaining balance
+                    is paid.
+                </p>
 
             {% elif status in ['started', 'in_progress'] %}
                 <div class="buttons">

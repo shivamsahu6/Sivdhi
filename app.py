@@ -1,9 +1,5 @@
-import re
-import hmac
-import sqlite3
-from datetime import datetime
-from werkzeug.security import generate_password_hash
-from flask import render_template, abort, redirect, url_for
+from datetime import datetime, timezone
+from flask import redirect, url_for
 
 import os
 from pathlib import Path
@@ -36,6 +32,7 @@ from routes.worker import worker_bp
 from routes.partner import partner_bp
 from routes.admin import admin_bp, _ensure_admin_catalog_schema, ADMIN_PANEL_BASE
 from routes.customer import customer_bp
+from routes.cashfree_webhook import cashfree_webhook_bp
 
 # ==========================
 # Flask App
@@ -72,101 +69,11 @@ if trusted_proxy_hops:
 csrf = CSRFProtect(app)
 
 
-@app.route(f"{ADMIN_PANEL_BASE}/bootstrap", methods=["GET", "POST"])
-def temporary_admin_setup():
-    """One-time, secret-protected admin bootstrap; remove after use."""
-    setup_key = os.getenv("ADMIN_SETUP_KEY", "").strip()
+@app.get("/favicon.ico")
+def favicon():
+    """Serve the existing Sivdhi logo as the site-wide browser favicon."""
+    return current_app.send_static_file("pwa/customer/icon-512.png")
 
-    if (
-        len(setup_key) < 32
-        or setup_key.lower().startswith(("replace-", "change-me"))
-    ):
-        abort(404)
-
-    conn = get_db()
-
-    try:
-        # ÓñòÓÑçÓñÁÓñ▓ Óñ¬Óñ╣Óñ▓ÓÑç Admin account ÓñòÓÑç Óñ▓Óñ┐ÓñÅÓÑñ
-        if conn.execute(
-            "SELECT 1 FROM admin LIMIT 1"
-        ).fetchone():
-            abort(404)
-
-        error = ""
-
-        if request.method == "POST":
-            supplied_key = request.form.get("setup_key", "")
-            admin_id = request.form.get("admin_id", "").strip()
-            fullname = request.form.get("fullname", "").strip()
-            email = request.form.get("email", "").strip().lower()
-            password = request.form.get("password", "")
-            confirm = request.form.get("confirm_password", "")
-
-            if not hmac.compare_digest(supplied_key, setup_key):
-                error = "Setup key is incorrect."
-
-            elif not admin_id or len(admin_id) > 64:
-                error = "Admin ID is required (maximum 64 characters)."
-
-            elif not fullname or len(fullname) > 100:
-                error = "Full name is required (maximum 100 characters)."
-
-            elif (
-                not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email)
-                or len(email) > 254
-            ):
-                error = "Enter a valid email address."
-
-            elif (
-                len(password) < 12
-                or not re.search(r"[A-Za-z]", password)
-                or not re.search(r"\d", password)
-            ):
-                error = (
-                    "Password must be at least 12 characters "
-                    "and contain a letter and a number."
-                )
-
-            elif password != confirm:
-                error = "Passwords do not match."
-
-            else:
-                try:
-                    conn.execute(
-                        """
-                        INSERT INTO admin
-                        (admin_id, fullname, email, password, created_at)
-                        VALUES (?, ?, ?, ?, ?)
-                        """,
-                        (
-                            admin_id,
-                            fullname,
-                            email,
-                            generate_password_hash(password),
-                            datetime.now().isoformat(),
-                        ),
-                    )
-
-                    conn.commit()
-
-                    return render_template(
-                        "setup_admin.html",
-                        success=True,
-                        error="",
-                    )
-
-                except sqlite3.IntegrityError:
-                    conn.rollback()
-                    error = "Admin ID or email already exists."
-
-        return render_template(
-            "setup_admin.html",
-            success=False,
-            error=error,
-        )
-
-    finally:
-        conn.close()
 
 @app.get("/health")
 def health_check():
@@ -188,7 +95,7 @@ def health_check():
 @app.get("/")
 def customer_entrypoint():
     """Send the public Sivdhi URL to the public customer home page."""
-    return redirect(url_for("customer.home"))
+    return redirect("/customer/")
 
 
 @app.get("/robots.txt")
@@ -209,15 +116,13 @@ def robots_txt():
 
 @app.get("/sitemap.xml")
 def sitemap_xml():
-    """Expose the public customer page and role-specific login pages."""
+    """Expose the public customer homepage only."""
     from xml.sax.saxutils import escape
 
     public_urls = (
         "https://sivdhi.duckdns.org/customer/",
-        "https://sivdhi.duckdns.org/login?role=worker",
-        "https://sivdhi.duckdns.org/login?role=partner",
     )
-    last_modified = datetime.utcnow().date().isoformat()
+    last_modified = datetime.now(timezone.utc).date().isoformat()
     url_entries = "".join(
         f'<url><loc>{escape(public_url)}</loc>'
         f'<lastmod>{last_modified}</lastmod>'
@@ -255,21 +160,23 @@ def partner_entrypoint():
 @app.after_request
 def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    role = (request.args.get("role") or "").strip().lower()
-    is_public_role_login = request.path == "/login" and role in {"worker", "partner"}
     is_private_worker_partner_page = (
         request.path.startswith(("/worker/", "/partner/"))
         and request.path not in {"/worker/login", "/partner/login"}
     )
+    is_private_customer_page = (
+        request.blueprint == "customer"
+        and request.path not in {"/customer/", "/customer/home"}
+    )
     if (
         request.blueprint == "admin"
-        or request.path == f"{ADMIN_PANEL_BASE}/bootstrap"
         or request.path in {"/customer/login", "/customer/signup", "/signup"}
-        or (request.path == "/login" and not is_public_role_login)
+        or request.path == "/login"
         or is_private_worker_partner_page
+        or is_private_customer_page
     ):
         response.headers.setdefault("X-Robots-Tag", "noindex, nofollow, noarchive")
-    if request.blueprint == "admin" or request.path == f"{ADMIN_PANEL_BASE}/bootstrap":
+    if request.blueprint == "admin":
         response.headers.setdefault("Cache-Control", "no-store, max-age=0, private")
         response.headers.setdefault("Pragma", "no-cache")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
@@ -287,6 +194,9 @@ def add_security_headers(response):
         "base-uri 'self'; "
         "form-action 'self' https: mailto:; "
         "frame-ancestors 'self'; "
+        "frame-src 'self' https://sdk.cashfree.com https://api.cashfree.com "
+        "https://sandbox.cashfree.com https://payments.cashfree.com "
+        "https://payments-test.cashfree.com; "
         "object-src 'none'; "
         "img-src 'self' data: blob: https:; "
         "font-src 'self' data: https:; "
@@ -324,6 +234,52 @@ def add_security_headers(response):
             "no-store, max-age=0, private",
         )
         response.headers.setdefault("Pragma", "no-cache")
+
+    # Apply the same Sivdhi browser favicon to every HTML page.
+    # Keep apple-touch-icon and manifest links unchanged.
+    if response.mimetype == "text/html" and not response.is_streamed:
+        import re
+
+        html = response.get_data()
+
+        def remove_existing_favicon(match):
+            tag = match.group(0)
+            rel_match = re.search(
+                rb"""\brel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))""",
+                tag,
+                re.IGNORECASE,
+            )
+            if rel_match:
+                rel_value = next(
+                    (value for value in rel_match.groups() if value is not None),
+                    b"",
+                )
+                if b"icon" in rel_value.lower().split():
+                    return b""
+            return tag
+
+        # Remove old tab icons so different pages cannot override Sivdhi.
+        html = re.sub(
+            rb"<link\b[^>]*>",
+            remove_existing_favicon,
+            html,
+            flags=re.IGNORECASE,
+        )
+
+        favicon_link = (
+            b'<link rel="icon" type="image/png" sizes="512x512" '
+            b'href="/favicon.ico?v=20261121-2">'
+        )
+        html, inserted = re.subn(
+            rb"(<head\b[^>]*>)",
+            lambda match: match.group(1) + b"\n    " + favicon_link,
+            html,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+
+        if inserted:
+            response.set_data(html)
 
     return response
 
@@ -436,6 +392,9 @@ app.register_blueprint(worker_bp)
 app.register_blueprint(partner_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(customer_bp)
+app.register_blueprint(cashfree_webhook_bp)
+# Only the dedicated provider webhook endpoint is exempt from browser CSRF tokens.
+csrf.exempt(cashfree_webhook_bp)
 app.register_blueprint(push_bp)
 
 

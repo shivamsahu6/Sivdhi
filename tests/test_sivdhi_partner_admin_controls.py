@@ -24,9 +24,17 @@ def test_partner_can_control_all_four_job_actions():
 
 def test_partner_job_actions_follow_arrival_payment_and_settlement_guards():
     partner = source("routes/partner.py")
-    assert "scheduled_at + timedelta(hours=1)" in partner
-    assert 'if not row["worker_arrived_at"]' in partner
-    assert "balance_payment_status" in partner
+    assert "allowed_at = scheduled_at - timedelta(hours=1)" in partner
+    assert "Arrive will be available one hour before the customer's booked time." in partner
+
+    start = partner.split("def partner_start_job(booking_id):", 1)[1]
+    start = start.split('@partner_bp.route("/partner/job/<int:booking_id>/complete"', 1)[0]
+    assert 'if not row["worker_arrived_at"]' in start
+    assert "_partner_booking_balance_due(row)" in start
+    assert "balance_payment_status" in start
+    assert "scheduled_at" not in start
+
+    assert "arrive_available_at = scheduled_at - timedelta(hours=1)" in partner
     assert "settle_completed_booking" in partner
 
 def test_admin_manual_refund_requires_cancelled_booking_and_records_reference():
@@ -36,7 +44,7 @@ def test_admin_manual_refund_requires_cancelled_booking_and_records_reference():
     assert 'booking_status not in {"cancelled", "canceled"}' in admin
     assert "refund_reference" in admin
     assert "manual_bank_transfer" in admin
-    assert "Refund Processed" in admin
+    assert "Refund Successful" in admin
     assert "Click the button only after the bank transfer is complete" in template
 
 def test_worker_range_is_capped_at_thirty_km():
@@ -55,10 +63,11 @@ def test_customer_notifications_do_not_include_internal_assignment_reminders():
     assert '"Remaining Balance Recorded (Demo)"' not in customer
 
 
-def test_unassigned_booking_refund_waits_for_admin_bank_transfer():
+def test_unassigned_booking_refund_is_queued_or_left_for_admin_review():
     monitor = source("utils/assignment_monitor.py")
     segment = monitor.split("def _finalize_unassigned_booking", 1)[1].split("def _worker_attempt_status", 1)[0]
     assert "pending_admin" in segment
-    assert "Admin bank transfer" in segment
+    assert "queue_cashfree_refunds_for_booking" in segment
+    assert "Admin review" in segment
     assert "add_finance_ledger_entry(" not in segment
     assert '"Booking Cancelled"' in segment

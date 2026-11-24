@@ -22,6 +22,8 @@ _FIREBASE_APP = None
 _FIREBASE_UNAVAILABLE_LOGGED = False
 _FIREBASE_INIT_LOCK = __import__("threading").Lock()
 
+FCM_DELIVERY_TTL_SECONDS = 60 * 60
+
 
 def ensure_push_schema(conn) -> None:
     """Create token/outbox tables and the notification-to-outbox trigger."""
@@ -295,21 +297,55 @@ def process_push_outbox_once(batch_size: int = 30) -> dict[str, Any]:
 
     conn = get_db()
     claimed = []
+    expired_count = 0
     try:
         conn.execute("BEGIN IMMEDIATE")
+
+        # Keep the database queue aligned with the one-hour FCM delivery TTL.
+        # Preserve the outbox rows as audit history; never send stale alerts.
+        expired = conn.execute(
+            """
+            UPDATE push_notification_outbox
+            SET status='skipped',
+                locked_at=NULL,
+                last_error='Expired before FCM delivery: older than one-hour delivery window'
+            WHERE created_at < datetime('now', ?)
+              AND (
+                  status='pending'
+                  OR (
+                      status='processing'
+                      AND (
+                          locked_at IS NULL
+                          OR locked_at < datetime('now', '-5 minutes')
+                      )
+                  )
+              )
+            """,
+            (f"-{FCM_DELIVERY_TTL_SECONDS} seconds",),
+        )
+        expired_count = max(0, expired.rowcount)
+
         claimed = conn.execute(
             """
             SELECT id, notification_id, user_type, user_id, attempts
             FROM push_notification_outbox
-            WHERE (
-                status='pending' AND next_attempt_at <= CURRENT_TIMESTAMP
-            ) OR (
-                status='processing' AND locked_at < datetime('now', '-5 minutes')
-            )
+            WHERE created_at >= datetime('now', ?)
+              AND (
+                  (
+                      status='pending'
+                      AND next_attempt_at <= CURRENT_TIMESTAMP
+                  ) OR (
+                      status='processing'
+                      AND locked_at < datetime('now', '-5 minutes')
+                  )
+              )
             ORDER BY id ASC
             LIMIT ?
             """,
-            (max(1, min(int(batch_size), 100)),),
+            (
+                f"-{FCM_DELIVERY_TTL_SECONDS} seconds",
+                max(1, min(int(batch_size), 100)),
+            ),
         ).fetchall()
         for row in claimed:
             conn.execute(
@@ -327,7 +363,7 @@ def process_push_outbox_once(batch_size: int = 30) -> dict[str, Any]:
         conn.close()
 
     report = {"configured": True, "claimed": len(claimed), "sent": 0,
-              "no_device": 0, "errors": 0}
+              "no_device": 0, "errors": 0, "expired": expired_count}
 
     for item in claimed:
         row_id = int(item["id"])
@@ -393,7 +429,7 @@ def process_push_outbox_once(batch_size: int = 30) -> dict[str, Any]:
                         token=str(token_row["token"]),
                         android=messaging.AndroidConfig(
                             priority="high",
-                            ttl=timedelta(hours=1),
+                            ttl=timedelta(seconds=FCM_DELIVERY_TTL_SECONDS),
                         ),
                     )
                     messaging.send(message, app=app)

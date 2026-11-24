@@ -840,12 +840,12 @@
 {% set sivdhi_template_has_flash = True %}
 {% include '_shared_alerts.html' %}
 
-    {% set saved_bank = customer.get('bank_name', '') if customer else '' %}
-    {% set saved_account_holder = customer.get('account_holder', '') if customer else '' %}
-    {% set saved_account_number = customer.get('account_number', '') if customer else '' %}
-    {% set saved_ifsc = customer.get('ifsc', '') if customer else '' %}
-    {% set saved_branch = customer.get('branch_name', '') if customer else '' %}
-    {% set saved_account_type = customer.get('account_type', '') if customer else '' %}
+    {% set saved_bank = (customer.get('bank_name') or '') if customer else '' %}
+    {% set saved_account_holder = (customer.get('account_holder') or '') if customer else '' %}
+    {% set saved_account_number = (customer.get('account_number') or '') if customer else '' %}
+    {% set saved_ifsc = (customer.get('ifsc') or '') if customer else '' %}
+    {% set saved_branch = (customer.get('branch_name') or '') if customer else '' %}
+    {% set saved_account_type = (customer.get('account_type') or '') if customer else '' %}
     {% set bank_verified = customer.get('bank_verified', 0) if customer else 0 %}
     {% set masked_number = customer.get('masked_account_number', '') if customer else '' %}
 
@@ -1100,7 +1100,7 @@
                                     minlength="9"
                                     maxlength="18"
                                     autocomplete="off"
-                                    placeholder="9–18 digits"
+                                    placeholder="Enter account number"
                                     aria-describedby="accountNumberHelp"
                                     required
                                 >

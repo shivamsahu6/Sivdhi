@@ -301,3 +301,88 @@ def test_outbox_delivery_sends_notification_content_and_safe_item_route(
     check.close()
 
     assert status == "sent"
+
+def test_outbox_skips_notifications_older_than_fcm_delivery_window(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "expired-push.sqlite"
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        """
+        CREATE TABLE notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_type TEXT,
+            user_id TEXT,
+            title TEXT,
+            message TEXT,
+            is_read INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE customers (
+            id INTEGER PRIMARY KEY,
+            customer_id TEXT,
+            status TEXT,
+            is_deleted INTEGER,
+            notifications_enabled INTEGER DEFAULT 1
+        );
+        INSERT INTO customers
+            (id, customer_id, status, is_deleted, notifications_enabled)
+        VALUES (21, 'C21', 'active', 0, 1);
+        """
+    )
+    ensure_push_schema(conn)
+    conn.execute(
+        """
+        INSERT INTO notifications(user_type, user_id, title, message)
+        VALUES ('customer', '21', 'Old booking update', 'Old notification')
+        """
+    )
+    conn.execute(
+        """
+        UPDATE push_notification_outbox
+        SET created_at=datetime('now', '-2 hours'),
+            next_attempt_at=datetime('now', '-2 hours')
+        WHERE notification_id=1
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(push_delivery, "get_db", _db_factory(path))
+    fake_app = object()
+    monkeypatch.setattr(push_delivery, "_firebase_app", lambda: fake_app)
+
+    sent_messages = []
+    fake_messaging = types.ModuleType("firebase_admin.messaging")
+    fake_messaging.Message = lambda **kwargs: kwargs
+    fake_messaging.AndroidConfig = lambda **kwargs: kwargs
+    fake_messaging.UnregisteredError = type("UnregisteredError", (Exception,), {})
+    fake_messaging.send = (
+        lambda message, app=None: sent_messages.append((message, app)) or "mock-id"
+    )
+    fake_firebase_admin = types.ModuleType("firebase_admin")
+    fake_firebase_admin.messaging = fake_messaging
+    monkeypatch.setitem(sys.modules, "firebase_admin", fake_firebase_admin)
+
+    report = push_delivery.process_push_outbox_once()
+
+    assert report["configured"] is True
+    assert report["expired"] == 1
+    assert report["claimed"] == 0
+    assert report["sent"] == 0
+    assert sent_messages == []
+
+    check = sqlite3.connect(path)
+    status, last_error = check.execute(
+        "SELECT status, last_error FROM push_notification_outbox "
+        "WHERE notification_id=1"
+    ).fetchone()
+    in_app_count = check.execute(
+        "SELECT COUNT(*) FROM notifications"
+    ).fetchone()[0]
+    check.close()
+
+    assert status == "skipped"
+    assert "one-hour delivery window" in last_error
+    assert in_app_count == 1
