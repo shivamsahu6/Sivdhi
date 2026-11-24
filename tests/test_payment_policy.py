@@ -109,6 +109,70 @@ def test_worker_ui_has_arrival_action_and_balance_wait_state():
 
 def test_checkout_payment_button_is_for_advance_not_full_amount():
     source = _source("templates/customer/payment.html")
-    assert "Pay a ₹50 booking advance now" in source
+    assert "Pay ₹{{ '%.2f'|format(advance_value|float) }} securely" in source
     assert "Record ₹{{ '%.2f'|format(advance_value|float) }} demo advance" in source
     assert "Balance at worker arrival" in source
+
+def test_cashfree_balance_payment_button_is_only_rendered_in_cashfree_mode():
+    bookings_template = _source("templates/customer/bookings.html")
+    customer_routes = _source("routes/customer.py")
+    assert "cashfree-balance-button" in bookings_template
+    assert "create_cashfree_balance_order" in bookings_template
+    assert "cashfree_mode = not demo_mode and cashfree_enabled()" in customer_routes
+    assert "Cashfree Sandbox checkout only. No real money will be collected." in bookings_template
+
+def test_worker_arrival_unlocks_one_hour_before_booking():
+    source = _source("routes/worker.py")
+    arrival = source.split("def worker_arrived(job_id):", 1)[1]
+    arrival = arrival.split('@worker_bp.route("/worker/job/<job_id>/start"', 1)[0]
+    assert "arrival_allowed_at = scheduled_at - timedelta(hours=1)" in arrival
+    assert "one hour before the customer's booked time" in arrival
+    assert "scheduled_at + timedelta(hours=1)" not in arrival
+
+
+def test_worker_start_requires_arrival_and_paid_balance_not_booking_time():
+    source = _source("routes/worker.py")
+    start = source.split("def start_job(job_id):", 1)[1]
+    start = start.split("# ============================================================\\n# COMPLETE JOB", 1)[0]
+    assert 'if not current["worker_arrived_at"]:' in start
+    assert "remaining balance" in start
+    assert "scheduled_at" not in start
+
+
+def test_worker_detail_and_jobs_list_follow_arrival_payment_flow():
+    route_source = _source("routes/worker.py")
+    detail_route = route_source.split("def job_details(", 1)[1]
+    detail_route = detail_route.split("# ============================================================\\n# WORKER AVAILABILITY HEARTBEAT", 1)[0]
+    assert "arrive_available_at = scheduled_at - timedelta(hours=1)" in detail_route
+    assert "can_arrive=can_arrive" in detail_route
+
+    detail_template = _source("templates/worker/job_details.html")
+    assert "{% if can_arrive %}" in detail_template
+    assert "runAction('arrived', this)" in detail_template
+    assert "Waiting for the customer to pay the remaining" in detail_template
+
+    jobs_template = _source("templates/worker/jobs.html")
+    accepted = jobs_template.split("{% elif status == 'accepted' %}", 1)[1]
+    accepted = accepted.split("{% elif status in ['started', 'in_progress'] %}", 1)[0]
+    assert 'data-action="start"' not in accepted
+    assert "remaining balance" in accepted
+
+
+def test_partner_arrival_unlocks_one_hour_before_booking():
+    source = _source("routes/partner.py")
+    arrival = source.split("def partner_arrive_job(booking_id):", 1)[1]
+    arrival = arrival.split('@partner_bp.route("/partner/job/<int:booking_id>/start"', 1)[0]
+    assert "allowed_at = scheduled_at - timedelta(hours=1)" in arrival
+    assert "one hour before the customer's booked time" in arrival
+    assert "scheduled_at + timedelta(hours=1)" not in arrival
+    assert "arrive_available_at = scheduled_at - timedelta(hours=1)" in source
+
+
+def test_partner_start_requires_arrival_and_paid_balance_not_booking_time():
+    source = _source("routes/partner.py")
+    start = source.split("def partner_start_job(booking_id):", 1)[1]
+    start = start.split('@partner_bp.route("/partner/job/<int:booking_id>/complete"', 1)[0]
+    assert 'if not row["worker_arrived_at"]:' in start
+    assert "_partner_booking_balance_due(row)" in start
+    assert "balance_payment_status" in start
+    assert "scheduled_at" not in start

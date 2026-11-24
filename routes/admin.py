@@ -1474,6 +1474,24 @@ def admin_update_booking_status(booking_id):
             return redirect(ADMIN_PANEL_BASE + "/admin/bookings")
 
         old_status = str(booking["old_status"] or "").lower()
+
+        # Completed/cancelled bookings are terminal. Reopening one through
+        # this status override could revive an old worker assignment or
+        # payment/refund history. Create a new booking instead.
+        terminal_statuses = {"completed", "cancelled", "canceled"}
+        same_terminal_status = (
+            status == old_status
+            or (old_status == "canceled" and status == "cancelled")
+        )
+        if old_status in terminal_statuses and not same_terminal_status:
+            conn.rollback()
+            flash(
+                "Completed or cancelled bookings cannot be reopened. "
+                "Create a new booking for any new service request.",
+                "warning",
+            )
+            return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
+
         cancellation_paid_amount = (
             finance_money(booking["advance_paid_amount"])
             + finance_money(booking["balance_paid_amount"])
@@ -1483,14 +1501,43 @@ def admin_update_booking_status(booking_id):
             SET status=?, booking_status=?,
                 cancellation_reason=CASE WHEN ?='cancelled' THEN ? ELSE cancellation_reason END,
                 refund_status=CASE WHEN ?='cancelled' AND ?>0 THEN 'pending_admin' WHEN ?='cancelled' THEN 'not_required' ELSE refund_status END,
-                refund_amount=CASE WHEN ?='cancelled' THEN ? ELSE refund_amount END,
                 updated_at=CURRENT_TIMESTAMP
             WHERE id=?
         """, (
             status, status, status, reason,
-            status, cancellation_paid_amount, status,
-            status, cancellation_paid_amount, booking_id,
+            status, cancellation_paid_amount, status, booking_id,
         ))
+
+        refund_queue = {"queued": 0, "amount": 0.0, "review": 0}
+        if (
+            status == "cancelled"
+            and old_status not in terminal_statuses
+            and cancellation_paid_amount > 0
+        ):
+            conn.execute("SAVEPOINT admin_cashfree_refund_queue")
+            try:
+                from utils.cashfree_refunds import queue_cashfree_refunds_for_booking
+                refund_queue = queue_cashfree_refunds_for_booking(
+                    conn, str(booking["booking_id"]), reason
+                )
+            except Exception:
+                conn.execute("ROLLBACK TO SAVEPOINT admin_cashfree_refund_queue")
+                print(
+                    "ADMIN AUTOMATIC CASHFREE REFUND QUEUE ERROR:",
+                    booking["booking_id"],
+                )
+                refund_queue = {"queued": 0, "amount": 0.0, "review": 1}
+            finally:
+                conn.execute("RELEASE SAVEPOINT admin_cashfree_refund_queue")
+
+        # Terminal bookings must not leave live or temporarily released
+        # offers reserving workers after the booking has ended.
+        if status in {"completed", "cancelled"}:
+            conn.execute("""
+                UPDATE booking_assignment_offers
+                SET status='cancelled', responded_at=CURRENT_TIMESTAMP
+                WHERE booking_db_id=? AND status IN ('offered','released')
+            """, (booking_id,))
 
         internal_recipients = []
         worker_id = booking["worker_id"] or booking["assigned_worker_id"]
@@ -1506,20 +1553,27 @@ def admin_update_booking_status(booking_id):
                 VALUES(?,?,?,?,0,CURRENT_TIMESTAMP)
             """, (
                 user_type, user_id,
-                "Booking Cancelled by Admin" if status == "cancelled" else "Booking Status Updated",
-                f"Booking {booking['booking_id']} status is now {status.replace('_',' ').title()}.",
+                "Booking Cancelled" if status == "cancelled" else "Booking Status Updated",
+                (
+                    f"Booking {booking['booking_id']} has been cancelled."
+                    if status == "cancelled"
+                    else f"Booking {booking['booking_id']} status: {status.replace('_',' ').title()}."
+                ),
             ))
 
         # Customer receives only the cancellation notice here; assignment and
         # intermediate lifecycle events remain internal to worker/partner.
         if status == "cancelled" and old_status not in {"cancelled", "canceled"} and booking["customer_id"]:
+            customer_message = (
+                f"Your booking {booking['booking_id']} has been cancelled."
+            )
             conn.execute("""
                 INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
                 VALUES('customer',?,?,?,0,CURRENT_TIMESTAMP)
             """, (
-                str(booking["customer_id"]), "Booking Cancelled",
-                f"Your Sivdhi booking {booking['booking_id']} has been cancelled. {reason}"
-                " If you have paid an amount, Admin will record the bank refund after the transfer is completed.",
+                str(booking["customer_id"]),
+                "Booking Cancelled",
+                customer_message,
             ))
 
         conn.commit()
@@ -1549,6 +1603,20 @@ def admin_process_booking_refund(booking_id):
             conn.rollback()
             flash("Booking not found.", "danger")
             return redirect(ADMIN_PANEL_BASE + "/admin/bookings")
+        cashfree_order = conn.execute("""
+            SELECT order_id FROM cashfree_payment_orders
+            WHERE CAST(booking_id AS TEXT)=CAST(? AS TEXT)
+            LIMIT 1
+        """, (str(booking["booking_id"]),)).fetchone()
+        if cashfree_order:
+            conn.rollback()
+            flash(
+                "This booking was paid through Cashfree. Use the Cashfree Refunds page "
+                "to record the refund after processing it in the Cashfree Dashboard.",
+                "warning",
+            )
+            return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
+
         booking_status = str(booking["booking_status"] or booking["status"] or "").lower()
         if booking_status not in {"cancelled", "canceled"}:
             conn.rollback()
@@ -1607,15 +1675,15 @@ def admin_process_booking_refund(booking_id):
         )
         if booking["customer_id"]:
             message = (
-                f"Your refund of ₹{refund_amount:.2f} for cancelled booking {booking['booking_id']} "
-                "has been recorded by Sivdhi Admin as a completed bank transfer."
+                f"Your ₹{refund_amount:.2f} refund for booking "
+                f"{booking['booking_id']} is successful."
             )
             if reference:
-                message += f" Bank transaction reference: {reference}."
+                message += f" Reference: {reference}."
             conn.execute("""
                 INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
                 VALUES('customer',?,?,?,0,CURRENT_TIMESTAMP)
-            """, (str(booking["customer_id"]), "Refund Processed", message))
+            """, (str(booking["customer_id"]), "Refund Successful", message))
         conn.commit()
         flash(f"Manual refund of ₹{refund_amount:.2f} recorded. Customer notification and email have been queued.", "success")
     except Exception as error:
@@ -1625,6 +1693,636 @@ def admin_process_booking_refund(booking_id):
     finally:
         conn.close()
     return redirect(f"{ADMIN_PANEL_BASE}/admin/booking/{booking_id}")
+
+
+# =========================================================
+# CASHFREE DASHBOARD REFUND RECONCILIATION
+# =========================================================
+
+@admin_bp.route("/admin/cashfree-refunds")
+@admin_required
+def admin_cashfree_refunds():
+    """Show Cashfree payments that need manual refund reconciliation."""
+    conn = get_db()
+    try:
+        ensure_finance_schema(conn)
+        conn.commit()
+        orders = conn.execute("""
+            SELECT
+                o.order_id, o.customer_id, o.amount, o.currency, o.status,
+                o.environment, o.cf_payment_id, o.payment_method, o.booking_id,
+                o.payment_type, o.created_at,
+                c.fullname AS customer_name,
+                c.email AS customer_email,
+                b.status AS booking_status,
+                b.booking_status AS booking_lifecycle,
+                (SELECT r.status FROM cashfree_manual_refunds r
+                 WHERE r.order_id=o.order_id ORDER BY r.id DESC LIMIT 1) AS latest_refund_status,
+                (SELECT r.refund_id FROM cashfree_manual_refunds r
+                 WHERE r.order_id=o.order_id ORDER BY r.id DESC LIMIT 1) AS latest_refund_id,
+                (SELECT a.id FROM cashfree_auto_refunds a
+                 WHERE a.order_id=o.order_id ORDER BY a.id DESC LIMIT 1) AS latest_auto_refund_db_id,
+                (SELECT a.status FROM cashfree_auto_refunds a
+                 WHERE a.order_id=o.order_id ORDER BY a.id DESC LIMIT 1) AS latest_auto_refund_status,
+                (SELECT a.provider_status FROM cashfree_auto_refunds a
+                 WHERE a.order_id=o.order_id ORDER BY a.id DESC LIMIT 1) AS latest_auto_refund_provider_status,
+                (SELECT a.refund_id FROM cashfree_auto_refunds a
+                 WHERE a.order_id=o.order_id ORDER BY a.id DESC LIMIT 1) AS latest_auto_refund_id
+            FROM cashfree_payment_orders o
+            LEFT JOIN customers c ON c.id=o.customer_id
+            LEFT JOIN bookings b
+              ON CAST(b.booking_id AS TEXT)=CAST(o.booking_id AS TEXT)
+            WHERE o.status='PAID_NO_WORKER'
+               OR (
+                    o.status='SUCCESS'
+                    AND o.booking_id IS NULL
+               )
+               OR (
+                    o.status='BOOKED'
+                    AND LOWER(COALESCE(NULLIF(b.booking_status,''), b.status, ''))
+                        IN ('cancelled','canceled')
+               )
+               OR EXISTS (
+                    SELECT 1 FROM cashfree_manual_refunds r
+                    WHERE r.order_id=o.order_id
+               )
+               OR EXISTS (
+                    SELECT 1 FROM cashfree_auto_refunds a
+                    WHERE a.order_id=o.order_id
+               )
+            ORDER BY o.created_at DESC
+            LIMIT 300
+        """).fetchall()
+        refunds = conn.execute("""
+            SELECT r.*, o.environment, c.fullname AS customer_name
+            FROM cashfree_manual_refunds r
+            JOIN cashfree_payment_orders o ON o.order_id=r.order_id
+            LEFT JOIN customers c ON c.id=o.customer_id
+            ORDER BY r.id DESC
+            LIMIT 300
+        """).fetchall()
+        auto_refunds = conn.execute("""
+            SELECT a.*, o.status AS order_status, o.environment,
+                   o.cf_payment_id, c.fullname AS customer_name
+            FROM cashfree_auto_refunds a
+            JOIN cashfree_payment_orders o ON o.order_id=a.order_id
+            LEFT JOIN customers c ON c.id=a.customer_id
+            ORDER BY a.id DESC
+            LIMIT 300
+        """).fetchall()
+        webhook_alerts = conn.execute("""
+            SELECT event_type, order_id, cf_payment_id, processing_status, received_at
+            FROM cashfree_webhook_events
+            WHERE processing_status IN (
+                'AMOUNT_OR_CURRENCY_MISMATCH',
+                'PAYMENT_ID_ALREADY_LINKED',
+                'MULTIPLE_SUCCESSFUL_PAYMENTS',
+                'INVALID_SUCCESS_EVENT',
+                'UNKNOWN_ORDER',
+                'ENVIRONMENT_MISMATCH',
+                'PAYMENT_ORDER_ID_MISMATCH'
+            )
+            ORDER BY id DESC
+            LIMIT 100
+        """).fetchall()
+    finally:
+        conn.close()
+
+    return render_template(
+        "admin/cashfree_refunds.html",
+        orders=orders,
+        refunds=refunds,
+        auto_refunds=auto_refunds,
+        webhook_alerts=webhook_alerts,
+        page_title="Cashfree Refunds",
+    )
+
+
+@admin_bp.route(
+    "/admin/cashfree-refunds/<order_id>/record",
+    methods=["POST"],
+)
+@admin_required
+def admin_record_cashfree_refund(order_id):
+    """Record a refund already initiated manually in the Cashfree Dashboard."""
+    refund_id = (request.form.get("refund_id") or "").strip()[:120]
+    submitted_environment = (request.form.get("environment") or "").strip().lower()
+    reason = (request.form.get("reason") or "").strip()[:500]
+
+    if not refund_id:
+        flash("Enter the Cashfree refund ID shown in the Dashboard.", "danger")
+        return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+    conn = get_db()
+    try:
+        ensure_finance_schema(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        order = conn.execute("""
+            SELECT * FROM cashfree_payment_orders
+            WHERE order_id=? LIMIT 1
+        """, (order_id,)).fetchone()
+        if not order:
+            conn.rollback()
+            flash("Cashfree order not found.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        automatic_refund = conn.execute("""
+            SELECT status FROM cashfree_auto_refunds
+            WHERE order_id=? LIMIT 1
+        """, (order_id,)).fetchone()
+        if automatic_refund and str(automatic_refund["status"] or "").upper() != "FAILED":
+            conn.rollback()
+            flash(
+                "An automatic Cashfree refund already exists for this order "
+                f"(status: {automatic_refund['status']}). Do not initiate or record a second refund.",
+                "warning",
+            )
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        if order["status"] not in {"PAID_NO_WORKER", "SUCCESS", "BOOKED"}:
+            conn.rollback()
+            flash("This Cashfree order is not eligible for manual refund reconciliation.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        if order["status"] == "SUCCESS" and order["booking_id"]:
+            conn.rollback()
+            flash("This successful Cashfree order is already linked to a booking. Use the booking refund workflow.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        if order["status"] == "BOOKED":
+            booking = conn.execute("""
+                SELECT status, booking_status FROM bookings
+                WHERE CAST(booking_id AS TEXT)=CAST(? AS TEXT)
+                LIMIT 1
+            """, (str(order["booking_id"] or ""),)).fetchone()
+            lifecycle = str(
+                (booking["booking_status"] or booking["status"] or "") if booking else ""
+            ).strip().lower()
+            if lifecycle not in {"cancelled", "canceled"}:
+                conn.rollback()
+                flash("Cancel the booking before recording its Cashfree refund.", "warning")
+                return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        if not order["cf_payment_id"]:
+            conn.rollback()
+            flash("Verified Cashfree payment ID is missing. Do not initiate a refund until it is reconciled.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        refund_amount = finance_money(order["amount"])
+        if refund_amount <= 0:
+            conn.rollback()
+            flash("The Cashfree order amount is invalid.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        stored_environment = str(order["environment"] or "unknown").strip().lower()
+        if stored_environment == "unknown":
+            if submitted_environment not in {"sandbox", "production"}:
+                conn.rollback()
+                flash("Confirm whether this order belongs to Cashfree Sandbox or Production.", "danger")
+                return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+            conn.execute("""
+                UPDATE cashfree_payment_orders SET environment=?, updated_at=CURRENT_TIMESTAMP
+                WHERE order_id=? AND environment='unknown'
+            """, (submitted_environment, order_id))
+            stored_environment = submitted_environment
+        elif submitted_environment != stored_environment:
+            conn.rollback()
+            flash("Selected environment does not match the environment stored for this order.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        latest = conn.execute("""
+            SELECT status FROM cashfree_manual_refunds
+            WHERE order_id=? ORDER BY id DESC LIMIT 1
+        """, (order_id,)).fetchone()
+        if latest and str(latest["status"]).upper() in {"INITIATED", "SUCCESS"}:
+            conn.rollback()
+            flash("A refund is already initiated or completed for this Cashfree order.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        duplicate = conn.execute("""
+            SELECT 1 FROM cashfree_manual_refunds WHERE refund_id=? LIMIT 1
+        """, (refund_id,)).fetchone()
+        if duplicate:
+            conn.rollback()
+            flash("This Cashfree refund ID is already recorded.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        conn.execute("""
+            INSERT INTO cashfree_manual_refunds
+                (order_id, refund_id, amount, status, reason, admin_id)
+            VALUES (?, ?, ?, 'INITIATED', ?, ?)
+        """, (
+            order_id, refund_id, refund_amount, reason or None,
+            str(session.get("admin_id") or ""),
+        ))
+        # Lock a verified-but-unbooked order while its external refund is
+        # pending, so the customer cannot consume the same payment as a booking.
+        if order["status"] == "SUCCESS":
+            cur = conn.execute("""
+                UPDATE cashfree_payment_orders
+                SET status='REFUND_PENDING', updated_at=CURRENT_TIMESTAMP
+                WHERE order_id=? AND status='SUCCESS' AND booking_id IS NULL
+            """, (order_id,))
+            if cur.rowcount != 1:
+                conn.rollback()
+                flash("This payment changed while the refund was being recorded. Refresh and verify its state.", "warning")
+                return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+        conn.commit()
+        flash(
+            f"Cashfree refund {refund_id} recorded as initiated. "
+            "Mark it successful only after Cashfree Dashboard confirms success.",
+            "success",
+        )
+    except Exception as error:
+        conn.rollback()
+        print("ADMIN CASHFREE REFUND RECORD ERROR:", error)
+        flash("Cashfree refund reference could not be recorded.", "danger")
+    finally:
+        conn.close()
+
+    return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+
+@admin_bp.route(
+    "/admin/cashfree-refunds/<int:refund_attempt_id>/status",
+    methods=["POST"],
+)
+@admin_required
+def admin_update_cashfree_refund_status(refund_attempt_id):
+    """Reconcile an initiated Cashfree Dashboard refund after checking its status."""
+    new_status = (request.form.get("status") or "").strip().upper()
+    if new_status not in {"SUCCESS", "FAILED"}:
+        flash("Choose a valid Cashfree refund status.", "danger")
+        return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+    conn = get_db()
+    try:
+        ensure_finance_schema(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        refund = conn.execute("""
+            SELECT r.*, o.customer_id, o.environment, o.booking_id,
+                   o.payment_type, o.status AS order_status
+            FROM cashfree_manual_refunds r
+            JOIN cashfree_payment_orders o ON o.order_id=r.order_id
+            WHERE r.id=? LIMIT 1
+        """, (refund_attempt_id,)).fetchone()
+        if not refund:
+            conn.rollback()
+            flash("Cashfree refund record not found.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        if str(refund["status"] or "").upper() != "INITIATED":
+            conn.rollback()
+            flash("Only an initiated refund can be reconciled. Duplicate status changes are blocked.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        cur = conn.execute("""
+            UPDATE cashfree_manual_refunds
+            SET status=?, updated_at=CURRENT_TIMESTAMP,
+                completed_at=CASE WHEN ?='SUCCESS' THEN CURRENT_TIMESTAMP ELSE NULL END
+            WHERE id=? AND status='INITIATED'
+        """, (new_status, new_status, refund_attempt_id))
+        if cur.rowcount != 1:
+            conn.rollback()
+            flash("Refund status changed in another session. Refresh and verify it.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        if refund["order_status"] == "REFUND_PENDING":
+            restored_order_status = "REFUNDED" if new_status == "SUCCESS" else "SUCCESS"
+            conn.execute("""
+                UPDATE cashfree_payment_orders
+                SET status=?, updated_at=CURRENT_TIMESTAMP
+                WHERE order_id=? AND status='REFUND_PENDING'
+            """, (restored_order_status, str(refund["order_id"])))
+        elif refund["order_status"] == "BOOKED" and new_status == "SUCCESS":
+            # A cancelled booking's linked Cashfree order becomes terminal only
+            # after Admin confirms success in the matching provider Dashboard.
+            conn.execute("""
+                UPDATE cashfree_payment_orders
+                SET status='REFUNDED', updated_at=CURRENT_TIMESTAMP
+                WHERE order_id=? AND status='BOOKED'
+            """, (str(refund["order_id"]),))
+
+        if new_status == "SUCCESS":
+            amount = finance_money(refund["amount"])
+            order_id_value = str(refund["order_id"])
+            refund_id_value = str(refund["refund_id"])
+            booking_id_value = str(refund["booking_id"] or "")
+            if booking_id_value:
+                booking = conn.execute("""
+                    SELECT id FROM bookings
+                    WHERE CAST(booking_id AS TEXT)=CAST(? AS TEXT)
+                    LIMIT 1
+                """, (booking_id_value,)).fetchone()
+                if booking:
+                    conn.execute("""
+                        UPDATE bookings
+                        SET refund_status=CASE
+                                WHEN COALESCE(refund_amount,0)+? >= MAX(
+                                    COALESCE(advance_paid_amount,0)+COALESCE(balance_paid_amount,0),
+                                    ?
+                                ) THEN 'refunded'
+                                ELSE 'partially_refunded'
+                            END,
+                            payment_status=CASE
+                                WHEN COALESCE(refund_amount,0)+? >= MAX(
+                                    COALESCE(advance_paid_amount,0)+COALESCE(balance_paid_amount,0),
+                                    ?
+                                ) THEN 'REFUNDED'
+                                ELSE 'PARTIALLY_REFUNDED'
+                            END,
+                            advance_payment_status=CASE
+                                WHEN ?='advance' THEN 'REFUNDED'
+                                ELSE advance_payment_status
+                            END,
+                            balance_payment_status=CASE
+                                WHEN ?='balance' THEN 'REFUNDED'
+                                ELSE balance_payment_status
+                            END,
+                            refund_amount=COALESCE(refund_amount,0)+?,
+                            refund_reference=?, refund_processed_at=CURRENT_TIMESTAMP,
+                            updated_at=CURRENT_TIMESTAMP
+                        WHERE id=?
+                    """, (
+                        amount, amount, amount, amount,
+                        str(refund["payment_type"] or "advance").strip().lower(),
+                        str(refund["payment_type"] or "advance").strip().lower(),
+                        amount, refund_id_value, booking["id"]
+                    ))
+                    payment_mode = (
+                        "cashfree_sandbox"
+                        if str(refund["environment"] or "").lower() == "sandbox"
+                        else "live"
+                    )
+                    add_finance_ledger_entry(
+                        conn, booking_id_value, "customer_refund", amount,
+                        "manual_recorded", payment_mode, refund_id_value,
+                        "Cashfree Dashboard refund manually verified by Sivdhi Admin.",
+                    )
+
+            if refund["customer_id"]:
+                message = (
+                    f"Your ₹{amount:.2f} refund for booking {booking_id_value} is successful. "
+                    f"Reference: {refund_id_value}."
+                    if booking_id_value
+                    else f"Your ₹{amount:.2f} refund is successful. Reference: {refund_id_value}."
+                )
+                conn.execute("""
+                    INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
+                    VALUES('customer',?,?,?,0,CURRENT_TIMESTAMP)
+                """, (str(refund["customer_id"]), "Refund Successful", message))
+
+        conn.commit()
+        flash(
+            "Cashfree refund status updated to " + new_status + "."
+            if new_status == "SUCCESS"
+            else "Cashfree refund marked failed. A new attempt can be recorded after checking the Dashboard.",
+            "success" if new_status == "SUCCESS" else "warning",
+        )
+    except Exception as error:
+        conn.rollback()
+        print("ADMIN CASHFREE REFUND STATUS ERROR:", error)
+        flash("Cashfree refund status could not be updated.", "danger")
+    finally:
+        conn.close()
+
+    return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+
+
+
+@admin_bp.route(
+    "/admin/cashfree-refunds/automatic/<int:auto_refund_id>/reconcile",
+    methods=["POST"],
+)
+@admin_required
+def admin_reconcile_cashfree_auto_refund(auto_refund_id):
+    """Record an already-successful Dashboard refund after strict Admin verification.
+
+    This route does not call Cashfree and never creates a refund.
+    """
+    verified = request.form.get("verified_cashfree_success") == "yes"
+    cf_refund_id = (request.form.get("cf_refund_id") or "").strip()[:120]
+    refund_arn = (request.form.get("refund_arn") or "").strip()[:160]
+    note = (request.form.get("reconciliation_note") or "").strip()[:500]
+
+    if not verified or not cf_refund_id or not note:
+        flash(
+            "Confirm the existing successful Cashfree refund and provide its Refund ID and Admin note.",
+            "danger",
+        )
+        return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+    conn = get_db()
+    try:
+        ensure_finance_schema(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+
+        job = conn.execute("""
+            SELECT * FROM cashfree_auto_refunds
+            WHERE id=? LIMIT 1
+        """, (auto_refund_id,)).fetchone()
+
+        if not job or str(job["status"] or "").upper() != "REVIEW_REQUIRED":
+            conn.rollback()
+            flash("This automatic refund is not awaiting Admin reconciliation.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        order = conn.execute("""
+            SELECT * FROM cashfree_payment_orders
+            WHERE order_id=? LIMIT 1
+        """, (job["order_id"],)).fetchone()
+
+        booking = conn.execute("""
+            SELECT id, booking_id, customer_id, status, booking_status,
+                   advance_paid_amount, balance_paid_amount, refund_amount
+            FROM bookings
+            WHERE CAST(booking_id AS TEXT)=CAST(? AS TEXT)
+            LIMIT 1
+        """, (str(job["booking_id"]),)).fetchone()
+
+        payment = conn.execute("""
+            SELECT customer_id, booking_id, payment_id, amount,
+                   method, status, payment_type, is_demo
+            FROM customer_payment_records
+            WHERE CAST(booking_id AS TEXT)=CAST(? AS TEXT)
+              AND payment_id=?
+            LIMIT 1
+        """, (str(job["booking_id"]), str(job["payment_id"]))).fetchone()
+
+        manual = conn.execute("""
+            SELECT 1 FROM cashfree_manual_refunds
+            WHERE order_id=? LIMIT 1
+        """, (job["order_id"],)).fetchone()
+
+        lifecycle = ""
+        if booking:
+            lifecycle = str(
+                booking["booking_status"] or booking["status"] or ""
+            ).strip().lower()
+
+        amount = finance_money(job["amount"])
+        total_paid = (
+            finance_money(booking["advance_paid_amount"])
+            + finance_money(booking["balance_paid_amount"])
+        ) if booking else 0.0
+        previous_refunds = finance_money(booking["refund_amount"]) if booking else 0.0
+
+        valid = (
+            order is not None
+            and booking is not None
+            and payment is not None
+            and not manual
+            and str(job["environment"] or "").lower() == "production"
+            and str(order["environment"] or "").lower() == "production"
+            and str(order["status"] or "").upper() == "BOOKED"
+            and str(order["order_id"]) == str(job["order_id"])
+            and str(order["booking_id"] or "") == str(job["booking_id"])
+            and str(order["customer_id"]) == str(job["customer_id"])
+            and str(order["cf_payment_id"] or "") == str(job["payment_id"])
+            and str(order["currency"] or "").upper() == "INR"
+            and str(order["payment_type"] or "advance").lower()
+                == str(job["payment_type"] or "advance").lower()
+            and abs(finance_money(order["amount"]) - amount) <= 0.004
+            and str(booking["customer_id"]) == str(job["customer_id"])
+            and lifecycle in {"cancelled", "canceled"}
+            and str(payment["customer_id"]) == str(job["customer_id"])
+            and str(payment["booking_id"]) == str(job["booking_id"])
+            and str(payment["payment_id"]) == str(job["payment_id"])
+            and str(payment["method"] or "").lower() == "cashfree"
+            and str(payment["status"] or "").upper() in {"PAID", "SUCCESS"}
+            and int(payment["is_demo"] or 0) == 0
+            and str(payment["payment_type"] or "advance").lower()
+                == str(job["payment_type"] or "advance").lower()
+            and abs(finance_money(payment["amount"]) - amount) <= 0.004
+            and amount > 0
+            and total_paid > 0
+            and previous_refunds + amount <= total_paid + 0.004
+        )
+
+        if not valid:
+            conn.rollback()
+            flash(
+                "Reconciliation blocked. The Production order, cancelled booking, "
+                "original payment, customer, currency, amount or existing refund records did not pass verification.",
+                "danger",
+            )
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        duplicate_provider_refund = conn.execute("""
+            SELECT 1 FROM cashfree_auto_refunds
+            WHERE cf_refund_id=? AND id<>?
+            LIMIT 1
+        """, (cf_refund_id, auto_refund_id)).fetchone()
+
+        duplicate_ledger = conn.execute("""
+            SELECT 1 FROM sivdhi_finance_ledger
+            WHERE entry_type='customer_refund'
+              AND reference_id IN (?, ?)
+            LIMIT 1
+        """, (cf_refund_id, str(job["refund_id"]))).fetchone()
+
+        if duplicate_provider_refund or duplicate_ledger:
+            conn.rollback()
+            flash(
+                "This Cashfree Refund ID or ledger reference is already recorded. "
+                "Manual investigation is required.",
+                "danger",
+            )
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        total_refunds = round(previous_refunds + amount, 2)
+        fully_refunded = total_refunds >= total_paid - 0.004
+        refund_status = "refunded" if fully_refunded else "partially_refunded"
+        payment_status = "REFUNDED" if fully_refunded else "PARTIALLY_REFUNDED"
+        payment_type = str(job["payment_type"] or "advance").lower()
+        admin_id = str(session.get("admin_id") or "")
+
+        updated_job = conn.execute("""
+            UPDATE cashfree_auto_refunds
+            SET status='SUCCESS', provider_status='SUCCESS',
+                cf_refund_id=?, refund_arn=?,
+                admin_reconciled_by=?, admin_reconciled_at=CURRENT_TIMESTAMP,
+                admin_reconciliation_note=?,
+                last_error=NULL, completed_at=CURRENT_TIMESTAMP,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=? AND status='REVIEW_REQUIRED'
+        """, (
+            cf_refund_id, refund_arn or None, admin_id, note,
+            auto_refund_id,
+        ))
+        if updated_job.rowcount != 1:
+            conn.rollback()
+            flash("Automatic refund state changed. Refresh before reconciling.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        updated_order = conn.execute("""
+            UPDATE cashfree_payment_orders
+            SET status='REFUNDED', updated_at=CURRENT_TIMESTAMP
+            WHERE order_id=? AND status='BOOKED'
+        """, (job["order_id"],))
+        if updated_order.rowcount != 1:
+            conn.rollback()
+            flash("Cashfree order state changed. No reconciliation was saved.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
+
+        conn.execute("""
+            UPDATE bookings
+            SET refund_status=?, refund_amount=?,
+                payment_status=?,
+                advance_payment_status=CASE
+                    WHEN ?='advance' THEN 'REFUNDED'
+                    ELSE advance_payment_status END,
+                balance_payment_status=CASE
+                    WHEN ?='balance' THEN 'REFUNDED'
+                    ELSE balance_payment_status END,
+                refund_reference=?, refund_processed_at=CURRENT_TIMESTAMP,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        """, (
+            refund_status, total_refunds, payment_status,
+            payment_type, payment_type, cf_refund_id, booking["id"],
+        ))
+
+        add_finance_ledger_entry(
+            conn, str(job["booking_id"]), "customer_refund",
+            amount, "manual_recorded", "live", cf_refund_id,
+            "Existing successful Cashfree automatic refund verified in Dashboard "
+            f"and reconciled by Admin {admin_id}. Note: {note}",
+        )
+
+        if booking["customer_id"]:
+            message = (
+                f"Your ₹{amount:.2f} refund for booking "
+                f"{job['booking_id']} is successful. Reference: {cf_refund_id}."
+            )
+            conn.execute("""
+                INSERT INTO notifications
+                    (user_type,user_id,title,message,is_read,created_at)
+                VALUES ('customer',?,?,?,0,CURRENT_TIMESTAMP)
+            """, (
+                str(booking["customer_id"]),
+                "Refund Successful",
+                message,
+            ))
+
+        conn.commit()
+        flash(
+            "Existing successful Cashfree refund reconciled. No new refund was created.",
+            "success",
+        )
+
+    except Exception as error:
+        conn.rollback()
+        print("ADMIN AUTOMATIC CASHFREE REFUND RECONCILIATION ERROR:", error)
+        flash("Cashfree refund reconciliation failed. No refund was initiated.", "danger")
+    finally:
+        conn.close()
+
+    return redirect(ADMIN_PANEL_BASE + "/admin/cashfree-refunds")
 
 
 # =========================================================

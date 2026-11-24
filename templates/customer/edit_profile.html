@@ -779,7 +779,7 @@
                         </label>
 
                         <small class="field-help">
-                            JPG, PNG or WEBP. Maximum 5 MB.
+                            JPG, PNG or WEBP. Maximum 50 KB.
                         </small>
                     </div>
                 </section>
@@ -1030,9 +1030,9 @@
                         return;
                     }
 
-                    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+                    if (file.size <= 0 || file.size > 50 * 1024) {
                         this.value = "";
-                        alert("The profile photo must be 5 MB or smaller.");
+                        alert("The profile photo must be 50 KB or smaller.");
                         return;
                     }
 

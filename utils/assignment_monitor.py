@@ -26,6 +26,7 @@ LOGGER = logging.getLogger(__name__)
 IST = ZoneInfo("Asia/Kolkata")
 
 _MONITOR_THREAD: threading.Thread | None = None
+_CASHFREE_REFUND_THREAD: threading.Thread | None = None
 _MONITOR_STOP = threading.Event()
 
 
@@ -80,7 +81,7 @@ def assignment_batch_interval_seconds() -> int:
     )
 
 
-def ensure_assignment_monitor_schema(conn) -> None:
+def _ensure_assignment_monitor_schema_unlocked(conn) -> None:
     """Create additive/idempotent monitor schema and required booking fields."""
     ensure_finance_schema(conn)
 
@@ -222,6 +223,28 @@ def ensure_assignment_monitor_schema(conn) -> None:
                 "INSERT INTO notification_email_outbox(recipient,subject,body) "
                 + " UNION ALL ".join(selects) + "; END"
             )
+
+
+def ensure_assignment_monitor_schema(conn) -> None:
+    """Run schema migration atomically under a SQLite write reservation.
+
+    The no-op UPDATE obtains the writer reservation before schema inspection.
+    The savepoint keeps the migration atomic and preserves a caller's existing
+    transaction when this function is invoked inside one.
+    """
+    savepoint = "sivdhi_assignment_monitor_schema"
+    conn.execute(f"SAVEPOINT {savepoint}")
+    try:
+        conn.execute("UPDATE bookings SET id=id WHERE 0")
+        _ensure_assignment_monitor_schema_unlocked(conn)
+    except BaseException:
+        try:
+            conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+        finally:
+            conn.execute(f"RELEASE SAVEPOINT {savepoint}")
+        raise
+    else:
+        conn.execute(f"RELEASE SAVEPOINT {savepoint}")
 
 
 def _now_ist() -> datetime:
@@ -511,17 +534,38 @@ def _finalize_unassigned_booking(conn, booking) -> None:
     conn.execute(
         "UPDATE bookings SET booking_status='cancelled', status='cancelled', worker_id=NULL, assigned_worker_id=NULL, "
         "partner_id=NULL, assigned_partner_id=NULL, cancellation_reason=?, payment_status=?, "
-        "refund_status=?, refund_amount=?, "
+        "refund_status=?, "
         "advance_payment_status=CASE WHEN ? THEN 'REFUND_PENDING' ELSE advance_payment_status END, "
         "updated_at=CURRENT_TIMESTAMP WHERE id=?",
         ("No eligible worker accepted within the 60-minute assignment window.", refund_status,
-         "pending_admin" if paid and amount > 0 else "not_required", amount,
+         "pending_admin" if paid and amount > 0 else "not_required",
          int(paid), booking_db_id),
     )
     conn.execute(
-        "UPDATE booking_assignment_offers SET status='cancelled', responded_at=? WHERE booking_db_id=? AND status='offered'",
+        "UPDATE booking_assignment_offers SET status='cancelled', responded_at=? WHERE booking_db_id=? AND status IN ('offered','released')",
         (_now_ist().isoformat(timespec="seconds"), booking_db_id),
     )
+
+    refund_queue = {"queued": 0, "amount": 0.0, "review": 0}
+    if paid and amount > 0:
+        conn.execute("SAVEPOINT deadline_cashfree_refund_queue")
+        try:
+            from utils.cashfree_refunds import queue_cashfree_refunds_for_booking
+            refund_queue = queue_cashfree_refunds_for_booking(
+                conn,
+                booking_ref,
+                "No eligible worker accepted within the 60-minute assignment window.",
+            )
+        except Exception:
+            conn.execute("ROLLBACK TO SAVEPOINT deadline_cashfree_refund_queue")
+            LOGGER.exception(
+                "Automatic Cashfree refund could not be queued for booking %s",
+                booking_ref,
+            )
+            refund_queue = {"queued": 0, "amount": 0.0, "review": 1}
+        finally:
+            conn.execute("RELEASE SAVEPOINT deadline_cashfree_refund_queue")
+
     current_worker_id = (
         booking["worker_id"] if "worker_id" in booking.keys() else None
     ) or (
@@ -539,20 +583,37 @@ def _finalize_unassigned_booking(conn, booking) -> None:
             current_partner_id = None
     if current_worker_id:
         _notify_assignment_event(
-            conn, "worker", current_worker_id, "Assignment Window Expired",
-            f"You did not respond to booking {booking_ref} within your allocated response time. The booking has been closed and offered to no further worker.",
+            conn, "worker", current_worker_id, "Booking Cancelled",
+            f"Booking {booking_ref} has been cancelled.",
         )
     if current_partner_id:
         _notify_assignment_event(
-            conn, "partner", current_partner_id, "Worker Did Not Respond",
-            f"The worker assigned to booking {booking_ref} did not respond before the one-hour assignment window ended. The booking has been cancelled and the customer notified.",
+            conn, "partner", current_partner_id, "Booking Cancelled",
+            f"Booking {booking_ref} has been cancelled.",
         )
 
-    message = (
-        f"Your booking {booking_ref} has been cancelled because no worker accepted it within one hour. "
-        + (f"A refund request for ₹{amount:.2f} has been raised for the bank account linked to your Sivdhi profile. The Admin bank transfer is pending; you will receive a separate confirmation after the transfer is completed." if paid and amount > 0 else
-           "No paid amount was found, so no refund is due.")
-    )
+    if amount > 0 and refund_queue.get("queued"):
+        queued_amount = float(refund_queue.get("amount") or 0.0)
+        message = (
+            f"Your booking {booking_ref} has been cancelled because no worker "
+            "accepted it within the one-hour matching window. "
+            f"A Cashfree refund request for ₹{queued_amount:.2f} has been queued "
+            "for automatic processing. The refund is not complete until "
+            "Cashfree confirms success."
+        )
+    elif amount > 0:
+        message = (
+            f"Your booking {booking_ref} has been cancelled because no worker "
+            "accepted it within the one-hour matching window. "
+            "Your refund is pending Admin review; no automatic refund request "
+            "has been issued. Sivdhi will update you after verification."
+        )
+    else:
+        message = (
+            f"Your booking {booking_ref} has been cancelled because no worker "
+            "accepted it within the one-hour matching window. "
+            "No paid amount was found, so no refund is due."
+        )
     _notify(conn, "customer", customer_id, "Booking Cancelled", message)
 
 
@@ -800,19 +861,12 @@ def reassign_booking(
             allocated_seconds = max(1, int(booking["assignment_response_seconds"] or 3600))
         except (KeyError, TypeError, ValueError):
             pass
-        worker_message = (
-            f"Booking {booking['booking_id']} has been assigned to you. "
-            f"You have {_format_duration(allocated_seconds)} to accept or reject. "
-            "If accepted, reach the customer within the stated service window."
-        )
-        _notify(conn, "worker", new_worker_id, "New Booking Assigned", worker_message)
+        worker_message = f"New booking {booking['booking_id']} is available."
+        _notify(conn, "worker", new_worker_id, "New Booking", worker_message)
 
         if new_partner_id:
-            partner_message = (
-                f"Booking {booking['booking_id']} is now assigned to another eligible worker. "
-                "Please follow up if they do not respond."
-            )
-            _notify(conn, "partner", new_partner_id, "Worker Assigned to Booking", partner_message)
+            partner_message = f"New booking {booking['booking_id']} is available."
+            _notify(conn, "partner", new_partner_id, "Booking Update", partner_message)
 
         # Do not expose worker rejection/reassignment attempts to the customer.
         # The booking status API/UI remains the single customer-facing source.
@@ -1021,10 +1075,14 @@ def _discover_live_worker_offers(conn, booking, now: datetime) -> int:
         (now_text, booking_id, now_text),
     )
     offer_rows = conn.execute(
-        "SELECT worker_id, offered_at FROM booking_assignment_offers WHERE booking_db_id=?",
+        "SELECT worker_id, offered_at, status FROM booking_assignment_offers WHERE booking_db_id=?",
         (booking_id,),
     ).fetchall()
-    offered_ids = {str(row["worker_id"]) for row in offer_rows}
+    offered_ids = {
+        str(row["worker_id"])
+        for row in offer_rows
+        if str(row["status"] or "").lower() != "released"
+    }
 
     # Do not open a new group before the configured batch interval. Rejected
     # and expired rows deliberately remain in this history so fast retries do
@@ -1083,10 +1141,20 @@ def _discover_live_worker_offers(conn, booking, now: datetime) -> int:
         worker_id = int(candidate["worker_db_id"])
         excluded.add(str(worker_id))
         partner_id = find_partner_for_worker(conn, worker_id)
-        cursor = conn.execute(
-            "INSERT OR IGNORE INTO booking_assignment_offers(booking_db_id,worker_id,partner_id,status,offered_at,response_deadline) VALUES(?,?,?,'offered',?,?)",
-            (booking_id, worker_id, partner_id, now.isoformat(timespec="seconds"), deadline.isoformat(timespec="seconds")),
-        )
+        cursor = conn.execute("""
+            UPDATE booking_assignment_offers
+            SET partner_id=?, status='offered', offered_at=?,
+                allocation_started_at='', response_deadline=?, responded_at=NULL
+            WHERE booking_db_id=? AND worker_id=? AND status='released'
+        """, (
+            partner_id, now.isoformat(timespec="seconds"),
+            deadline.isoformat(timespec="seconds"), booking_id, worker_id,
+        ))
+        if cursor.rowcount != 1:
+            cursor = conn.execute(
+                "INSERT OR IGNORE INTO booking_assignment_offers(booking_db_id,worker_id,partner_id,status,offered_at,response_deadline) VALUES(?,?,?,'offered',?,?)",
+                (booking_id, worker_id, partner_id, now.isoformat(timespec="seconds"), deadline.isoformat(timespec="seconds")),
+            )
         if cursor.rowcount != 1:
             continue
         added += 1
@@ -1111,11 +1179,7 @@ def _discover_live_worker_offers(conn, booking, now: datetime) -> int:
         )
 
         booking_ref = str(booking["booking_id"] or booking_id)
-        offer_message = (
-            f"Booking {booking_ref} is available to you. This request stays active until another worker accepts it "
-            f"or the matching window ends at {deadline.strftime('%I:%M %p')} IST. "
-            "The first worker whose acceptance reaches Sivdhi gets the booking."
-        )
+        offer_message = f"New booking {booking_ref} is available."
         notified_partners = set()
         for worker_id, partner_id in new_offers:
             _notify_assignment_event(
@@ -1128,7 +1192,7 @@ def _discover_live_worker_offers(conn, booking, now: datetime) -> int:
                 notified_partners.add(partner_key)
                 _notify_assignment_event(
                     conn, "partner", partner_id,
-                    "Eligible Worker Notified",
+                    "Booking Request",
                     offer_message,
                 )
     return newly_eligible_added
@@ -1159,7 +1223,7 @@ def _send_offer_pool_reminders(conn, booking, active_offers, now: datetime) -> N
             remaining = max(1, int((response_deadline - now).total_seconds()))
             _notify_assignment_event(
                 conn, "worker", worker_id, "Booking Response Reminder",
-                f"Booking {booking_ref} is still awaiting your response. You have about {_format_duration(remaining)} left in your current allocated window. The original booking deadline does not change.",
+                f"Response needed for booking {booking_ref}.",
             )
         partner_id = offer["partner_id"]
         if partner_id:
@@ -1172,7 +1236,7 @@ def _send_offer_pool_reminders(conn, booking, active_offers, now: datetime) -> N
                 remaining = max(1, int((response_deadline - now).total_seconds()))
                 _notify_assignment_event(
                     conn, "partner", partner_id, "Worker Response Reminder",
-                    f"Booking {booking_ref} is still awaiting a worker response. The current response window has about {_format_duration(remaining)} left. The original booking deadline does not change.",
+                    f"Response needed for booking {booking_ref}.",
                 )
 
 
@@ -1182,6 +1246,12 @@ def _process_offer_pool(conn, booking, now: datetime) -> str | None:
     # Keep polling even when the current area has no eligible workers. A
     # worker coming online inside the hour can still receive the next batch.
     return "waiting_offers"
+
+
+def _assignment_monitor_skip_booking_ids() -> set[str]:
+    """Return explicitly held bookings that this monitor process must leave untouched."""
+    raw = os.getenv("SIVDHI_ASSIGNMENT_MONITOR_SKIP_BOOKING_IDS", "")
+    return {item.strip() for item in raw.split(",") if item.strip()}
 
 
 def _process_one_booking(booking_db_id: int, now: datetime) -> str:
@@ -1199,6 +1269,16 @@ def _process_one_booking(booking_db_id: int, now: datetime) -> str:
         ).fetchone()
 
         if not booking:
+            conn.rollback()
+            return "skipped"
+
+        # A per-process operational hold protects selected legacy Sandbox
+        # bookings without changing their database status or payment record.
+        skip_ids = _assignment_monitor_skip_booking_ids()
+        if (
+            str(booking_db_id) in skip_ids
+            or str(booking["booking_id"] or "") in skip_ids
+        ):
             conn.rollback()
             return "skipped"
 
@@ -1337,13 +1417,13 @@ def _process_one_booking(booking_db_id: int, now: datetime) -> str:
             # Notify the unresponsive worker and their partner before moving the
             # booking on. The notification trigger queues email when enabled.
             _notify_assignment_event(
-                conn, "worker", worker_id, "Response Time Expired",
-                f"Your response time for booking {booking_ref} ({_format_duration(response_seconds)} allocated) has expired. The booking is being offered to the next eligible worker.",
+                conn, "worker", worker_id, "Booking Update",
+                f"Booking {booking_ref} has been reassigned.",
             )
             if partner_id:
                 _notify_assignment_event(
-                    conn, "partner", partner_id, "Worker Did Not Respond",
-                    f"The worker assigned to booking {booking_ref} did not respond within their allocated {_format_duration(response_seconds)}. Sivdhi is assigning the next eligible worker.",
+                    conn, "partner", partner_id, "Booking Update",
+                    f"Booking {booking_ref} has been reassigned.",
                 )
 
             result = reassign_booking(
@@ -1390,38 +1470,22 @@ def _process_one_booking(booking_db_id: int, now: datetime) -> str:
             )
             if reminder_stage == 1:
                 stage_label = "Reminder"
-                worker_title = "Booking Response Needed"
-                worker_message = (
-                    f"Booking {booking_ref} is still awaiting your response. "
-                    f"You have {_format_duration(max(1, response_seconds - int(elapsed_seconds)))} left. "
-                    "Please accept or reject now. If you do not respond, Sivdhi "
-                    "will offer the booking to the next eligible worker."
-                )
+                worker_title = "Response Reminder"
+                worker_message = f"Response needed for booking {booking_ref}."
             else:
                 stage_label = "Final reminder"
-                worker_title = "Final Booking Response Reminder"
-                worker_message = (
-                    f"Final reminder for booking {booking_ref}: your response window "
-                    f"is nearly over (allocated time: {_format_duration(response_seconds)}). "
-                    "Accept or reject now. At the deadline, Sivdhi will immediately "
-                    "offer the booking to the next eligible worker."
-                )
+                worker_title = "Final Response Reminder"
+                worker_message = f"Response needed for booking {booking_ref}."
 
             _notify_assignment_event(
                 conn, "worker", worker_id, worker_title, worker_message
             )
 
             if partner_id:
-                partner_message = (
-                    f"{stage_label}: the worker assigned to booking {booking_ref} "
-                    f"has not responded{' after opening the booking' if seen_at else ''}. "
-                    f"The response window is {_format_duration(response_seconds)} total. "
-                    "Please follow up now. At the deadline, Sivdhi will immediately "
-                    "offer the booking to the next eligible worker."
-                )
+                partner_message = f"Response needed for booking {booking_ref}."
                 _notify_assignment_event(
                     conn, "partner", partner_id,
-                    "Worker Response Needed" if reminder_stage == 1 else "Final Worker Response Reminder",
+                    "Response Reminder" if reminder_stage == 1 else "Final Response Reminder",
                     partner_message,
                 )
 
@@ -1518,13 +1582,47 @@ def process_unanswered_assignments_once(limit: int = 200) -> dict:
     return counts
 
 
+def _cashfree_refund_monitor_loop(app=None) -> None:
+    """Process automatic Cashfree refunds independently of worker matching."""
+    interval = _bounded_int(
+        "SIVDHI_CASHFREE_REFUND_MONITOR_INTERVAL_SECONDS",
+        15,
+        5,
+        300,
+    )
+    while not _MONITOR_STOP.is_set():
+        try:
+            from utils.cashfree_refunds import process_cashfree_refunds_once
+            if app is not None:
+                with app.app_context():
+                    report = process_cashfree_refunds_once(limit=3)
+            else:
+                report = process_cashfree_refunds_once(limit=3)
+            if any(report.get(key) for key in ("checked", "initiated", "successful", "pending", "errors")):
+                LOGGER.info("Sivdhi automatic Cashfree refund processor: %s", report)
+        except Exception:
+            LOGGER.exception("Sivdhi automatic Cashfree refund processor loop failed")
+        _MONITOR_STOP.wait(interval)
+
+
 def _monitor_loop(app=None) -> None:
+    global _CASHFREE_REFUND_THREAD
+
     interval = _bounded_int(
         "SIVDHI_ASSIGNMENT_MONITOR_INTERVAL_SECONDS",
         2,
         1,
         30,
     )
+
+    if _CASHFREE_REFUND_THREAD is None or not _CASHFREE_REFUND_THREAD.is_alive():
+        _CASHFREE_REFUND_THREAD = threading.Thread(
+            target=_cashfree_refund_monitor_loop,
+            args=(app,),
+            name="sivdhi-cashfree-refund-monitor",
+            daemon=True,
+        )
+        _CASHFREE_REFUND_THREAD.start()
 
     while not _MONITOR_STOP.is_set():
         try:

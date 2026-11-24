@@ -20,7 +20,6 @@ Set these on the server, not in source control:
 - `ADMIN_MFA_ENCRYPTION_KEY`: a valid Fernet key, separate from `SECRET_KEY`. Generate it with `py -3.14 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. Store it in the server's private environment and back it up securely. Losing or changing this key prevents decryption of enrolled Admin TOTP secrets.
 - `SESSION_COOKIE_SECURE=1` (production config forces Secure cookies regardless).
 - `TRUSTED_PROXY_HOPS=1` only when the app is behind exactly one trusted reverse proxy such as the configured Nginx layer. Do not trust client-supplied forwarding headers directly.
-- `ADMIN_SETUP_KEY`: only during one-time first-Admin bootstrap; remove it after the account is created. The bootstrap route is `/<ADMIN_PANEL_PATH>/bootstrap` and returns 404 after an Admin exists.
 
 Example PowerShell generation for the Admin path:
 
@@ -32,6 +31,16 @@ $AdminPanelPath
 ```
 
 Use the generated value as `ADMIN_PANEL_PATH` in the server's private `.env` file. Keep `.env` out of GitHub and backups shared publicly. The app deliberately refuses to start in production when this value is missing, too short, or still a placeholder.
+
+## Create the first Admin from the trusted server terminal
+
+The public/browser bootstrap endpoint is intentionally not registered. Create an Admin only from a trusted server shell, using the repository's interactive script:
+
+```bash
+python create_admin.py
+```
+
+The script reads the repository `.env`, prompts for the password without echoing it, validates the inputs and stores a password hash. Do not run it from an untrusted working directory or against the production database unless you intend to create the production Admin.
 
 ## Controls included
 

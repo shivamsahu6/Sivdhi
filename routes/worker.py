@@ -21,7 +21,7 @@ import os
 import secrets
 import re
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from utils.email_sender import send_otp
 from utils.otp_security import reserve_otp_request
@@ -37,7 +37,10 @@ from routes.customer import (
     find_nearest_worker,
     get_booking_attempted_worker_ids,
     record_worker_attempt,
-    mark_worker_attempt_rejected
+    mark_worker_attempt_rejected,
+    _worker_has_active_booking,
+    accept_worker_attempt,
+    release_worker_attempt,
 )
 
 
@@ -941,12 +944,34 @@ def job_details(
     finally:
         seen_conn.close()
 
+    from utils.booking_schedule import india_now
+    now = india_now()
+    arrive_available_at = None
+    can_arrive = False
+    schedule_date = job["preferred_date"] or job["booking_date"]
+    schedule_time = job["preferred_time"] or job["booking_time"]
+    if schedule_date and schedule_time:
+        try:
+            scheduled_at = datetime.fromisoformat(
+                str(schedule_date).strip()[:10] + "T" + str(schedule_time).strip()[:5]
+            )
+            if scheduled_at.tzinfo is None and now.tzinfo is not None:
+                scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
+            elif scheduled_at.tzinfo is not None and now.tzinfo is None:
+                now = now.replace(tzinfo=scheduled_at.tzinfo)
+            arrive_available_at = scheduled_at - timedelta(hours=1)
+            can_arrive = now >= arrive_available_at
+        except (TypeError, ValueError):
+            can_arrive = False
+
     return render_template(
         "worker/job_details.html",
         worker=worker,
         job=job,
         booking=job,
-        job_id=job_id
+        job_id=job_id,
+        can_arrive=can_arrive,
+        arrive_available_at=arrive_available_at,
     )
 
 
@@ -970,7 +995,7 @@ def worker_ping():
             WHERE id=? AND COALESCE(is_deleted,0)=0
         """, (worker_db_id,))
         conn.commit()
-        return jsonify({"success": True, "server_time": datetime.utcnow().isoformat(timespec="seconds")})
+        return jsonify({"success": True, "server_time": datetime.now(timezone.utc).isoformat(timespec="seconds")})
     except Exception as error:
         conn.rollback()
         print("WORKER HEARTBEAT ERROR:", error)
@@ -1030,6 +1055,19 @@ def accept_job(
                 conn.execute("UPDATE booking_assignment_offers SET status='expired', responded_at=? WHERE id=? AND status='offered'", (now.isoformat(timespec="seconds"), offer["id"]))
                 conn.commit()
                 return jsonify({"success": False, "message": "The response time for this request has expired."}), 409
+            if _worker_has_active_booking(
+                conn, current_worker_id,
+                exclude_booking_id=int(current["id"])
+            ):
+                conn.rollback()
+                return jsonify({
+                    "success": False,
+                    "message": (
+                        "You already have an active booking. "
+                        "Complete or cancel it before accepting another booking."
+                    )
+                }), 409
+
             partner_id = None
             try:
                 from utils.sivdhi_finance import find_partner_for_worker
@@ -1047,11 +1085,33 @@ def accept_job(
                 conn.rollback()
                 return jsonify({"success": False, "message": "Sorry, this booking has already been assigned to another worker."}), 409
             conn.execute("UPDATE booking_assignment_offers SET status='accepted', responded_at=? WHERE id=?", (now.isoformat(timespec="seconds"), offer["id"]))
+            if not accept_worker_attempt(conn, booking["id"], current_worker_id):
+                raise RuntimeError("Accepted worker attempt could not be recorded")
             conn.execute("UPDATE booking_assignment_offers SET status='cancelled', responded_at=? WHERE booking_db_id=? AND worker_id<>? AND status='offered'", (now.isoformat(timespec="seconds"), booking["id"], current_worker_id))
+            released_offer_rows = conn.execute("""
+                SELECT booking_db_id FROM booking_assignment_offers
+                WHERE worker_id=? AND booking_db_id<>? AND status='offered'
+            """, (current_worker_id, booking["id"])).fetchall()
+            conn.execute("""
+                UPDATE booking_assignment_offers
+                SET status='released', responded_at=?
+                WHERE worker_id=? AND booking_db_id<>? AND status='offered'
+            """, (now.isoformat(timespec="seconds"), current_worker_id, booking["id"]))
+            for released_offer_row in released_offer_rows:
+                release_worker_attempt(
+                    conn, released_offer_row["booking_db_id"], current_worker_id
+                )
             conn.commit()
-            create_notification("worker", current_worker_id, "Booking Accepted", "You accepted booking " + str(current["booking_id"]) + ". Please follow the scheduled service time.")
+            if current["customer_id"]:
+                create_notification(
+                    "customer",
+                    current["customer_id"],
+                    "Booking Confirmed",
+                    f"Your booking {current['booking_id']} is confirmed.",
+                )
+            create_notification("worker", current_worker_id, "Booking Accepted", f"Booking {current['booking_id']} accepted.")
             if partner_id:
-                create_notification("partner", partner_id, "Booking Accepted by Worker", "Your worker accepted booking " + str(current["booking_id"]) + ".")
+                create_notification("partner", partner_id, "Booking Accepted", f"Booking {current['booking_id']} accepted.")
             return jsonify({"success": True, "message": "Job accepted successfully.", "status": "accepted"})
         except Exception as error:
             conn.rollback()
@@ -1061,115 +1121,191 @@ def accept_job(
             conn.close()
 
     if is_current_assignee:
-        check_conn = get_db()
-        try:
-            from utils.assignment_monitor import _booking_assignment_deadline, _now_ist, _parse_datetime
-            check_conn.execute("""CREATE TABLE IF NOT EXISTS booking_assignment_offers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, booking_db_id INTEGER NOT NULL, worker_id INTEGER NOT NULL,
-                partner_id TEXT, status TEXT NOT NULL DEFAULT 'offered', offered_at TEXT NOT NULL,
-                response_deadline TEXT NOT NULL, responded_at TEXT, UNIQUE(booking_db_id,worker_id))""")
-            check_conn.commit()
-            current = check_conn.execute("SELECT * FROM bookings WHERE id=? LIMIT 1", (booking["id"],)).fetchone()
-            offer = check_conn.execute("SELECT * FROM booking_assignment_offers WHERE booking_db_id=? AND worker_id=? LIMIT 1", (booking["id"], current_worker_id)).fetchone()
-            now = _now_ist()
-            deadline = _booking_assignment_deadline(current, now) if current else None
-            offer_deadline = _parse_datetime(offer["response_deadline"]) if offer else None
-            if deadline is not None and now >= deadline:
-                return jsonify({"success": False, "message": "The assignment response window has expired."}), 409
-            if offer and (offer["status"] != "offered" or offer_deadline is None or now >= offer_deadline):
-                return jsonify({"success": False, "message": "Your allocated response time has expired."}), 409
-        finally:
-            check_conn.close()
-
-    status = (
-        booking["booking_status"]
-        or "pending"
-    ).lower()
-
-    if status not in (
-        "assigned",
-        "pending"
-    ):
-
-        return jsonify({
-            "success": False,
-            "message":
-                "This job cannot be accepted."
-        }), 400
-
-    # The database migration uses workers.id as the canonical internal key.
-    # Re-sync both assignment columns before changing the status so old
-    # bookings created by earlier versions continue to work.
-    conn = get_db()
-    try:
-        normalize_worker_assignment(conn, booking["id"], get_current_worker_db_id())
-        conn.commit()
-    except Exception as error:
-        conn.rollback()
-        print("ACCEPT ASSIGNMENT SYNC ERROR:", error)
-        return jsonify({
-            "success": False,
-            "message": "Job could not be accepted."
-        }), 500
-    finally:
-        conn.close()
-
-    success, message = (
-        update_booking_status(
-            booking["id"],
-            "accepted",
-            [
-                "assigned",
-                "pending"
-            ]
-        )
-    )
-
-    if not success:
-        return jsonify({
-            "success": False,
-            "message": "Sorry, this booking has already been assigned to another worker."
-        }), 409
-
-    seen_conn = get_db()
-    try:
-        ensure_finance_schema(seen_conn)
-        from utils.assignment_monitor import _now_ist
-        ensure_assignment_monitor_schema(seen_conn)
-        now_text = _now_ist().isoformat(timespec="seconds")
-        seen_conn.execute("""
-            UPDATE bookings
-            SET worker_seen_at = COALESCE(worker_seen_at, CURRENT_TIMESTAMP),
-                status = 'accepted', updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND worker_id = ?
-        """, (booking["id"], get_current_worker_db_id()))
-        seen_conn.execute("UPDATE booking_assignment_offers SET status='accepted', responded_at=? WHERE booking_db_id=? AND worker_id=? AND status='offered'", (now_text, booking["id"], get_current_worker_db_id()))
-        seen_conn.execute("UPDATE booking_assignment_offers SET status='cancelled', responded_at=? WHERE booking_db_id=? AND worker_id<>? AND status='offered'", (now_text, booking["id"], get_current_worker_db_id()))
-        seen_conn.commit()
-    except Exception as error:
-        seen_conn.rollback()
-        print("WORKER SEEN TIMESTAMP ERROR:", error)
-    finally:
-        seen_conn.close()
-
-    try:
         conn = get_db()
         try:
-            current = conn.execute("SELECT partner_id, assigned_partner_id FROM bookings WHERE id=? LIMIT 1", (booking["id"],)).fetchone()
-            partner_id = (current["assigned_partner_id"] or current["partner_id"]) if current else None
+            ensure_assignment_monitor_schema(conn)
+            conn.commit()
+            conn.execute("BEGIN IMMEDIATE")
+
+            current = conn.execute(
+                "SELECT * FROM bookings WHERE id=? LIMIT 1",
+                (booking["id"],)
+            ).fetchone()
+
+            if not current:
+                conn.rollback()
+                return jsonify({"success": False, "message": "Job not found."}), 404
+
+            assigned_now = current["worker_id"] or current["assigned_worker_id"]
+            try:
+                assigned_now = int(assigned_now or 0)
+            except (TypeError, ValueError):
+                assigned_now = 0
+
+            if assigned_now != int(current_worker_id or 0):
+                conn.rollback()
+                return jsonify({
+                    "success": False,
+                    "message": "This booking is no longer assigned to you."
+                }), 409
+
+            current_status = str(
+                current["booking_status"] or current["status"] or "pending"
+            ).lower()
+
+            if current_status not in {"assigned", "pending"}:
+                conn.rollback()
+                return jsonify({
+                    "success": False,
+                    "message": "This job can no longer be accepted."
+                }), 409
+
+            offer = conn.execute("""
+                SELECT * FROM booking_assignment_offers
+                WHERE booking_db_id=? AND worker_id=?
+                LIMIT 1
+            """, (booking["id"], current_worker_id)).fetchone()
+
+            from utils.assignment_monitor import (
+                _booking_assignment_deadline, _now_ist, _parse_datetime
+            )
+
+            now = _now_ist()
+            now_text = now.isoformat(timespec="seconds")
+            deadline = _booking_assignment_deadline(current, now)
+            offer_deadline = _parse_datetime(
+                offer["response_deadline"]
+            ) if offer else None
+
+            if deadline is not None and now >= deadline:
+                conn.rollback()
+                return jsonify({
+                    "success": False,
+                    "message": "The assignment response window has expired."
+                }), 409
+
+            if offer and (
+                offer["status"] != "offered"
+                or offer_deadline is None
+                or now >= offer_deadline
+            ):
+                conn.rollback()
+                return jsonify({
+                    "success": False,
+                    "message": "Your allocated response time has expired."
+                }), 409
+
+            if _worker_has_active_booking(
+                conn, current_worker_id,
+                exclude_booking_id=int(current["id"])
+            ):
+                conn.rollback()
+                return jsonify({
+                    "success": False,
+                    "message": (
+                        "You already have an active booking. "
+                        "Complete or cancel it before accepting another booking."
+                    )
+                }), 409
+
+            cursor = conn.execute("""
+                UPDATE bookings
+                SET worker_id=?, assigned_worker_id=?,
+                    booking_status='accepted', status='accepted',
+                    assigned_at=COALESCE(assigned_at, ?),
+                    worker_seen_at=COALESCE(worker_seen_at, CURRENT_TIMESTAMP),
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+                  AND LOWER(COALESCE(
+                      NULLIF(booking_status,''), NULLIF(status,''), 'pending'
+                  )) IN ('assigned','pending')
+                  AND (
+                      worker_id=?
+                      OR assigned_worker_id=?
+                      OR CAST(assigned_worker_id AS TEXT)=(
+                          SELECT worker_id FROM workers WHERE id=? LIMIT 1
+                      )
+                  )
+            """, (
+                current_worker_id, current_worker_id, now_text,
+                booking["id"], current_worker_id, current_worker_id,
+                current_worker_id,
+            ))
+
+            if cursor.rowcount != 1:
+                conn.rollback()
+                return jsonify({
+                    "success": False,
+                    "message": "Sorry, this booking has already changed or been assigned."
+                }), 409
+
+            conn.execute("""
+                UPDATE booking_assignment_offers
+                SET status='accepted', responded_at=?
+                WHERE booking_db_id=? AND worker_id=? AND status='offered'
+            """, (now_text, booking["id"], current_worker_id))
+
+            if not accept_worker_attempt(conn, booking["id"], current_worker_id):
+                raise RuntimeError("Accepted worker attempt could not be recorded")
+
+            conn.execute("""
+                UPDATE booking_assignment_offers
+                SET status='cancelled', responded_at=?
+                WHERE booking_db_id=? AND worker_id<>? AND status='offered'
+            """, (now_text, booking["id"], current_worker_id))
+
+            # Once this worker accepts one booking, close their other pending offers.
+            released_offer_rows = conn.execute("""
+                SELECT booking_db_id FROM booking_assignment_offers
+                WHERE worker_id=? AND booking_db_id<>? AND status='offered'
+            """, (current_worker_id, booking["id"])).fetchall()
+            conn.execute("""
+                UPDATE booking_assignment_offers
+                SET status='released', responded_at=?
+                WHERE worker_id=? AND booking_db_id<>? AND status='offered'
+            """, (now_text, current_worker_id, booking["id"]))
+            for released_offer_row in released_offer_rows:
+                release_worker_attempt(
+                    conn, released_offer_row["booking_db_id"], current_worker_id
+                )
+
+            conn.commit()
+
+            if current["customer_id"]:
+                create_notification(
+                    "customer",
+                    current["customer_id"],
+                    "Booking Confirmed",
+                    f"Your booking {current['booking_id']} is confirmed.",
+                )
+
+            create_notification(
+                "worker", current_worker_id, "Booking Accepted",
+                f"Booking {current['booking_id']} accepted."
+            )
+
+            partner_id = current["assigned_partner_id"] or current["partner_id"]
+            if partner_id:
+                create_notification(
+                    "partner", partner_id, "Booking Accepted",
+                    f"Booking {current['booking_id']} accepted."
+                )
+
+            return jsonify({
+                "success": True,
+                "message": "Job accepted successfully.",
+                "status": "accepted"
+            })
+
+        except Exception as error:
+            conn.rollback()
+            current_app.logger.exception("LEGACY WORKER ACCEPT ERROR: %s", error)
+            return jsonify({
+                "success": False,
+                "message": "Job could not be accepted."
+            }), 500
         finally:
             conn.close()
-        if partner_id:
-            create_notification("partner", partner_id, "Booking Accepted by Worker", "Your worker accepted booking " + str(booking["booking_id"]) + ".")
-    except Exception:
-        current_app.logger.exception("Could not notify partner about worker acceptance")
-
-    return jsonify({
-        "success": True,
-        "message":
-            "Job accepted successfully.",
-        "status": "accepted"
-    })
 
 
 # ============================================================
@@ -1232,10 +1368,10 @@ def reject_job(job_id):
                     (visible_booking["id"],),
                 )
             conn.commit()
-            create_notification("worker", worker_db_id, "Booking Request Declined", "You declined booking " + str(visible_booking["booking_id"]) + ". The customer will not be notified of this internal decision.")
+            create_notification("worker", worker_db_id, "Booking Declined", f"Booking {visible_booking['booking_id']} declined.")
             partner_id = offered["partner_id"]
             if partner_id:
-                create_notification("partner", partner_id, "Worker Declined Request", "A worker declined booking " + str(visible_booking["booking_id"]) + ". Sivdhi will continue matching until the original deadline.")
+                create_notification("partner", partner_id, "Booking Declined", f"Booking {visible_booking['booking_id']} declined.")
             return jsonify({"success": True, "message": "Request declined. The booking remains available to other eligible workers.", "reassigned": False})
         booking = conn.execute(
             "SELECT * FROM bookings WHERE id=? LIMIT 1", (visible_booking["id"],)
@@ -1328,31 +1464,36 @@ def worker_arrived(job_id):
             conn.rollback()
             return jsonify({"success": False, "message": "Accept the booking before marking arrival."}), 400
 
-        # Arrival is enabled only one hour after the customer's scheduled slot.
+        # Arrival becomes available one hour before the customer's booked time.
         scheduled_date = row["preferred_date"] or row["booking_date"]
         scheduled_time = row["preferred_time"] or row["booking_time"]
-        if scheduled_date and scheduled_time:
-            try:
-                from utils.booking_schedule import india_now
-                scheduled_at = datetime.fromisoformat(
-                    str(scheduled_date).strip()[:10] + "T" + str(scheduled_time).strip()[:5]
-                )
-                now = india_now()
-                if scheduled_at.tzinfo is None and now.tzinfo is not None:
-                    scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
-                elif scheduled_at.tzinfo is not None and now.tzinfo is None:
-                    now = now.replace(tzinfo=scheduled_at.tzinfo)
-                arrival_allowed_at = scheduled_at + timedelta(hours=1)
-                if now < arrival_allowed_at:
-                    conn.rollback()
-                    return jsonify({
-                        "success": False,
-                        "message": "Arrive option will be available one hour after the customer's booked time.",
-                        "available_at": arrival_allowed_at.isoformat(timespec="minutes"),
-                    }), 400
-            except (TypeError, ValueError):
+        if not scheduled_date or not scheduled_time:
+            conn.rollback()
+            return jsonify({
+                "success": False,
+                "message": "Booking date/time is missing; contact support before marking arrival."
+            }), 400
+        try:
+            from utils.booking_schedule import india_now
+            scheduled_at = datetime.fromisoformat(
+                str(scheduled_date).strip()[:10] + "T" + str(scheduled_time).strip()[:5]
+            )
+            now = india_now()
+            if scheduled_at.tzinfo is None and now.tzinfo is not None:
+                scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
+            elif scheduled_at.tzinfo is not None and now.tzinfo is None:
+                now = now.replace(tzinfo=scheduled_at.tzinfo)
+            arrival_allowed_at = scheduled_at - timedelta(hours=1)
+            if now < arrival_allowed_at:
                 conn.rollback()
-                return jsonify({"success": False, "message": "Booking date/time is invalid; contact support."}), 400
+                return jsonify({
+                    "success": False,
+                    "message": "Arrive option will be available one hour before the customer's booked time.",
+                    "available_at": arrival_allowed_at.isoformat(timespec="minutes"),
+                }), 400
+        except (TypeError, ValueError):
+            conn.rollback()
+            return jsonify({"success": False, "message": "Booking date/time is invalid; contact support."}), 400
 
         total = finance_money(
             row["total_amount"] if row["total_amount"] is not None else row["amount"]
@@ -1399,7 +1540,7 @@ def worker_arrived(job_id):
             )
             conn.execute(
                 "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('worker',?,'Arrival Recorded',?,0,CURRENT_TIMESTAMP)",
-                (str(worker_id), f"Your arrival for booking {booking_ref} has been recorded."),
+                (str(worker_id), f"Arrival recorded for booking {booking_ref}."),
             )
             partner_id = row["assigned_partner_id"] or row["partner_id"]
             if not partner_id:
@@ -1407,8 +1548,8 @@ def worker_arrived(job_id):
                 partner_id = find_partner_for_worker(conn, int(worker_id))
             if partner_id:
                 conn.execute(
-                    "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('partner',?,'Worker Arrived',?,0,CURRENT_TIMESTAMP)",
-                    (str(partner_id), f"Worker has arrived for booking {booking_ref}."),
+                    "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('partner',?,'Arrival Recorded',?,0,CURRENT_TIMESTAMP)",
+                    (str(partner_id), f"Arrival recorded for booking {booking_ref}."),
                 )
 
         conn.commit()
@@ -1449,36 +1590,6 @@ def start_job(job_id):
         if not current:
             return jsonify({"success": False, "message": "Booking not found."}), 404
 
-        # A worker may start the service only at or after the customer's
-        # scheduled date and time. Booking columns are kept compatible with
-        # both the preferred_* fields and the older booking_* fields.
-        scheduled_date = current["preferred_date"] or current["booking_date"]
-        scheduled_time = current["preferred_time"] or current["booking_time"]
-        if scheduled_date and scheduled_time:
-            try:
-                from utils.booking_schedule import india_now
-                now = india_now()
-                scheduled_at = datetime.fromisoformat(
-                    str(scheduled_date).strip()[:10] + "T" + str(scheduled_time).strip()[:5]
-                )
-                if scheduled_at.tzinfo is None and now.tzinfo is not None:
-                    scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
-                elif scheduled_at.tzinfo is not None and now.tzinfo is None:
-                    now = now.replace(tzinfo=scheduled_at.tzinfo)
-                if now < scheduled_at:
-                    display_date = str(scheduled_date).strip()[:10]
-                    display_time = str(scheduled_time).strip()[:5]
-                    return jsonify({
-                        "success": False,
-                        "message": f"You can start this service only on or after the customer's booked time ({display_date} at {display_time})."
-                    }), 400
-            except (TypeError, ValueError):
-                current_app.logger.exception("Invalid booking date/time for booking %s", booking["id"])
-                return jsonify({
-                    "success": False,
-                    "message": "The customer's booking date/time is invalid. Please contact support before starting this service."
-                }), 400
-
         if current:
             if not current["worker_arrived_at"]:
                 return jsonify({"success": False, "message": "Mark arrival before starting the service."}), 400
@@ -1505,7 +1616,7 @@ def start_job(job_id):
         conn.close()
 
     create_notification("worker", get_current_worker_db_id(), "Service Start Recorded",
-                        "You started service for booking " + str(booking["booking_id"]) + ".")
+                        f"Service started for booking {booking['booking_id']}.")
     try:
         conn = get_db()
         try:
@@ -1517,7 +1628,7 @@ def start_job(job_id):
         finally:
             conn.close()
         if partner_id:
-            create_notification("partner", partner_id, "Booking Started", "Your worker started booking " + str(booking["booking_id"]) + ".")
+            create_notification("partner", partner_id, "Booking Started", f"Service started for booking {booking['booking_id']}.")
     except Exception:
         current_app.logger.exception("Could not notify partner about service start")
     return jsonify({"success": True, "message": "Service started successfully.", "status": "in_progress"})
@@ -1575,7 +1686,7 @@ def complete_job(job_id):
         conn.close()
 
     create_notification("worker", get_current_worker_db_id(), "Booking Completed",
-                        "Booking " + str(booking["booking_id"]) + " is complete and settlement has been recorded.")
+                        f"Booking {booking['booking_id']} completed.")
     try:
         conn = get_db()
         try:
@@ -1587,7 +1698,7 @@ def complete_job(job_id):
         finally:
             conn.close()
         if partner_id:
-            create_notification("partner", partner_id, "Booking Completed", "Booking " + str(booking["booking_id"]) + " is complete; worker/partner/platform settlement has been processed.")
+            create_notification("partner", partner_id, "Booking Completed", f"Booking {booking['booking_id']} completed.")
     except Exception:
         current_app.logger.exception("Could not notify partner about booking completion")
     return jsonify({"success": True, "message": "Service completed and Worker/Partner/Sivdhi shares recorded.", "status": "completed"})

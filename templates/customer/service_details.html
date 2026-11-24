@@ -910,8 +910,8 @@
                                 {% if mode != 'full-day' %}
                                     <div class="schedule-field">
                                         <label for="booking_time">Service time</label>
-                                        <input id="booking_time" name="booking_time" type="time" min="08:00" max="20:00" step="900" value="{{ booking_time }}" required>
-                                        <p class="schedule-help">Slots are 8:00 AM–8:00 PM and must be at least 2 hours from now for same-day bookings.</p>
+                                        <input id="booking_time" name="booking_time" type="time" min="09:00" max="18:00" step="900" value="{{ booking_time }}">
+                                        <p class="schedule-help">Time is optional. Available slots are 9:00 AM–6:00 PM. For today, a blank time uses the next 15-minute slot at least 2 hours ahead. For a future date, a blank time defaults to 9:00 AM on that selected date. If no same-day slot remains, choose a later date.</p>
                                     </div>
                                 {% else %}
                                     <input type="hidden" name="booking_time" value="09:00">
@@ -953,22 +953,56 @@
         const dateInput = document.getElementById('booking_date');
         const timeInput = document.getElementById('booking_time');
         if (!dateInput || !timeInput) return;
+
         const pad = value => String(value).padStart(2, '0');
+
         function applyTimeLimits() {
-          timeInput.min = '08:00';
-          timeInput.max = '20:00';
           const now = new Date();
-          const localDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-          if (dateInput.value === localDate) {
-            now.setMinutes(now.getMinutes() + 120);
-            now.setMinutes(Math.ceil(now.getMinutes()/15)*15, 0, 0);
-            const min = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-            if (min > timeInput.min && min < '20:00') timeInput.min = min;
+          const localDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+          const selectedDateIsToday = dateInput.value === localDate;
+          const afterFour = now.getHours() > 16 ||
+            (now.getHours() === 16 &&
+              (now.getMinutes() > 0 || now.getSeconds() > 0 || now.getMilliseconds() > 0));
+
+          timeInput.min = '09:00';
+          timeInput.max = '18:00';
+          timeInput.disabled = false;
+
+          // After 4 PM, no same-day slot can satisfy the two-hour
+          // lead time within the 9 AM–6 PM service window.
+          // The backend asks the customer to choose a later date;
+          // it never changes the selected date automatically.
+          if (selectedDateIsToday && afterFour) {
+            timeInput.value = '';
+            timeInput.disabled = true;
+            return;
           }
-          if (timeInput.value && (timeInput.value < timeInput.min || timeInput.value > timeInput.max)) {
+
+          // Future dates still allow customers to choose their own time.
+          if (selectedDateIsToday) {
+            const required = new Date(now.getTime() + 120 * 60 * 1000);
+            let minuteOfDay = required.getHours() * 60 + required.getMinutes();
+
+            if (required.getSeconds() || required.getMilliseconds()) {
+              minuteOfDay += 1;
+            }
+
+            minuteOfDay = Math.ceil(minuteOfDay / 15) * 15;
+            const hour = Math.floor(minuteOfDay / 60);
+            const minute = minuteOfDay % 60;
+            const minimum = `${pad(hour)}:${pad(minute)}`;
+
+            if (minimum > timeInput.min && minimum <= timeInput.max) {
+              timeInput.min = minimum;
+            }
+          }
+
+          if (timeInput.value &&
+              (timeInput.value < timeInput.min || timeInput.value > timeInput.max)) {
             timeInput.value = '';
           }
         }
+
         dateInput.addEventListener('change', applyTimeLimits);
         applyTimeLimits();
       })();

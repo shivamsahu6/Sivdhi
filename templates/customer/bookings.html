@@ -483,7 +483,7 @@
                         </div>
                         <span
                             class="status {% if 'complete' in status_key %}completed{% elif 'cancel' in status_key or 'fail' in status_key or 'refund' in status_key %}cancelled{% endif %}">
-                            {{ status_text|replace('_',' ')|title }}
+                            {{ status_text|replace('_',' ') }}
                         </span>
                     </div>
 
@@ -553,6 +553,23 @@
                         <p class="balance-copy">
                             Demo only: this creates a simulated receipt. No real money is collected.
                         </p>
+                        {% elif cashfree_mode %}
+                        <button class="pay-button cashfree-balance-button" type="button"
+                            data-balance-url="{{ url_for('customer.pay_booking_balance', booking_ref=booking_ref) }}"
+                            data-csrf-token="{{ csrf_token() }}"
+                            data-cashfree-environment="{{ cashfree_environment|default('sandbox') }}">
+                            Pay ₹{{ '%.2f'|format(balance_due) }} securely with Cashfree
+                        </button>
+                        <p class="balance-copy cashfree-balance-error" aria-live="polite" hidden></p>
+                        {% if cashfree_environment|lower == 'sandbox' %}
+                        <p class="balance-copy">
+                            Cashfree Sandbox checkout only. No real money will be collected.
+                        </p>
+                        {% else %}
+                        <p class="balance-copy">
+                            Complete the secure Cashfree checkout to record your remaining balance.
+                        </p>
+                        {% endif %}
                         {% else %}
                         <button class="pay-button" type="button" disabled>
                             Live balance payment not configured
@@ -584,20 +601,6 @@
             </section>
             {% endif %}
 
-            {% if booking['can_cancel'] %}
-            <form method="post" action="{{ url_for('customer.cancel_booking', booking_ref=booking_ref) }}"
-                style="margin-top:14px" onsubmit="return confirm('Cancel this booking?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="primary-button"
-                    style="background:transparent;border:1px solid #fb7185;color:#fecdd3">
-                    Cancel booking
-                </button>
-            </form>
-            {% elif status_key not in ['cancelled','canceled','completed','complete'] %}
-            <p class="info-label" style="margin-top:12px">
-                Cancellation is unavailable after worker assignment.
-            </p>
-            {% endif %}
             </article>
             {% endfor %}
             </section>
@@ -617,6 +620,82 @@
             aria-current="page"><span>▤</span><small>Bookings</small></a>
         <a class="nav-item" href="{{ url_for('customer.profile') }}"><span>♙</span><small>Profile</small></a>
     </nav>
+
+    {% if cashfree_mode %}
+    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    <script>
+        document.querySelectorAll(".cashfree-balance-button").forEach(button => {
+            button.addEventListener("click", async () => {
+                const originalText = button.textContent.trim();
+                const errorMessage = button.nextElementSibling;
+                button.disabled = true;
+                button.textContent = "Connecting to Cashfree…";
+                if (errorMessage) {
+                    errorMessage.hidden = true;
+                    errorMessage.textContent = "";
+                }
+
+                try {
+                    const response = await fetch(button.dataset.balanceUrl, {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: new URLSearchParams({
+                            csrf_token: button.dataset.csrfToken,
+                            payment_action: "create_cashfree_balance_order"
+                        })
+                    });
+
+                    const contentType = response.headers.get("content-type") || "";
+                    if (!contentType.includes("application/json")) {
+                        window.location.assign(response.url);
+                        return;
+                    }
+
+                    const result = await response.json();
+                    if (!response.ok || !result.ok || !result.payment_session_id) {
+                        throw new Error(result.message || "Could not start Cashfree balance checkout.");
+                    }
+
+                    if (window.navigator.userAgent.indexOf("SivdhiCashfreeNative/1") !== -1) {
+                        const bridgeParams = new URLSearchParams({
+                            order_id: result.order_id,
+                            payment_session_id: result.payment_session_id,
+                            environment: result.environment ||
+                                button.dataset.cashfreeEnvironment || "sandbox"
+                        });
+                        window.__sivdhiCashfreeLaunchFailed = () => {
+                            button.disabled = false;
+                            button.textContent =
+                                originalText || "Retry Cashfree balance payment";
+                        };
+                        window.location.href =
+                            "sivdhi-cashfree://checkout?" + bridgeParams.toString();
+                        return;
+                    }
+
+                    const cashfree = Cashfree({
+                        mode: result.environment || button.dataset.cashfreeEnvironment || "sandbox"
+                    });
+                    await cashfree.checkout({
+                        paymentSessionId: result.payment_session_id,
+                        redirectTarget: "_self"
+                    });
+                } catch (error) {
+                    button.disabled = false;
+                    button.textContent = originalText || "Retry Cashfree balance payment";
+                    if (errorMessage) {
+                        errorMessage.textContent = error.message || "Cashfree checkout could not be opened.";
+                        errorMessage.hidden = false;
+                    }
+                }
+            });
+        });
+    </script>
+    {% endif %}
 </body>
 
 </html>

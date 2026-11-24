@@ -35,3 +35,72 @@ def test_worker_and_partner_password_reset_otp_forms_post_with_csrf():
         assert 'name="otp"' in text
         assert 'pattern="[0-9]{6}"' in text
         assert f"role='{role}'" in text
+
+def test_public_entrypoint_and_sitemap_advertise_only_customer_home():
+    import xml.etree.ElementTree as ET
+
+    from app import app
+
+    client = app.test_client()
+    root_response = client.get("/")
+    assert root_response.status_code == 302
+    assert root_response.headers.get("Location") == "/customer/"
+
+    sitemap_response = client.get("/sitemap.xml")
+    assert sitemap_response.status_code == 200
+
+    document = ET.fromstring(sitemap_response.data)
+    namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    locations = [
+        node.text
+        for node in document.findall(".//sm:loc", namespace)
+    ]
+    assert locations == ["https://sivdhi.duckdns.org/customer/"]
+
+
+def test_worker_and_partner_login_pages_are_noindex_but_accessible():
+    from app import app
+
+    client = app.test_client()
+    expected_robots = "noindex, nofollow, noarchive"
+
+    for role in ("worker", "partner"):
+        response = client.get(f"/login?role={role}")
+        assert response.status_code == 200
+        assert response.headers.get("X-Robots-Tag") == expected_robots
+
+        page = response.get_data(as_text=True)
+        assert f'<meta name="robots" content="{expected_robots}">' in page
+
+    for role in ("worker", "partner"):
+        response = client.get(f"/signup?role={role}")
+        assert response.status_code == 200
+        assert response.headers.get("X-Robots-Tag") == expected_robots
+
+def test_customer_private_pages_are_noindex_but_public_home_remains_indexable():
+    from app import app
+
+    client = app.test_client()
+    expected_robots = "noindex, nofollow, noarchive"
+
+    # The public customer homepage must remain indexable.
+    for path in ("/customer/", "/customer/home"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers.get("X-Robots-Tag") is None
+        assert '<meta name="robots" content="index, follow">' in response.get_data(as_text=True)
+
+    # Protected customer pages must carry noindex even on login redirects.
+    for path in (
+        "/customer/bookings",
+        "/customer/profile",
+        "/customer/edit-profile",
+    ):
+        response = client.get(path, follow_redirects=False)
+        assert response.status_code == 302
+        assert response.headers.get("X-Robots-Tag") == expected_robots
+
+    # The customer signup page remains accessible but not indexable.
+    signup_response = client.get("/customer/signup")
+    assert signup_response.status_code == 200
+    assert signup_response.headers.get("X-Robots-Tag") == expected_robots

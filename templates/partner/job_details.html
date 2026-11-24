@@ -306,7 +306,7 @@
                     <button class="btn accept" type="submit">Arrive</button>
                 </form>
                 {% else %}
-                <div class="notice">Arrive will unlock one hour after the customer's booked time{% if arrive_available_at %}: {{ arrive_available_at.strftime('%d %b %Y, %I:%M %p') }}{% endif %}.</div>
+                <div class="notice">Arrive will unlock one hour before the customer's booked time{% if arrive_available_at %}: {{ arrive_available_at.strftime('%d %b %Y, %I:%M %p') }}{% endif %}.</div>
                 {% endif %}
             {% else %}
                 <div class="notice">Arrival recorded. Remaining balance: ₹{{ '%.2f'|format(balance_due) }}.</div>

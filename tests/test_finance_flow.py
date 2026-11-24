@@ -122,6 +122,31 @@ class FinanceSettlementTests(unittest.TestCase):
         self.assertIn('paid', message.lower())
         self.assertAlmostEqual(self.db.execute("SELECT wallet FROM workers WHERE id=1").fetchone()[0], 0)
 
+    def test_cashfree_sandbox_booking_cannot_credit_real_wallets(self):
+        booking_id = self.add_booking('SIV-TEST-CASHFREE-SANDBOX')
+        self.db.execute("""
+            INSERT INTO sivdhi_finance_ledger(
+                booking_id, entry_type, amount, status, payment_mode
+            ) VALUES(?, 'customer_advance', 50, 'demo_paid', 'cashfree_sandbox')
+        """, ('SIV-TEST-CASHFREE-SANDBOX',))
+
+        ok, message = settle_completed_booking(self.db, booking_id)
+
+        self.assertFalse(ok)
+        self.assertIn("Sandbox", message)
+        self.assertAlmostEqual(
+            self.db.execute("SELECT wallet FROM workers WHERE id=1").fetchone()[0],
+            0,
+        )
+        self.assertAlmostEqual(
+            self.db.execute("SELECT wallet FROM partners WHERE id=1").fetchone()[0],
+            0,
+        )
+        self.assertEqual(
+            self.db.execute("SELECT COUNT(*) FROM wallet_transactions").fetchone()[0],
+            0,
+        )
+
     def test_booking_keeps_commission_snapshot_if_settings_change(self):
         booking_id = self.add_booking('SIV-TEST-SNAPSHOT')
         self.db.execute("UPDATE admin_settings SET setting_value='30' WHERE setting_key='partner_commission_percent'")
@@ -132,6 +157,31 @@ class FinanceSettlementTests(unittest.TestCase):
         self.assertAlmostEqual(self.db.execute("SELECT wallet FROM partners WHERE id=1").fetchone()[0], 50)
         platform = self.db.execute("SELECT SUM(amount) FROM wallet_transactions WHERE user_type='platform' AND transaction_type='platform_commission'").fetchone()[0]
         self.assertAlmostEqual(platform, 50)
+
+    def test_cashfree_sandbox_balance_cannot_credit_real_wallets(self):
+        booking_id = self.add_booking('SIV-TEST-CASHFREE-BALANCE')
+        self.db.execute("""
+            INSERT INTO sivdhi_finance_ledger(
+                booking_id, entry_type, amount, status, payment_mode
+            ) VALUES(?, 'customer_balance', 450, 'demo_paid', 'cashfree_sandbox')
+        """, ('SIV-TEST-CASHFREE-BALANCE',))
+
+        ok, message = settle_completed_booking(self.db, booking_id)
+
+        self.assertFalse(ok)
+        self.assertIn("Sandbox", message)
+        self.assertAlmostEqual(
+            self.db.execute("SELECT wallet FROM workers WHERE id=1").fetchone()[0],
+            0,
+        )
+        self.assertAlmostEqual(
+            self.db.execute("SELECT wallet FROM partners WHERE id=1").fetchone()[0],
+            0,
+        )
+        self.assertEqual(
+            self.db.execute("SELECT COUNT(*) FROM wallet_transactions").fetchone()[0],
+            0,
+        )
 
 
 if __name__ == '__main__':

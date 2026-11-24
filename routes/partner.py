@@ -507,7 +507,7 @@ def job_details(job_ref):
             scheduled_at = datetime.fromisoformat(str(schedule_date).strip()[:10] + "T" + str(schedule_time).strip()[:5])
             if scheduled_at.tzinfo is None and now.tzinfo is not None:
                 scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
-            arrive_available_at = scheduled_at + timedelta(hours=1)
+            arrive_available_at = scheduled_at - timedelta(hours=1)
             can_arrive = now >= arrive_available_at
         except (TypeError, ValueError):
             can_arrive = False
@@ -553,6 +553,28 @@ def accept_job(booking_id):
             flash("Only an assigned or pending booking can be accepted.", "warning")
             return redirect(f"/partner/job/{booking_id}")
 
+        # Apply the same one-active-booking rule as worker-side acceptance.
+        # This check runs inside BEGIN IMMEDIATE to serialize concurrent accepts.
+        from routes.customer import (
+            _ensure_worker_attempt_table,
+            _worker_has_active_booking,
+            accept_worker_attempt,
+            release_worker_attempt,
+        )
+
+        if _worker_has_active_booking(
+            conn, worker["id"], exclude_booking_id=int(row["id"])
+        ):
+            conn.rollback()
+            flash(
+                "This worker already has an active booking. Complete or cancel "
+                "it before accepting another booking.",
+                "warning",
+            )
+            return redirect(f"/partner/job/{booking_id}")
+
+        _ensure_worker_attempt_table(conn)
+
         conn.execute("""
             UPDATE bookings
             SET booking_status='accepted', status='accepted',
@@ -572,9 +594,29 @@ def accept_job(booking_id):
             """, (worker["id"], booking_id))
         except sqlite3.Error:
             pass
+
+        if not accept_worker_attempt(conn, booking_id, worker["id"]):
+            raise RuntimeError("Accepted worker attempt could not be recorded")
+
+        # Temporarily release this worker's other pending offers.
+        released_offer_rows = conn.execute("""
+            SELECT booking_db_id
+            FROM booking_assignment_offers
+            WHERE worker_id=? AND booking_db_id<>? AND status='offered'
+        """, (worker["id"], booking_id)).fetchall()
+        conn.execute("""
+            UPDATE booking_assignment_offers
+            SET status='released', responded_at=CURRENT_TIMESTAMP
+            WHERE worker_id=? AND booking_db_id<>? AND status='offered'
+        """, (worker["id"], booking_id))
+        for released_offer_row in released_offer_rows:
+            release_worker_attempt(
+                conn, released_offer_row["booking_db_id"], worker["id"]
+            )
+
         _partner_internal_notice(
-            conn, worker["id"], partner_id, "Booking Accepted by Partner",
-            f"Your partner accepted booking {row['booking_id']} on your behalf. Follow the scheduled time and job steps.",
+            conn, worker["id"], partner_id, "Booking Accepted",
+            f"Booking {row['booking_id']} accepted.",
         )
         conn.commit()
         flash("Booking accepted successfully for your worker.", "success")
@@ -616,17 +658,17 @@ def partner_arrive_job(booking_id):
             now = india_now()
             if scheduled_at.tzinfo is None and now.tzinfo is not None:
                 scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
-            allowed_at = scheduled_at + timedelta(hours=1)
+            allowed_at = scheduled_at - timedelta(hours=1)
         except (TypeError, ValueError):
             conn.rollback()
             flash("The customer's booking date/time is invalid.", "danger")
             return redirect(f"/partner/job/{booking_id}")
         if now < allowed_at:
             conn.rollback()
-            flash("Arrive will be available one hour after the customer's booked time.", "warning")
+            flash("Arrive will be available one hour before the customer's booked time.", "warning")
             return redirect(f"/partner/job/{booking_id}")
         conn.execute("UPDATE bookings SET worker_arrived_at=COALESCE(worker_arrived_at,CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE id=?", (booking_id,))
-        _partner_internal_notice(conn, worker["id"], partner_id, "Worker Arrival Recorded", f"Arrival was recorded for booking {row['booking_id']} by the partner.")
+        _partner_internal_notice(conn, worker["id"], partner_id, "Arrival Recorded", f"Arrival recorded for booking {row['booking_id']}.")
         conn.commit()
         flash("Arrival recorded. The customer can now pay any remaining balance from My Bookings.", "success")
     except Exception as error:
@@ -660,22 +702,6 @@ def partner_start_job(booking_id):
             conn.rollback()
             flash("Record worker arrival before starting the job.", "warning")
             return redirect(f"/partner/job/{booking_id}")
-        schedule_date = row["preferred_date"] or row["booking_date"]
-        schedule_time = row["preferred_time"] or row["booking_time"]
-        if schedule_date and schedule_time:
-            try:
-                scheduled_at = datetime.fromisoformat(str(schedule_date).strip()[:10] + "T" + str(schedule_time).strip()[:5])
-                now = india_now()
-                if scheduled_at.tzinfo is None and now.tzinfo is not None:
-                    scheduled_at = scheduled_at.replace(tzinfo=now.tzinfo)
-                if now < scheduled_at + timedelta(hours=1):
-                    conn.rollback()
-                    flash("Start Job is available only after the scheduled time plus one hour.", "warning")
-                    return redirect(f"/partner/job/{booking_id}")
-            except (TypeError, ValueError):
-                conn.rollback()
-                flash("The customer's booking date/time is invalid.", "danger")
-                return redirect(f"/partner/job/{booking_id}")
         due = _partner_booking_balance_due(row)
         paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
         if due > 0 and str(row["balance_payment_status"] or "").upper() not in paid_states:
@@ -683,7 +709,7 @@ def partner_start_job(booking_id):
             flash(f"Customer must pay the remaining ₹{due:.2f} before the job can start.", "warning")
             return redirect(f"/partner/job/{booking_id}")
         conn.execute("UPDATE bookings SET booking_status='in_progress', status='in_progress', updated_at=CURRENT_TIMESTAMP WHERE id=?", (booking_id,))
-        _partner_internal_notice(conn, worker["id"], partner_id, "Job Started by Partner", f"Booking {row['booking_id']} was started by your partner account.")
+        _partner_internal_notice(conn, worker["id"], partner_id, "Booking Started", f"Service started for booking {row['booking_id']}.")
         conn.commit()
         flash("Job started successfully.", "success")
     except Exception as error:
@@ -732,7 +758,7 @@ def partner_complete_job(booking_id):
             conn.rollback()
             flash(message, "danger")
             return redirect(f"/partner/job/{booking_id}")
-        _partner_internal_notice(conn, worker["id"], partner_id, "Job Completed", f"Booking {row['booking_id']} was completed by your partner account; settlement was recorded.")
+        _partner_internal_notice(conn, worker["id"], partner_id, "Booking Completed", f"Booking {row['booking_id']} completed.")
         conn.commit()
         flash("Job completed and Worker/Partner/Sivdhi settlement recorded.", "success")
     except Exception as error:

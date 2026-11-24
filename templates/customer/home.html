@@ -301,6 +301,34 @@
             font-size: 11px;
         }
 
+        .location-change-button {
+            border: 0;
+            padding: 0;
+            background: transparent;
+            color: #c5a4ff;
+            font-size: 11px;
+            font-weight: 800;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            cursor: pointer;
+        }
+
+        .location-change-button:disabled {
+            opacity: .65;
+            cursor: wait;
+        }
+
+        .location-change-status {
+            max-width: 520px;
+            margin-top: 7px;
+            color: #d5b4f4;
+            font-size: 10px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .location-change-status.error { color: #ffabc1; }
+
         .location-dot {
             width: 7px;
             height: 7px;
@@ -799,7 +827,9 @@
                 <div class="location-line" id="locationLine" {% if not location_allowed %}hidden{% endif %}>
                     <span class="location-dot"></span>
                     <span id="locationLabel">📍 {{ location_name or 'Current location' }}</span>
+                    <button type="button" class="location-change-button" id="changeLocationButton" {% if not location_allowed %}hidden{% endif %}>Change</button>
                 </div>
+                <div class="location-change-status" id="locationChangeStatus" role="status" aria-live="polite" hidden></div>
             </section>
 
             <label class="search">
@@ -985,6 +1015,8 @@
         const noCategoriesState = document.getElementById("noCategoriesState");
         const locationStatus = document.getElementById("locationStatus");
         const allowLocationButton = document.getElementById("allowLocationButton");
+        const changeLocationButton = document.getElementById("changeLocationButton");
+        const locationChangeStatus = document.getElementById("locationChangeStatus");
         const categoryDescription = document.getElementById("categoryDescription");
         const resultCount = document.getElementById("resultCount");
         const locationLine = document.getElementById("locationLine");
@@ -997,6 +1029,12 @@
         function setStatus(message, isError = false) {
             locationStatus.textContent = message;
             locationStatus.classList.toggle("error", isError);
+
+            if (locationAllowed && locationChangeStatus) {
+                locationChangeStatus.textContent = message;
+                locationChangeStatus.classList.toggle("error", isError);
+                locationChangeStatus.hidden = false;
+            }
         }
 
         function setLoading(value) {
@@ -1006,6 +1044,10 @@
                 allowLocationButton.disabled = value;
                 allowLocationButton.textContent =
                     value ? "Please wait…" : "Allow Location";
+            }
+
+            if (changeLocationButton) {
+                changeLocationButton.disabled = value;
             }
         }
 
@@ -1144,6 +1186,7 @@
         function requestLocation() {
             if (locationRequestStarted) return;
             locationRequestStarted = true;
+            const previouslyAllowed = locationAllowed;
 
             if (!navigator.geolocation) {
                 setStatus(
@@ -1198,6 +1241,14 @@
                         locationAllowed = true;
                         locationState.hidden = true;
                         locationLine.hidden = false;
+                        if (changeLocationButton) {
+                            changeLocationButton.hidden = false;
+                        }
+                        if (locationChangeStatus) {
+                            locationChangeStatus.hidden = true;
+                            locationChangeStatus.textContent = "";
+                            locationChangeStatus.classList.remove("error");
+                        }
                         document.getElementById("locationLabel").textContent =
                             "📍 Current location";
 
@@ -1215,8 +1266,10 @@
                         }
 
                     } catch (error) {
-                        locationAllowed = false;
-                        locationState.hidden = false;
+                        // Keep an existing saved location if a Change request fails.
+                        locationAllowed = previouslyAllowed;
+                        locationState.hidden = previouslyAllowed;
+                        locationLine.hidden = !previouslyAllowed;
                         setStatus(
                             error.message || "Could not save location.",
                             true
@@ -1250,7 +1303,7 @@
                 {
                     enableHighAccuracy: true,
                     timeout: 15000,
-                    maximumAge: 60000
+                    maximumAge: 0
                 }
             );
         }
@@ -1297,6 +1350,7 @@
         });
 
         allowLocationButton.addEventListener("click", requestLocation);
+        changeLocationButton.addEventListener("click", requestLocation);
 
         updateModeButtons();
 
@@ -1308,9 +1362,8 @@
             categoryGrid.hidden = true;
             locationState.hidden = false;
 
-            // Ask for browser location immediately when Home opens.
-            // If denied, the customer can retry using the visible button.
-            requestLocation();
+            // Keep location permission user initiated. The customer can grant
+            // it with Allow Location instead of seeing an automatic browser prompt.
         }
     </script>
 
