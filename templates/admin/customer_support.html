@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Support Tickets | Sivdhi Admin</title>
+    <style>
+        * { box-sizing: border-box; }
+        :root { --primary:#2563eb; --dark:#0f172a; --muted:#64748b; --border:#e5e7eb; --bg:#f6f8fc; }
+        body { margin:0; background:var(--bg); color:#111827; font-family:Inter,Arial,sans-serif; }
+        .header { padding:22px 25px; color:#fff; background:linear-gradient(135deg,#2563eb,#0f172a); display:flex; align-items:center; justify-content:space-between; gap:16px; }
+        .header h1 { margin:0; font-size:22px; }
+        .header p { margin:6px 0 0; font-size:12px; opacity:.82; }
+        .back { color:#fff; text-decoration:none; background:rgba(255,255,255,.14); padding:10px 14px; border-radius:9px; font-size:12px; font-weight:700; white-space:nowrap; }
+        .container { width:min(1400px,100%); margin:25px auto; padding:0 18px 40px; }
+        .intro { margin-bottom:18px; }
+        .intro h2 { margin:0; font-size:20px; }
+        .intro p { color:var(--muted); font-size:12px; line-height:1.7; }
+        .ticket { margin-bottom:14px; padding:18px; border:1px solid var(--border); border-radius:15px; background:#fff; box-shadow:0 3px 12px rgba(15,23,42,.035); }
+        .ticket-top { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .ticket-id { color:var(--primary); font-size:11px; font-weight:800; }
+        .ticket h3 { margin:5px 0 6px; font-size:16px; overflow-wrap:anywhere; }
+        .meta { color:var(--muted); font-size:11px; line-height:1.7; }
+        .status { display:inline-block; margin-top:5px; padding:5px 9px; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:10px; font-weight:800; text-transform:uppercase; }
+        .status.resolved,.status.closed { background:#ecfdf5; color:#047857; }
+        .status.in_progress { background:#fff7ed; color:#c2410c; }
+        .message { margin:14px 0; padding:13px; border-radius:10px; background:#f8fafc; color:#334155; font-size:12px; line-height:1.8; white-space:pre-wrap; overflow-wrap:anywhere; }
+        .conversation { display:grid; gap:8px; margin:14px 0; }
+        .conversation-message { padding:12px 13px; border:1px solid #e5e7eb; border-radius:10px; background:#f8fafc; }
+        .conversation-message.admin-message { border-color:#bfdbfe; background:#eff6ff; }
+        .conversation-meta { margin-bottom:5px; color:#475569; font-size:10px; font-weight:800; }
+        .conversation-message p { margin:0; color:#334155; font-size:12px; line-height:1.8; white-space:pre-wrap; overflow-wrap:anywhere; }
+        .reply-box { margin:12px 0 14px; padding:14px; border:1px solid #dbeafe; border-radius:12px; background:#f8fbff; }
+        .reply-box label { display:block; margin-bottom:7px; color:#1e3a8a; font-size:11px; font-weight:800; }
+        .reply-box textarea { width:100%; min-height:92px; padding:10px 11px; border:1px solid #cbd5e1; border-radius:8px; color:#111827; background:#fff; font:inherit; font-size:12px; line-height:1.7; resize:vertical; }
+        .reply-box textarea:focus { outline:0; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.10); }
+        .reply-submit { min-height:38px; margin-top:9px; padding:0 15px; border:0; border-radius:8px; background:#1d4ed8; color:#fff; font-size:11px; font-weight:800; cursor:pointer; }
+        .actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding-top:12px; border-top:1px solid #eef2f7; }
+        .actions label { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:11px; }
+        .actions select { min-height:37px; padding:0 10px; border:1px solid var(--border); border-radius:8px; background:white; color:#111827; }
+        .actions button { min-height:37px; padding:0 14px; border:0; border-radius:8px; background:var(--primary); color:white; font-size:11px; font-weight:800; cursor:pointer; }
+        .empty { padding:35px 20px; background:#fff; border:1px solid var(--border); border-radius:15px; color:var(--muted); text-align:center; font-size:13px; }
+        .limit-note { margin-top:14px; color:var(--muted); font-size:10px; }
+        @media(max-width:600px) {
+            .header { padding:18px 15px; align-items:flex-start; }
+            .header h1 { font-size:18px; }
+            .container { margin-top:18px; padding:0 12px 28px; }
+            .ticket { padding:14px; }
+            .actions { align-items:flex-start; }
+        }
+    </style>
+</head>
+<body>
+{% set sivdhi_template_has_flash = True %}
+{% include '_shared_alerts.html' %}
+    <header class="header">
+        <div>
+            <h1>Customer Support</h1>
+            <p>Customer complaints and service reports · Latest 300 tickets</p>
+        </div>
+        <a class="back" href="{{ url_for('admin.admin_dashboard') }}">Back to Dashboard</a>
+    </header>
+
+    <main class="container">
+        <section class="intro">
+            <h2>Support Inbox</h2>
+            <p>Review each complaint, reply directly to the customer, and update the ticket status. Customers can read your replies and send follow-up messages from Profile → Support. Changing status does not itself issue a refund or change a booking.</p>
+        </section>
+
+        {% if tickets %}
+            {% for ticket in tickets %}
+                {% set current_status = (ticket['status'] or 'open')|lower %}
+                <article class="ticket" id="ticket-{{ ticket['id'] }}">
+                    <div class="ticket-top">
+                        <div>
+                            <div class="ticket-id">SUP-{{ '%06d'|format(ticket['id']|int) }} · Ticket #{{ ticket['id'] }}</div>
+                            <h3>{{ ticket['subject'] }}</h3>
+                            <div class="meta">
+                                {{ category_labels.get(ticket['category'], ticket['category']|replace('_',' ')|title) }}
+                                {% if ticket['booking_id'] %} · Booking: {{ ticket['booking_id'] }}{% endif %}
+                                <br>
+                                {{ ticket['customer_name'] }} · Customer #{{ ticket['customer_id'] }}
+                                {% if ticket['customer_mobile'] %} · {{ ticket['customer_mobile'] }}{% endif %}
+                                {% if ticket['customer_email'] %} · {{ ticket['customer_email'] }}{% endif %}
+                                <br>
+                                Submitted: {{ ticket['created_at'] or 'Date unavailable' }}
+                            </div>
+                        </div>
+                        <span class="status {{ current_status }}">{{ current_status|replace('_',' ') }}</span>
+                    </div>
+
+                    <div class="conversation" aria-label="Customer support conversation">
+                        <div class="conversation-message customer-message">
+                            <div class="conversation-meta">Customer · Original report · {{ ticket['created_at'] or 'Date unavailable' }}</div>
+                            <p>{{ ticket['message'] }}</p>
+                        </div>
+                        {% for reply in ticket['replies'] %}
+                            <div class="conversation-message {{ 'admin-message' if reply['sender_role'] == 'admin' else 'customer-message' }}">
+                                <div class="conversation-meta">
+                                    {% if reply['sender_role'] == 'admin' %}Sivdhi Support Team{% else %}Customer · Follow-up{% endif %}
+                                    · {{ reply['created_at'] or 'Date unavailable' }}
+                                </div>
+                                <p>{{ reply['message'] }}</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <form class="reply-box" method="POST" action="{{ url_for('admin.admin_reply_customer_support', ticket_id=ticket['id']) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label for="reply-{{ ticket['id'] }}">Reply to customer</label>
+                        <textarea id="reply-{{ ticket['id'] }}" name="reply_message" minlength="10" maxlength="2000" required placeholder="Write a clear response or request any missing information."></textarea>
+                        <button class="reply-submit" type="submit">SEND REPLY TO CUSTOMER</button>
+                    </form>
+
+                    <form class="actions" method="POST" action="{{ url_for('admin.admin_update_customer_support_status', ticket_id=ticket['id']) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label>
+                            Update status
+                            <select name="status" required>
+                                <option value="open" {% if current_status == 'open' %}selected{% endif %}>Open</option>
+                                <option value="in_progress" {% if current_status == 'in_progress' %}selected{% endif %}>In progress</option>
+                                <option value="resolved" {% if current_status == 'resolved' %}selected{% endif %}>Resolved</option>
+                                <option value="closed" {% if current_status == 'closed' %}selected{% endif %}>Closed</option>
+                            </select>
+                        </label>
+                        <button type="submit">Save Status</button>
+                    </form>
+                </article>
+            {% endfor %}
+            <p class="limit-note">Only the latest 300 tickets are displayed. Older tickets remain stored.</p>
+        {% else %}
+            <div class="empty">No customer support tickets have been submitted yet.</div>
+        {% endif %}
+    </main>
+</body>
+</html>
