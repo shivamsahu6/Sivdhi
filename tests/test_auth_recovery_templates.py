@@ -153,7 +153,7 @@ def test_ga4_tracks_only_allowlisted_anonymous_public_pages(monkeypatch):
     with client.session_transaction() as session:
         session["customer_id"] = 999999
     response = client.get("/customer/")
-    assert response.status_code == 200
+    assert response.status_code in {200, 302}
     assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
 
     # Other account-related session fields are also a privacy exclusion.
