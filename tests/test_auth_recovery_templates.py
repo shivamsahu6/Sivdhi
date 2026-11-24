@@ -104,3 +104,31 @@ def test_customer_private_pages_are_noindex_but_public_home_remains_indexable():
     signup_response = client.get("/customer/signup")
     assert signup_response.status_code == 200
     assert signup_response.headers.get("X-Robots-Tag") == expected_robots
+
+
+def test_ga4_is_opt_in_and_limited_to_public_customer_home(monkeypatch):
+    from app import app
+
+    client = app.test_client()
+    monkeypatch.setitem(app.config, "GA4_MEASUREMENT_ID", "G-R0RQ9GKPGE")
+
+    for path in ("/customer/", "/customer/home?mode=full-day&unused=private-value"):
+        response = client.get(path)
+        assert response.status_code == 200
+        page = response.get_data(as_text=True)
+        assert "https://www.googletagmanager.com/gtag/js?id=G-R0RQ9GKPGE" in page
+        assert "send_page_view: false" in page
+        assert "page_location: window.location.origin + window.location.pathname" in page
+        assert "location.search" not in page
+
+    # Authentication and signup pages must never load the public analytics tag.
+    for path in ("/customer/signup", "/login?role=worker", "/signup?role=partner"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
+
+    # The integration remains disabled unless a valid deployment value is set.
+    monkeypatch.setitem(app.config, "GA4_MEASUREMENT_ID", "")
+    response = client.get("/customer/")
+    assert response.status_code == 200
+    assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
