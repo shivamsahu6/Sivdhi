@@ -384,6 +384,21 @@ def ensure_customer_schema(db):
         )
     """)
 
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS customer_support_replies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticket_id INTEGER NOT NULL,
+            sender_role TEXT NOT NULL CHECK (sender_role IN ('admin', 'customer')),
+            sender_id INTEGER,
+            message TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS idx_customer_support_replies_ticket_id
+        ON customer_support_replies (ticket_id, id)
+    """)
+
     if not table_exists(db, "services"):
         db.execute("""
             CREATE TABLE services (
@@ -4754,6 +4769,57 @@ def settings():
         db.close()
 
 
+def _create_customer_support_ticket(db, customer_row, form_data):
+    """Validate and save a customer complaint using the existing ticket table."""
+    allowed_categories = {
+        # Current Support form categories.
+        "payment_booking_missing",
+        "payment_refund",
+        "booking_status",
+        "worker_not_arrived",
+        "work_quality",
+        "cancellation",
+        "account",
+        "technical",
+        "other",
+        # Backward-compatible values accepted by the earlier Help POST handler.
+        "booking",
+        "worker_assignment",
+        "payment",
+    }
+    category = (form_data.get("support_category") or "").strip()
+    booking_id = (form_data.get("booking_id") or "").strip()[:50]
+    payment_reference = (form_data.get("payment_reference") or "").strip()[:120]
+    subject = (form_data.get("subject") or "").strip()[:120]
+    message = (form_data.get("message") or "").strip()[:2000]
+
+    if category not in allowed_categories:
+        return None, "Choose a valid support topic."
+    if len(subject) < 4:
+        return None, "Enter a subject of at least 4 characters."
+    if len(message) < 10:
+        return None, "Describe the issue in at least 10 characters."
+
+    if payment_reference:
+        message = (
+            "Payment / transaction reference supplied: "
+            + payment_reference
+            + "\n\n"
+            + message
+        )[:2000]
+
+    cursor = db.execute(
+        """
+        INSERT INTO customer_support_tickets
+            (customer_id, category, booking_id, subject, message)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (customer_row["id"], category, booking_id or None, subject, message),
+    )
+    db.commit()
+    return cursor.lastrowid, None
+
+
 @customer_bp.route("/help", methods=["GET", "POST"])
 @customer_login_required
 def help():
@@ -4766,30 +4832,154 @@ def help():
             flash("Please login again.", "warning")
             return redirect(url_for("customer.login"))
 
+        # Keep legacy POST submissions working, but direct new complaints
+        # through the dedicated Support page.
         if request.method == "POST":
-            allowed_categories = {
-                "booking", "worker_assignment", "payment", "cancellation",
-                "account", "technical", "other",
-            }
-            category = (request.form.get("support_category") or "").strip()
-            booking_id = (request.form.get("booking_id") or "").strip()[:50]
-            subject = (request.form.get("subject") or "").strip()[:120]
-            message = (request.form.get("message") or "").strip()[:2000]
-            if category not in allowed_categories:
-                flash("Choose a valid support topic.", "danger")
-                return redirect(url_for("customer.help"))
-            if len(subject) < 4 or len(message) < 10:
-                flash("Enter a subject and a description of at least 10 characters.", "danger")
-                return redirect(url_for("customer.help"))
-            db.execute(
-                "INSERT INTO customer_support_tickets (customer_id,category,booking_id,subject,message) VALUES (?,?,?,?,?)",
-                (customer_row["id"], category, booking_id or None, subject, message),
+            ticket_id, error = _create_customer_support_ticket(
+                db, customer_row, request.form
             )
-            db.commit()
-            flash("Your support request has been submitted.", "success")
-            return redirect(url_for("customer.help"))
+            if error:
+                flash(error, "danger")
+                return redirect(url_for("customer.support"))
+            flash(
+                f"Your support request has been submitted. Reference: SUP-{int(ticket_id):06d}.",
+                "success",
+            )
+            return redirect(url_for("customer.support"))
 
         return render_template("customer/help.html")
+    finally:
+        db.close()
+
+
+@customer_bp.route("/support", methods=["GET", "POST"])
+@customer_login_required
+def support():
+    db = get_db()
+    try:
+        ensure_customer_schema(db)
+        customer_row = get_customer(db)
+        if not customer_row:
+            session.clear()
+            flash("Please login again.", "warning")
+            return redirect(url_for("customer.login"))
+
+        if request.method == "POST":
+            action = (request.form.get("action") or "new_ticket").strip().lower()
+
+            if action == "reply":
+                ticket_id = safe_int(request.form.get("ticket_id"), 0)
+                reply_message = (request.form.get("reply_message") or "").strip()
+
+                if ticket_id <= 0:
+                    flash("This support ticket could not be found.", "danger")
+                    return redirect(url_for("customer.support"))
+
+                if len(reply_message) < 10 or len(reply_message) > 2000:
+                    flash("Your reply must contain 10 to 2,000 characters.", "danger")
+                    return redirect(url_for("customer.support", _anchor=f"ticket-{ticket_id}"))
+
+                owned_ticket = db.execute(
+                    """
+                    SELECT id
+                    FROM customer_support_tickets
+                    WHERE id=? AND customer_id=?
+                    LIMIT 1
+                    """,
+                    (ticket_id, customer_row["id"]),
+                ).fetchone()
+                if not owned_ticket:
+                    flash("This support ticket could not be found.", "danger")
+                    return redirect(url_for("customer.support"))
+
+                db.execute(
+                    """
+                    INSERT INTO customer_support_replies
+                        (ticket_id, sender_role, sender_id, message)
+                    VALUES (?, 'customer', ?, ?)
+                    """,
+                    (ticket_id, customer_row["id"], reply_message),
+                )
+                # A customer follow-up reopens the ticket for the Admin team.
+                db.execute(
+                    "UPDATE customer_support_tickets SET status='open' WHERE id=?",
+                    (ticket_id,),
+                )
+                db.commit()
+                flash("Your follow-up message has been sent to Sivdhi Support.", "success")
+                return redirect(url_for("customer.support", _anchor=f"ticket-{ticket_id}"))
+
+            if action != "new_ticket":
+                flash("Choose a valid support action.", "danger")
+                return redirect(url_for("customer.support"))
+
+            ticket_id, error = _create_customer_support_ticket(
+                db, customer_row, request.form
+            )
+            if error:
+                flash(error, "danger")
+                return redirect(url_for("customer.support"))
+
+            flash(
+                f"Your support request has been submitted. Reference: SUP-{int(ticket_id):06d}. "
+                "You can track replies and updates on this page.",
+                "success",
+            )
+            return redirect(url_for("customer.support", _anchor=f"ticket-{ticket_id}"))
+
+        ticket_rows = db.execute(
+            """
+            SELECT id, category, booking_id, subject, message, status, created_at
+            FROM customer_support_tickets
+            WHERE customer_id=?
+            ORDER BY id DESC
+            LIMIT 100
+            """,
+            (customer_row["id"],),
+        ).fetchall()
+        tickets = [
+            {key: row[key] for key in row.keys()}
+            for row in ticket_rows
+        ]
+        ticket_ids = [int(ticket["id"]) for ticket in tickets]
+        replies_by_ticket = {ticket_id: [] for ticket_id in ticket_ids}
+
+        if ticket_ids:
+            placeholders = ",".join("?" for _ in ticket_ids)
+            reply_rows = db.execute(
+                f"""
+                SELECT ticket_id, sender_role, message, created_at
+                FROM customer_support_replies
+                WHERE ticket_id IN ({placeholders})
+                ORDER BY id ASC
+                """,
+                ticket_ids,
+            ).fetchall()
+            for reply in reply_rows:
+                replies_by_ticket[int(reply["ticket_id"])].append(reply)
+
+        for ticket in tickets:
+            ticket["replies"] = replies_by_ticket[int(ticket["id"])]
+
+        category_labels = {
+            "payment_booking_missing": "Payment deducted, booking not created",
+            "payment_refund": "Payment, refund or duplicate charge",
+            "booking_status": "Booking or worker assignment issue",
+            "worker_not_arrived": "Worker did not arrive",
+            "work_quality": "Work incomplete or service quality issue",
+            "cancellation": "Cancellation issue",
+            "account": "Account or login issue",
+            "technical": "App or website technical issue",
+            "other": "Other complaint or report",
+            "booking": "Booking issue",
+            "worker_assignment": "Worker assignment issue",
+            "payment": "Payment issue",
+        }
+        return render_template(
+            "customer/support.html",
+            tickets=tickets,
+            category_labels=category_labels,
+        )
     finally:
         db.close()
 
