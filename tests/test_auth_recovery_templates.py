@@ -132,3 +132,10 @@ def test_ga4_is_opt_in_and_limited_to_public_customer_home(monkeypatch):
     response = client.get("/customer/")
     assert response.status_code == 200
     assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
+
+    # A public homepage view must not track an authenticated customer session.
+    with client.session_transaction() as session:
+        session["customer_id"] = 999999
+    response = client.get("/customer/")
+    assert response.status_code == 200
+    assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
