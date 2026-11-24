@@ -128,13 +128,23 @@ def test_customer_private_pages_are_noindex_but_home_and_signup_are_indexable():
         assert response.headers.get("X-Robots-Tag") is None
         assert '<meta name="robots" content="index, follow, max-image-preview:large">' in response.get_data(as_text=True)
 
-    # The public homepage should give crawlers and visitors direct role links.
+    # Keep the customer homepage focused on service discovery. Role registration
+    # and partner information remain available through their dedicated public URLs.
     home_page = client.get("/customer/").get_data(as_text=True)
-    assert 'href="/signup?role=worker"' in home_page
-    assert 'Join as Worker' in home_page
-    assert 'href="/signup?role=partner"' in home_page
-    assert 'Become a Partner' in home_page
-    assert 'href="/partner-opportunity"' in home_page
+    for label in (
+        "Create Account",
+        "Find Worker",
+        "Join as Worker",
+        "Become a Partner",
+        "Partner Opportunity",
+    ):
+        assert label not in home_page
+    for href in (
+        'href="/signup?role=worker"',
+        'href="/signup?role=partner"',
+        'href="/partner-opportunity"',
+    ):
+        assert href not in home_page
 
     # Customer registration is public and intentionally indexable.
     signup_response = client.get("/customer/signup")
