@@ -300,7 +300,7 @@ def add_security_headers(response):
     private_session_keys = {
         "user_id", "customer_id", "worker_id", "partner_id", "admin_id",
         "customer_logged_in", "worker_logged_in", "partner_logged_in",
-        "admin_logged_in", "customer_code", "customer_name",
+        "admin_logged_in", "saved_user_id", "customer_code", "customer_name",
         "customer_email", "customer_mobile", "customer_latitude",
         "customer_longitude", "customer_location_name", "last_booking_id",
         "selected_service_id", "selected_service_name", "selected_category",
@@ -308,9 +308,12 @@ def add_security_headers(response):
         "selected_problems_snapshot", "booking_date", "booking_time",
         "booking_description", "customer_password_reset_verified",
     }
-    has_private_session = any(
-        session.get(key) not in (None, "", False, [], {})
-        for key in private_session_keys
+    has_private_session = (
+        any(
+            session.get(key) not in (None, "", False, [], {})
+            for key in private_session_keys
+        )
+        or any(key.startswith("pending_") for key in session)
     )
 
     if (
