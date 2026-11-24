@@ -173,3 +173,70 @@ def test_partner_opportunity_page_is_public_indexable_and_explains_commission_te
     assert "commission-based" in page
     assert "not a fixed-salary job" in page
     assert "guaranteed monthly income" in page
+
+
+def test_ga4_tracks_only_allowlisted_anonymous_public_pages(monkeypatch):
+    from app import app
+
+    client = app.test_client()
+    monkeypatch.setitem(app.config, "GA4_MEASUREMENT_ID", "G-R0RQ9GKPGE")
+
+    # Track public homepage and anonymous login/signup page views.
+    allowed_pages = (
+        "/customer/",
+        "/customer/home?mode=full-day&email=private@example.com",
+        "/customer/signup",
+        "/partner-opportunity",
+        "/login?role=worker",
+        "/login?role=partner",
+        "/signup?role=worker",
+        "/signup?role=partner",
+    )
+    for path in allowed_pages:
+        response = client.get(path)
+        assert response.status_code == 200
+        page = response.get_data(as_text=True)
+        assert "https://www.googletagmanager.com/gtag/js?id=G-R0RQ9GKPGE" in page
+        assert "page_location:pageLocation" in page
+        assert "window.location.origin+window.location.pathname" in page
+        assert "document.referrer).origin" in page
+        assert "email=private@example.com" not in page
+
+    # Do not track non-public and protected routes.
+    private_or_non_public = (
+        "/customer/bookings",
+        "/customer/profile",
+        "/customer/privacy",
+        "/customer/terms",
+        "/customer/about",
+        "/customer/help",
+        "/login",
+        "/signup",
+        "/worker/login",
+        "/partner/login",
+    )
+    for path in private_or_non_public:
+        response = client.get(path, follow_redirects=False)
+        assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
+
+    # Authenticated customer session must remain excluded even on the homepage.
+    with client.session_transaction() as session:
+        session["customer_id"] = 999999
+    response = client.get("/customer/")
+    assert response.status_code in {200, 302}
+    assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
+
+    # Other account-related session fields are also a privacy exclusion.
+    with client.session_transaction() as session:
+        session.clear()
+        session["user_id"] = 123
+    response = client.get("/login?role=worker")
+    assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
+
+    # Invalid/empty configuration must leave Analytics completely disabled.
+    with client.session_transaction() as session:
+        session.clear()
+    monkeypatch.setitem(app.config, "GA4_MEASUREMENT_ID", "")
+    response = client.get("/customer/")
+    assert response.status_code == 200
+    assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
