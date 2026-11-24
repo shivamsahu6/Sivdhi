@@ -240,3 +240,24 @@ def test_ga4_tracks_only_allowlisted_anonymous_public_pages(monkeypatch):
     response = client.get("/customer/")
     assert response.status_code == 200
     assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
+
+
+
+def test_public_privacy_notice_describes_ga4_and_no_longer_calls_it_a_draft():
+    from pathlib import Path
+
+    policy = (
+        Path(__file__).resolve().parents[1]
+        / "templates"
+        / "customer"
+        / "privacy.html"
+    ).read_text(encoding="utf-8")
+
+    assert "This is a draft template" not in policy
+    assert "This template is not a substitute" not in policy
+    assert 'id="analytics"' in policy
+    assert "Google Analytics 4" in policy
+    assert "not active on Sivdhi Production" in policy
+    assert "best-effort safeguards" in policy
+    assert "does not currently publish one fixed retention" in policy
+    assert "shivamsahu.co@gmail.com" in policy
