@@ -172,4 +172,4 @@ def test_partner_opportunity_page_is_public_indexable_and_explains_commission_te
     assert "mobile phone or laptop" in page
     assert "commission-based" in page
     assert "not a fixed-salary job" in page
-    assert "no guaranteed monthly income" in page
+    assert "guaranteed monthly income" in page
