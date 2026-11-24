@@ -31,15 +31,21 @@ def test_customer_can_only_read_and_reply_to_own_support_ticket():
     support_source = _function_source(ROOT / "routes/customer.py", "support")
 
     assert "WHERE id=? AND customer_id=?" in support_source
-    assert "(ticket_id, 'customer', ?, ?)" in support_source
+    assert "VALUES (?, 'customer', ?, ?)" in support_source
     assert "UPDATE customer_support_tickets SET status='open' WHERE id=?" in support_source
     assert "WHERE customer_id=?" in support_source
 
 
 def test_admin_reply_endpoint_is_admin_protected_and_parameterized():
-    reply_source = _function_source(ROOT / "routes/admin.py", "admin_reply_customer_support")
-    tree = ast.parse(reply_source)
-    function = tree.body[0]
+    admin_path = ROOT / "routes/admin.py"
+    admin_source = admin_path.read_text(encoding="utf-8")
+    tree = ast.parse(admin_source)
+    function = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "admin_reply_customer_support"
+    )
+    reply_source = ast.get_source_segment(admin_source, function)
     decorator_names = {
         decorator.id
         for decorator in function.decorator_list
