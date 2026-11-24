@@ -57,6 +57,7 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
     }
     assert locations == {
         "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/partner-opportunity",
         "https://sivdhi.duckdns.org/customer/signup",
         "https://sivdhi.duckdns.org/login?role=worker",
         "https://sivdhi.duckdns.org/signup?role=worker",
@@ -133,6 +134,7 @@ def test_customer_private_pages_are_noindex_but_home_and_signup_are_indexable():
     assert 'Join as Worker' in home_page
     assert 'href="/signup?role=partner"' in home_page
     assert 'Become a Partner' in home_page
+    assert 'href="/partner-opportunity"' in home_page
 
     # Customer registration is public and intentionally indexable.
     signup_response = client.get("/customer/signup")
@@ -154,3 +156,20 @@ def test_customer_private_pages_are_noindex_but_home_and_signup_are_indexable():
     ):
         response = client.get(path, follow_redirects=False)
         assert response.headers.get("X-Robots-Tag") == expected_robots
+
+
+def test_partner_opportunity_page_is_public_indexable_and_explains_commission_terms():
+    from app import app
+
+    client = app.test_client()
+    response = client.get("/partner-opportunity")
+    assert response.status_code == 200
+    assert response.headers.get("X-Robots-Tag") is None
+    page = response.get_data(as_text=True)
+    assert '<meta name="robots" content="index, follow, max-image-preview:large">' in page
+    assert '<link rel="canonical" href="https://sivdhi.duckdns.org/partner-opportunity">' in page
+    assert "Become a Sivdhi Partner" in page
+    assert "mobile phone or laptop" in page
+    assert "commission-based Partner" in page
+    assert "not a fixed-salary job" in page
+    assert "no guaranteed monthly income" in page
