@@ -94,8 +94,8 @@ def health_check():
 
 @app.get("/")
 def customer_entrypoint():
-    """Send the public Sivdhi URL to the public customer home page."""
-    return redirect("/customer/")
+    """Permanently send the public Sivdhi URL to its canonical customer home page."""
+    return redirect("/customer/", code=301)
 
 
 @app.get("/partner-opportunity")
@@ -110,8 +110,6 @@ def robots_txt():
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /admin\n"
-        "Disallow: /customer/bookings\n"
-        "Disallow: /customer/profile\n"
         "Sitemap: https://sivdhi.duckdns.org/sitemap.xml\n"
     )
     return current_app.response_class(content, mimetype="text/plain")
@@ -127,9 +125,7 @@ def sitemap_xml():
         "https://sivdhi.duckdns.org/customer/",
         "https://sivdhi.duckdns.org/partner-opportunity",
         "https://sivdhi.duckdns.org/customer/signup",
-        "https://sivdhi.duckdns.org/login?role=worker",
         "https://sivdhi.duckdns.org/signup?role=worker",
-        "https://sivdhi.duckdns.org/login?role=partner",
         "https://sivdhi.duckdns.org/signup?role=partner",
     )
     url_entries = "".join(
@@ -179,8 +175,6 @@ def add_security_headers(response):
             "/customer/signup",
         }
     )
-    role = (request.args.get("role") or "").strip().lower()
-    is_public_role_login = request.path == "/login" and role in {"worker", "partner"}
     is_sensitive_auth_flow = request.endpoint in {
         "auth.forgot_password",
         "auth.verify_otp",
@@ -191,7 +185,7 @@ def add_security_headers(response):
         or request.path == "/customer/login"
         or request.endpoint == "customer.privacy"
         or is_sensitive_auth_flow
-        or (request.path == "/login" and not is_public_role_login)
+        or request.path == "/login"
         or is_private_worker_partner_page
         or is_private_customer_page
     ):
