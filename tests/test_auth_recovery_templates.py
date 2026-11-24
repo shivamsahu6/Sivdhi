@@ -43,7 +43,7 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
 
     client = app.test_client()
     root_response = client.get("/")
-    assert root_response.status_code == 302
+    assert root_response.status_code == 301
     assert root_response.headers.get("Location") == "/customer/"
 
     sitemap_response = client.get("/sitemap.xml")
@@ -59,9 +59,7 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
         "https://sivdhi.duckdns.org/customer/",
         "https://sivdhi.duckdns.org/partner-opportunity",
         "https://sivdhi.duckdns.org/customer/signup",
-        "https://sivdhi.duckdns.org/login?role=worker",
         "https://sivdhi.duckdns.org/signup?role=worker",
-        "https://sivdhi.duckdns.org/login?role=partner",
         "https://sivdhi.duckdns.org/signup?role=partner",
     }
 
@@ -69,13 +67,14 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
     assert robots_response.status_code == 200
     robots = robots_response.get_data(as_text=True)
     assert "Disallow: /admin" in robots
-    assert "Disallow: /customer/bookings" in robots
-    assert "Disallow: /customer/profile" in robots
+    # Private pages must remain crawlable so Google can see their noindex headers.
+    assert "Disallow: /customer/bookings" not in robots
+    assert "Disallow: /customer/profile" not in robots
     assert "Disallow: /customer/login" not in robots
     assert "Disallow: /customer/signup" not in robots
 
 
-def test_worker_and_partner_login_and_signup_pages_are_indexable_but_reset_flows_are_not():
+def test_worker_and_partner_signup_pages_are_indexable_but_login_and_reset_flows_are_not():
     from app import app
 
     client = app.test_client()
@@ -93,9 +92,9 @@ def test_worker_and_partner_login_and_signup_pages_are_indexable_but_reset_flows
     ):
         response = client.get(f"/login?role={role}")
         assert response.status_code == 200
-        assert response.headers.get("X-Robots-Tag") is None
+        assert response.headers.get("X-Robots-Tag") == "noindex, nofollow, noarchive"
         page = response.get_data(as_text=True)
-        assert '<meta name="robots" content="index,follow">' in page
+        assert '<meta name="robots" content="noindex, nofollow, noarchive">' in page
         assert heading in page
         assert tagline in page
         assert "Forgot Password?" in page
@@ -252,6 +251,21 @@ def test_ga4_tracks_only_allowlisted_anonymous_public_pages(monkeypatch):
     assert "googletagmanager.com/gtag/js" not in response.get_data(as_text=True)
 
 
+
+
+def test_customer_homepage_has_focused_search_metadata():
+    from app import app
+
+    client = app.test_client()
+    response = client.get("/customer/")
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert "<title>Sivdhi | Home Services &amp; Online Booking</title>" in page
+    assert (
+        'name="description" content="Explore home services available in your area '
+        'with Sivdhi. Check service details and prices, then request a booking online."'
+    ) in page
+    assert "Sivdhi Sivdhi" not in page
 
 def test_public_privacy_notice_describes_ga4_and_no_longer_calls_it_a_draft():
     from pathlib import Path
