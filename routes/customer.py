@@ -2357,8 +2357,14 @@ def save_customer_location_api():
         session["customer_location_allowed"] = True
         session["customer_location_name"] = "Current location"
 
+        pending_service_mode = (
+            session.get("pending_service_mode")
+            if safe_int(session.get("pending_service_id"), 0)
+            else None
+        )
         mode = normalise_booking_mode(
-            data.get("mode")
+            pending_service_mode
+            or data.get("mode")
             or session.get("booking_mode")
             or "normal"
         )
@@ -2465,8 +2471,14 @@ def customer_categories_api():
 @customer_bp.route("/home")
 def home():
     """Public customer catalogue; location only controls availability labels."""
+    pending_service_mode = (
+        session.get("pending_service_mode")
+        if safe_int(session.get("pending_service_id"), 0)
+        else None
+    )
     mode = normalise_booking_mode(
-        request.args.get("mode")
+        pending_service_mode
+        or request.args.get("mode")
         or session.get("booking_mode")
         or "normal"
     )
