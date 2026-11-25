@@ -163,6 +163,7 @@ def test_public_catalogue_keeps_unavailable_categories_and_marks_area_status():
 def test_public_catalogue_excludes_inactive_categories_and_unpriced_subcategories():
     conn = _catalog_connection()
     try:
+        _backfill_unlinked_service_categories(conn)
         conn.execute(
             "INSERT INTO service_categories "
             "(id,name,is_active,normal_enabled,full_day_enabled) "
