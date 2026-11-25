@@ -1,178 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <link rel="manifest" href="/static/pwa/workpartner/manifest.json">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>About Sivdhi</title>
-
-<style>
-
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:Poppins,sans-serif;
-}
-
-body{
-background:#f5f7fb;
-padding-bottom:40px;
-}
-
-.header{
-background:linear-gradient(135deg,#2563eb,#0f172a);
-padding:30px;
-color:white;
-border-radius:0 0 25px 25px;
-}
-
-.header h2{
-font-size:26px;
-}
-
-.header p{
-margin-top:5px;
-font-size:14px;
-opacity:.9;
-}
-
-.card{
-margin:20px;
-background:white;
-padding:22px;
-border-radius:18px;
-box-shadow:0 6px 15px rgba(0,0,0,.08);
-}
-
-.logo{
-width:90px;
-height:90px;
-border-radius:50%;
-background:#2563eb;
-color:white;
-display:flex;
-justify-content:center;
-align-items:center;
-font-size:34px;
-font-weight:bold;
-margin:0 auto 18px;
-}
-
-.title{
-text-align:center;
-font-size:24px;
-font-weight:bold;
-color:#111827;
-margin-bottom:8px;
-}
-
-.version{
-text-align:center;
-font-size:14px;
-color:#6b7280;
-margin-bottom:20px;
-}
-
-.text{
-font-size:15px;
-line-height:28px;
-color:#444;
-text-align:justify;
-}
-
-.info{
-margin-top:25px;
-border-top:1px solid #eee;
-padding-top:18px;
-}
-
-.item{
-display:flex;
-justify-content:space-between;
-padding:12px 0;
-border-bottom:1px solid #eee;
-}
-
-.item:last-child{
-border:none;
-}
-
-.label{
-color:#666;
-}
-
-.value{
-font-weight:600;
-color:#111827;
-}
-
-</style>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
+    <title>About Sivdhi Partner</title>
+    <style>
+        *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f5f7fb;color:#111827;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+        a{color:inherit;text-decoration:none}.topbar{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 max(20px,calc((100% - 1120px)/2));color:#fff;background:linear-gradient(120deg,#2563eb,#0f172a)}
+        .brand{font-size:22px;font-weight:850;letter-spacing:-.5px}.top-links{display:flex;gap:20px;font-size:13px;font-weight:700}.top-links a:hover{text-decoration:underline}
+        .layout{width:min(1120px,calc(100% - 36px));margin:28px auto 60px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:25px;align-items:start}
+        .side{position:sticky;top:20px;padding:20px;border:1px solid #dbe3ef;border-radius:17px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.04)}.side h2{margin:0 0 12px;font-size:14px}.side a{display:block;padding:9px 10px;border-radius:9px;color:#64748b;font-size:12px}.side a:hover{background:#eff6ff;color:#1d4ed8}
+        .hero{padding:27px;border-radius:21px;color:white;background:linear-gradient(125deg,#2563eb,#0f172a)}.hero small{font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.8}.hero h1{margin:8px 0;font-size:34px}.hero p{margin:0;color:#dbeafe;font-size:13px;line-height:1.8}
+        .section{margin-top:15px;padding:22px 24px;border:1px solid #e2e8f0;border-radius:17px;background:#fff;scroll-margin-top:20px;box-shadow:0 5px 18px rgba(15,23,42,.035)}.section h2{margin:0 0 9px;font-size:17px;color:#0f172a}.section p{margin:0;color:#526174;font-size:13px;line-height:1.85}.section a{color:#1d4ed8;text-decoration:underline;text-underline-offset:3px}
+        .legal-links{display:flex;gap:16px;flex-wrap:wrap;margin-top:18px;color:#1d4ed8;font-size:12px}
+        @media(max-width:720px){.layout{grid-template-columns:1fr}.side{position:static;display:flex;flex-wrap:wrap;gap:5px;padding:12px}.side h2{width:100%;padding:0 7px}.side a{padding:7px 9px}.topbar{min-height:65px;padding:0 16px}.brand{font-size:20px}.top-links{gap:12px;font-size:11px}.hero{padding:22px}.hero h1{font-size:28px}.section{padding:19px}}
+    </style>
 </head>
-
 <body>
-{% set sivdhi_template_has_flash = False %}
-{% include '_shared_alerts.html' %}
-
-
-<div class="header">
-
-<h2>📄 About Sivdhi</h2>
-
-<p>Know more about the application</p>
-
-</div>
-
-<div class="card">
-
-<div class="logo">
-S
-</div>
-
-<div class="title">
-Sivdhi Partner
-</div>
-
-<div class="version">
-Version 1.0.0
-</div>
-
-<div class="text">
-
-Sivdhi Partner is a professional platform that helps partners manage workers, jobs, bank details, withdrawals, notifications and profile information in one place.
-
-Our goal is to provide a simple, secure and fast experience for every partner.
-
-</div>
-
-<div class="info">
-
-<div class="item">
-<span class="label">Developer</span>
-<span class="value">Sivdhi Team</span>
-</div>
-
-<div class="item">
-<span class="label">Version</span>
-<span class="value">1.0.0</span>
-</div>
-
-
-
-<div class="item">
-<span class="label">Copyright</span>
-<span class="value">© 2026 Sivdhi</span>
-</div>
-
-</div>
-
-</div>
-
+    <header class="topbar">
+        <a class="brand" href="/login?role=partner">Sivdhi.</a>
+        <nav class="top-links" aria-label="Public navigation">
+            <a href="/partner/help">Help</a>
+            <a href="/login?role=partner">Login / Sign Up</a>
+        </nav>
+    </header>
+    <main class="layout">
+        <aside class="side" aria-label="On this page">
+            <h2>On this page</h2>
+            <a href="#about">Who We Are</a>
+            <a href="#account">Partner Account</a>
+            <a href="#workers">Worker Coordination</a>
+            <a href="#jobs">Job Management</a>
+            <a href="#wallet">Partner Wallet</a>
+            <a href="#responsibilities">Responsibilities</a>
+            <a href="#help">Help &amp; Support</a>
+        </aside>
+        <div>
+            <section class="hero" id="about">
+                <small>About Us · Partner</small>
+                <h1>About Sivdhi Partner</h1>
+                <p>Sivdhi Partner provides a place to coordinate the workers linked to a Partner account, view job information and manage Partner account features.</p>
+            </section>
+            <section class="section" id="account">
+                <h2>Partner Account</h2>
+                <p>Use your registered Partner account to sign in. Keep your profile and bank information accurate, and protect your password and OTP.</p>
+            </section>
+            <section class="section" id="workers">
+                <h2>Worker Coordination</h2>
+                <p>The Partner area provides access to the workers linked to your account and the available worker management and availability controls.</p>
+            </section>
+            <section class="section" id="jobs">
+                <h2>Job Management</h2>
+                <p>Review job information assigned to your Partner account and use the available actions to accept, reject or update job progress where those actions are offered.</p>
+            </section>
+            <section class="section" id="wallet">
+                <h2>Partner Wallet</h2>
+                <p>The Partner Wallet displays the balance and payment information currently available in your account. Withdrawal requests follow the controls and approval process displayed in the Partner area.</p>
+            </section>
+            <section class="section" id="responsibilities">
+                <h2>Partner Responsibilities</h2>
+                <p>Maintain accurate account information, coordinate the workers linked to your account, use the available job controls responsibly and keep account credentials and OTPs private.</p>
+            </section>
+            <section class="section" id="help">
+                <h2>Help &amp; Support</h2>
+                <p>Read the <a href="/partner/faq">Partner FAQs</a> or visit <a href="/partner/help">Help &amp; Support</a> for the configured support options.</p>
+            </section>
+            <nav class="legal-links" aria-label="Legal links">
+                <a href="/partner/terms">Terms &amp; Conditions</a>
+                <a href="/partner/privacy">Privacy Policy</a>
+            </nav>
+        </div>
+    </main>
+    {% set sivdhi_footer_role = 'partner' %}
+    {% include '_sivdhi_footer.html' %}
 </body>
-
 </html>

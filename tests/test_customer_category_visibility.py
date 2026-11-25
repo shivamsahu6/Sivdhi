@@ -1,8 +1,13 @@
+import ast
 import sqlite3
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
 
 from routes.customer import (
     _backfill_unlinked_service_categories,
     list_customer_categories,
+    list_customer_catalogue,
 )
 
 
@@ -121,3 +126,109 @@ def test_normal_category_is_visible_with_local_active_worker_even_if_heartbeat_i
         assert strict_categories == []
     finally:
         conn.close()
+
+
+def test_public_catalogue_lists_active_priced_categories_without_location():
+    conn = _catalog_connection()
+    try:
+        _backfill_unlinked_service_categories(conn)
+        categories = list_customer_catalogue(conn, mode="normal")
+        assert [item["name"] for item in categories] == ["AC"]
+        assert categories[0]["available_in_area"] is None
+        assert [item["name"] for item in categories[0]["subcategories"]] == [
+            "AC Repair"
+        ]
+        assert categories[0]["subcategories"][0]["display_price"] == 150
+    finally:
+        conn.close()
+
+
+def test_public_catalogue_keeps_unavailable_categories_and_marks_area_status():
+    conn = _catalog_connection()
+    try:
+        _backfill_unlinked_service_categories(conn)
+        categories = list_customer_catalogue(conn, 0.0, 0.0, "normal")
+        assert [item["name"] for item in categories] == ["AC"]
+        assert categories[0]["available_in_area"] is False
+
+        local_categories = list_customer_catalogue(
+            conn, 29.1195, 78.5971, "normal"
+        )
+        assert [item["name"] for item in local_categories] == ["AC"]
+        assert local_categories[0]["available_in_area"] is True
+    finally:
+        conn.close()
+
+
+def test_public_catalogue_excludes_inactive_categories_and_unpriced_subcategories():
+    conn = _catalog_connection()
+    try:
+        _backfill_unlinked_service_categories(conn)
+        conn.execute(
+            "INSERT INTO service_categories "
+            "(id,name,is_active,normal_enabled,full_day_enabled) "
+            "VALUES (2,'Inactive',0,1,1)"
+        )
+        conn.execute(
+            "INSERT INTO services (id,name,category,active,status,icon,price) "
+            "VALUES (7,'Inactive Service','Inactive',1,'Active','✦',250)"
+        )
+        conn.execute(
+            "INSERT INTO service_categories "
+            "(id,name,is_active,normal_enabled,full_day_enabled) "
+            "VALUES (3,'No Price',1,1,1)"
+        )
+        conn.execute(
+            "INSERT INTO services (id,name,category,active,status,icon,price) "
+            "VALUES (8,'Unpriced Service','No Price',1,'Active','✦',0)"
+        )
+        categories = list_customer_catalogue(conn, mode="normal")
+        assert [item["name"] for item in categories] == ["AC"]
+    finally:
+        conn.close()
+
+
+def _function_decorator_names(path, function_name):
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    function = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == function_name
+    )
+    names = set()
+    for decorator in function.decorator_list:
+        if isinstance(decorator, ast.Name):
+            names.add(decorator.id)
+        elif isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
+            names.add(decorator.func.attr)
+    return names
+
+
+def test_public_customer_catalogue_pages_do_not_require_login():
+    customer_path = ROOT / "routes/customer.py"
+    for function_name in ("home", "category", "help", "faq", "about", "terms", "privacy"):
+        assert "customer_login_required" not in _function_decorator_names(
+            customer_path, function_name
+        )
+
+    # Subcategory selection and private booking/support records stay protected.
+    assert "customer_login_required" in _function_decorator_names(
+        customer_path, "service"
+    )
+    assert "customer_login_required" in _function_decorator_names(
+        customer_path, "support"
+    )
+
+
+def test_worker_and_partner_public_information_pages_do_not_require_login():
+    worker_path = ROOT / "routes/worker.py"
+    for function_name in ("about", "privacy_policy", "terms", "help", "faq"):
+        assert "worker_required" not in _function_decorator_names(
+            worker_path, function_name
+        )
+
+    partner_path = ROOT / "routes/partner.py"
+    for function_name in ("about", "privacy", "terms", "help", "faq"):
+        assert "partner_required" not in _function_decorator_names(
+            partner_path, function_name
+        )

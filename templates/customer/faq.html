@@ -621,13 +621,9 @@
                     </summary>
                     <div class="answer">
                         <p>
-                            Your booking page should display the assignment
-                            status and the permitted worker information
-                            available for your booking.
-                        </p>
-                        <p>
-                            Personal phone numbers should remain private and
-                            should not be exposed on the customer booking page.
+                            Your booking page shows the booking status and the worker name when
+                            assignment is confirmed. Private phone numbers and
+                            personal contact details are not displayed there.
                         </p>
                     </div>
                 </details>
@@ -696,9 +692,9 @@
                             for its current status.
                         </p>
                         <p>
-                            Cancellation eligibility and any refund depend on
-                            the rules implemented for the service and payment.
-                            Contact support if no cancellation option is shown.
+                            The Cancel option appears only while a booking is eligible, generally
+                            before a worker is assigned. After assignment, contact
+                            Support. A refund is complete only after confirmation.
                         </p>
                     </div>
                 </details>
@@ -741,9 +737,24 @@
                             available notification preferences.
                         </p>
                         <p>
-                            Notification delivery depends on the permissions
-                            and notification services configured for the site.
+                            Notification delivery depends on your device/browser permissions
+                            and the options enabled for your account.
                         </p>
+                    </div>
+                </details>
+
+                <details class="faq-item"
+                         data-category="booking"
+                         data-search="completed booking submit service review stars feedback public reviews">
+                    <summary>
+                        <span class="question-icon" aria-hidden="true">⭐</span>
+                        <span class="question-text">How can I review a completed service?</span>
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="answer">
+                        <p>After a booking is marked completed, open Bookings. A review form appears directly below that booking. Each completed booking can receive one review.</p>
+                        <p>Submitted reviews appear on the public Reviews page without your name, phone number or booking reference.</p>
+                        <p><a href="{{ url_for('customer.reviews') }}">Read Customer Reviews →</a></p>
                     </div>
                 </details>
 
@@ -759,8 +770,8 @@
                     </summary>
                     <div class="answer">
                         <p>
-                            Open Help &amp; Support from your Profile page and
-                            submit a description of your issue.
+                            Open Help &amp; Support, sign in and select Support Requests
+                            to submit an issue and follow the conversation.
                         </p>
                         <p>
                             Include the booking reference when it is relevant,
@@ -914,5 +925,7 @@
             filterFAQs();
         })();
     </script>
+    {% set sivdhi_footer_role = 'customer' %}
+    {% include '_sivdhi_footer.html' %}
 </body>
 </html>

@@ -135,6 +135,18 @@
             gap: 14px;
         }
 
+        .booking-review{margin-top:17px;padding:16px;border:1px solid rgba(190,130,255,.24);border-radius:15px;background:rgba(164,77,255,.07)}
+        .booking-review h3{margin:0 0 7px;color:#f5eaff;font-size:13px}
+        .booking-review p{margin:0 0 11px;color:var(--muted);font-size:11px;line-height:1.7}
+        .review-stars{display:flex;flex-direction:row-reverse;justify-content:flex-end;gap:6px;margin:9px 0 12px}
+        .review-stars input{position:absolute;width:1px;height:1px;opacity:0}
+        .review-stars label{color:#756782;font-size:26px;line-height:1;cursor:pointer}
+        .review-stars label:hover,.review-stars label:hover~label,.review-stars input:checked~label{color:#ffc857}
+        .review-stars input:focus-visible+label{outline:2px solid #d7a5ff;outline-offset:3px;border-radius:4px}
+        .review-textarea{width:100%;min-height:82px;padding:11px 12px;border:1px solid rgba(190,130,255,.25);border-radius:11px;color:var(--text);background:rgba(9,7,15,.65);font:inherit;font-size:11px;resize:vertical}
+        .review-submit{width:100%;min-height:42px;margin-top:10px;border:0;border-radius:11px;color:white;background:linear-gradient(105deg,var(--pink),var(--purple),var(--blue));font-size:11px;font-weight:800;cursor:pointer}
+        .review-saved{color:#9cebc1!important;font-weight:750}
+
         .booking-card {
             padding: 18px;
             border: 1px solid var(--border);
@@ -473,7 +485,7 @@
                 %}
                 {% set booking_ref = booking['booking_id']|default(booking['id']|default('')) %}
 
-                <article class="booking-card">
+                <article class="booking-card" id="booking-{{ booking['id'] }}">
                     <div class="booking-top">
                         <div class="booking-service">
                             <h2>{{
@@ -601,7 +613,36 @@
             </section>
             {% endif %}
 
-            </article>
+            
+                    {% if booking['is_completed'] %}
+                    <section class="booking-review" aria-label="Review this completed booking">
+                        {% if booking['review_submitted'] %}
+                            <h3>✓ Your review</h3>
+                            <div class="review-stars" aria-label="{{ booking['review_rating'] }} out of 5 stars">
+                                {% for star in range(1, 6) %}
+                                    <span style="color:{% if star <= booking['review_rating'] %}#ffc857{% else %}#756782{% endif %};font-size:19px;">★</span>
+                                {% endfor %}
+                            </div>
+                            <p class="review-saved">Thank you for reviewing this completed service.</p>
+                            {% if booking['review_text'] %}<p>{{ booking['review_text'] }}</p>{% endif %}
+                        {% else %}
+                            <h3>How was this service?</h3>
+                            <p>Your booking is complete. Share a rating for this service. Your review appears on the public Reviews page without your name, phone number, address or booking reference.</p>
+                            <form method="post" action="{{ url_for('customer.submit_booking_review', booking_db_id=booking['id']) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="review-stars" role="radiogroup" aria-label="Choose a star rating">
+                                    {% for star in range(5, 0, -1) %}
+                                        <input type="radio" id="review-{{ booking['id'] }}-{{ star }}" name="rating" value="{{ star }}" required>
+                                        <label for="review-{{ booking['id'] }}-{{ star }}" title="{{ star }} out of 5 stars">★</label>
+                                    {% endfor %}
+                                </div>
+                                <textarea class="review-textarea" name="review" maxlength="1000" placeholder="Share your experience (optional)" aria-label="Your service review"></textarea>
+                                <button class="review-submit" type="submit">Submit Review</button>
+                            </form>
+                        {% endif %}
+                    </section>
+                    {% endif %}
+</article>
             {% endfor %}
             </section>
             {% else %}
@@ -696,6 +737,8 @@
         });
     </script>
     {% endif %}
+    {% set sivdhi_footer_role = 'customer' %}
+    {% include '_sivdhi_footer.html' %}
 </body>
 
 </html>

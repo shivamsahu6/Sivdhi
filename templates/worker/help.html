@@ -118,8 +118,11 @@ color:#6b7280;
 </h2>
 
 <p>
-Need help? Use one of the configured support options below.
+Need help with jobs, wallet, bank details or your worker account? Use the support options configured for Sivdhi.
 </p>
+<div style="margin:16px 18px 0;padding:14px 16px;background:#eff6ff;border:1px solid #dbeafe;border-radius:14px;color:#1e3a8a;font-size:14px;">
+    Need quick answers? <a href="/worker/faq" style="color:#1d4ed8;font-weight:700;text-decoration:underline;">Browse Worker FAQs</a>.
+</div>
 
 </div>
 
@@ -308,11 +311,13 @@ Read our terms
 
 <div class="version">
 
-Sivdhi Partner App<br>
+Sivdhi Worker Portal<br>
 Version 1.0.0
 
 </div>
 
+    {% set sivdhi_footer_role = 'worker' %}
+    {% include '_sivdhi_footer.html' %}
 </body>
 
 </html>

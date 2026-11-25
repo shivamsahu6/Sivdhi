@@ -3113,7 +3113,6 @@ def resend_password_otp():
 @worker_bp.route(
     "/worker/about"
 )
-@worker_required
 def about():
 
     return render_template(
@@ -3128,7 +3127,6 @@ def about():
 @worker_bp.route(
     "/worker/privacy_policy"
 )
-@worker_required
 def privacy_policy():
 
     return render_template(
@@ -3143,7 +3141,6 @@ def privacy_policy():
 @worker_bp.route(
     "/worker/terms"
 )
-@worker_required
 def terms():
 
     return render_template(
@@ -3158,7 +3155,6 @@ def terms():
 @worker_bp.route(
     "/worker/help"
 )
-@worker_required
 def help():
 
     return render_template(
@@ -3350,7 +3346,6 @@ def app_version():
 @worker_bp.route(
     "/worker/faq"
 )
-@worker_required
 def faq():
 
     return render_template(

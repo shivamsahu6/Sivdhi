@@ -59,7 +59,7 @@ except ImportError:
         def wrapped(*args, **kwargs):
             if not session.get("customer_id"):
                 flash("Please login to continue.", "warning")
-                return redirect(url_for("customer.login", next=request.path))
+                return redirect(url_for("customer.login", next=request.full_path))
             return view(*args, **kwargs)
         return wrapped
 
@@ -365,6 +365,9 @@ def ensure_customer_schema(db):
         ("language", "TEXT DEFAULT 'en'"),
         ("latitude", "REAL"),
         ("longitude", "REAL"),
+        ("terms_accepted_at", "TEXT"),
+        ("terms_version", "TEXT"),
+        ("privacy_policy_version", "TEXT"),
         ("created_at", "TEXT"),
     ):
         _add_column_if_missing(
@@ -626,6 +629,24 @@ def ensure_customer_schema(db):
             )
 
     ensure_finance_schema(db)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_id INTEGER UNIQUE NOT NULL,
+            customer_id INTEGER NOT NULL,
+            worker_id INTEGER,
+            rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+            review TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (booking_id) REFERENCES bookings(id),
+            FOREIGN KEY (customer_id) REFERENCES customers(id),
+            FOREIGN KEY (worker_id) REFERENCES workers(id)
+        )
+    """)
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS idx_reviews_created_at
+        ON reviews (created_at DESC, id DESC)
+    """)
     db.commit()
 
 
@@ -1620,6 +1641,81 @@ def list_customer_categories(
     return categories
 
 
+def list_customer_catalogue(db, latitude=None, longitude=None, mode="normal"):
+    """Return every active, priced customer category with optional area status.
+
+    Catalogue browsing is public and does not depend on a saved location.
+    Availability is a separate, area-specific flag and never removes a
+    category from the public catalogue.
+    """
+    mode = normalise_booking_mode(mode)
+    columns = table_columns(db, "service_categories")
+    if "name" not in columns:
+        return []
+
+    mode_col = "full_day_enabled" if mode == "full-day" else "normal_enabled"
+    if mode_col not in columns:
+        return []
+
+    where = [f"COALESCE({mode_col},0)=1"]
+    if "is_active" in columns:
+        where.append("COALESCE(is_active,1)=1")
+
+    rows = db.execute(
+        "SELECT * FROM service_categories WHERE "
+        + " AND ".join(where)
+        + " ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+
+    location_checked = latitude is not None and longitude is not None
+    available_ids = set()
+    if location_checked:
+        available_ids = {
+            safe_int(item.get("id"))
+            for item in list_customer_categories(db, latitude, longitude, mode)
+        }
+
+    price_key = "display_full_day_price" if mode == "full-day" else "display_price"
+    catalogue = []
+    for row in rows:
+        item = row_dict(row)
+        category_name = str(item.get("name") or "").strip()
+        if not category_name:
+            continue
+
+        subcategories = [
+            service for service in customer_service_rows(db, category_name)
+            if money(service.get(price_key)) > 0
+        ]
+        if not subcategories:
+            continue
+
+        for private_key in (
+            "commission", "partner_commission_percent", "platform_commission_percent",
+            "partner_commission_amount", "platform_commission_amount",
+            "worker_earning_amount", "platform_fee", "visit_fee",
+        ):
+            item.pop(private_key, None)
+
+        category_id = safe_int(item.get("id"))
+        item.update({
+            "display_name": category_name,
+            "display_icon": item.get("icon") or "✦",
+            "subcategories": subcategories,
+            "service_count": len(subcategories),
+            "display_full_day_price": money(item.get("full_day_price")),
+            "display_visit_fee": 0.0,
+            "display_included_work": item.get("included_work") or "",
+            "display_excluded_work": item.get("excluded_work") or "",
+            "available_in_area": (
+                category_id in available_ids if location_checked else None
+            ),
+        })
+        catalogue.append(item)
+
+    return catalogue
+
+
 def get_service(db, service_id):
     if not table_exists(db, "services"):
         return None
@@ -2040,6 +2136,17 @@ def signup():
         return redirect(url_for("customer.home"))
 
     if request.method == "POST":
+        next_url = (
+            request.args.get("next")
+            or request.form.get("next")
+            or ""
+        ).strip()
+        if request.form.get("terms") != "accepted":
+            flash(
+                "Please accept the Terms & Conditions and Privacy Policy before creating your account.",
+                "danger",
+            )
+            return render_template("customer/signup.html")
         name = (
             request.form.get("fullname")
             or request.form.get("name")
@@ -2104,7 +2211,7 @@ def signup():
                     "This mobile number is already registered. Please login.",
                     "danger",
                 )
-                return redirect(url_for("customer.login"))
+                return redirect(url_for("customer.login", next=next_url))
 
             if db.execute(
                 """
@@ -2117,10 +2224,18 @@ def signup():
                     "This email is already registered. Please login.",
                     "danger",
                 )
-                return redirect(url_for("customer.login"))
+                return redirect(url_for("customer.login", next=next_url))
 
             columns = table_columns(db, "customers")
             payload = {}
+
+            consent_timestamp = datetime.now().isoformat(timespec="seconds")
+            if "terms_accepted_at" in columns:
+                payload["terms_accepted_at"] = consent_timestamp
+            if "terms_version" in columns:
+                payload["terms_version"] = "2026-11-25"
+            if "privacy_policy_version" in columns:
+                payload["privacy_policy_version"] = "2026-11-25"
 
             if "customer_id" in columns:
                 payload["customer_id"] = (
@@ -2157,6 +2272,10 @@ def signup():
 
             db.commit()
 
+            guest_latitude = safe_float(session.get("customer_latitude"))
+            guest_longitude = safe_float(session.get("customer_longitude"))
+            guest_location_name = session.get("customer_location_name")
+            guest_booking_mode = normalise_booking_mode(session.get("booking_mode") or "normal")
             session.clear()
             session["customer_id"] = cursor.lastrowid
             session["customer_code"] = payload.get(
@@ -2166,7 +2285,26 @@ def signup():
             session["customer_email"] = email
             session["customer_mobile"] = mobile
 
-            # Signup opens Home immediately, where location is requested.
+            if guest_latitude is not None and guest_longitude is not None:
+                session["customer_latitude"] = guest_latitude
+                session["customer_longitude"] = guest_longitude
+                session["customer_location_allowed"] = True
+                session["customer_location_name"] = guest_location_name or "Current location"
+            session["booking_mode"] = guest_booking_mode
+
+            parsed_next = urlsplit(next_url or "")
+            if (
+                next_url
+                and next_url.startswith("/")
+                and not next_url.startswith("//")
+                and "\\" not in next_url
+                and "\r" not in next_url
+                and "\n" not in next_url
+                and not parsed_next.scheme
+                and not parsed_next.netloc
+            ):
+                return redirect(next_url)
+
             return redirect(url_for("customer.home"))
 
         except Exception:
@@ -2254,29 +2392,65 @@ def save_customer_location_api():
         session["customer_location_allowed"] = True
         session["customer_location_name"] = "Current location"
 
+        pending_service_mode = (
+            session.get("pending_service_mode")
+            if safe_int(session.get("pending_service_id"), 0)
+            else None
+        )
         mode = normalise_booking_mode(
-            data.get("mode")
+            pending_service_mode
+            or data.get("mode")
             or session.get("booking_mode")
             or "normal"
         )
         session["booking_mode"] = mode
 
-        categories = list_customer_categories(
+        categories = list_customer_catalogue(
             db, latitude, longitude, mode
         )
+        service_area_available = any(
+            item.get("available_in_area") is True for item in categories
+        )
+        continue_service_url = None
+        pending_service_unavailable = False
+        pending_service_id = safe_int(session.get("pending_service_id"), 0)
+        if pending_service_id:
+            pending_service_category = next(
+                (
+                    item for item in categories
+                    if any(
+                        safe_int(service.get("id")) == pending_service_id
+                        for service in item.get("subcategories", [])
+                    )
+                ),
+                None,
+            )
+            if pending_service_category and pending_service_category.get("available_in_area") is True:
+                continue_service_url = url_for(
+                    "customer.service",
+                    service_id=pending_service_id,
+                    mode=mode,
+                )
+            else:
+                pending_service_unavailable = True
+                session.pop("pending_service_id", None)
+                session.pop("pending_service_mode", None)
 
         return jsonify({
             "success": True,
             "mode": mode,
             "location": {"label": "Current location"},
             "categories": categories,
-            "service_area_available": bool(categories),
+            "location_checked": True,
+            "service_area_available": service_area_available,
+            "continue_service_url": continue_service_url,
+            "pending_service_unavailable": pending_service_unavailable,
             "message": (
-                "Location saved."
-                if categories
-                else
-                "Location saved, but no eligible category is "
-                "available in this area for this service type."
+                "The selected service is not currently available in your area."
+                if pending_service_unavailable
+                else "Location checked."
+                if service_area_available
+                else "Location checked, but no eligible category is available in this area for this service type."
             ),
         })
 
@@ -2303,43 +2477,27 @@ def customer_categories_api():
         or "normal"
     )
     session["booking_mode"] = mode
-
     db = get_db()
-
     try:
         ensure_customer_schema(db)
-
         latitude, longitude = customer_saved_coordinates(db)
-
-        if latitude is None or longitude is None:
-            return jsonify({
-                "success": True,
-                "requires_location": True,
-                "categories": [],
-            })
-
-        categories = list_customer_categories(
-            db, latitude, longitude, mode
-        )
-
+        categories = list_customer_catalogue(db, latitude, longitude, mode)
         return jsonify({
             "success": True,
             "mode": mode,
+            "location_checked": latitude is not None and longitude is not None,
             "categories": categories,
-            "service_area_available": bool(categories),
+            "service_area_available": any(
+                item.get("available_in_area") is True for item in categories
+            ),
         })
-
     except Exception:
-        current_app.logger.exception(
-            "Could not load customer categories"
-        )
-
+        current_app.logger.exception("Could not load customer catalogue")
         return jsonify({
             "success": False,
             "message": "Could not load categories.",
             "categories": [],
         }), 500
-
     finally:
         db.close()
 
@@ -2347,33 +2505,26 @@ def customer_categories_api():
 @customer_bp.route("/")
 @customer_bp.route("/home")
 def home():
-    """Public service catalogue; account-specific actions remain protected."""
+    """Public customer catalogue; location only controls availability labels."""
+    pending_service_mode = (
+        session.get("pending_service_mode")
+        if safe_int(session.get("pending_service_id"), 0)
+        else None
+    )
     mode = normalise_booking_mode(
-        request.args.get("mode")
+        pending_service_mode
+        or request.args.get("mode")
         or session.get("booking_mode")
         or "normal"
     )
     session["booking_mode"] = mode
-
     db = get_db()
-
     try:
         ensure_customer_schema(db)
-
         customer = get_customer(db)
         latitude, longitude = customer_saved_coordinates(db)
-        location_allowed = (
-            latitude is not None and longitude is not None
-        )
-
-        categories = (
-            list_customer_categories(
-                db, latitude, longitude, mode
-            )
-            if location_allowed
-            else []
-        )
-
+        location_allowed = latitude is not None and longitude is not None
+        categories = list_customer_catalogue(db, latitude, longitude, mode)
         return render_template(
             "customer/home.html",
             customer=customer,
@@ -2384,8 +2535,9 @@ def home():
                 "Current location" if location_allowed else "",
             ),
             booking_mode=mode,
+            pending_service_id=safe_int(session.get("pending_service_id"), 0),
+            sivdhi_show_customer_support=True,
         )
-
     finally:
         db.close()
 
@@ -2396,8 +2548,8 @@ def home():
 # =========================================================
 
 @customer_bp.route("/category/<int:category_id>")
-@customer_login_required
 def category(category_id):
+    """Public category catalogue page; booking actions remain authenticated."""
     mode = normalise_booking_mode(
         request.args.get("mode") or session.get("booking_mode") or "normal"
     )
@@ -2405,16 +2557,20 @@ def category(category_id):
     db = get_db()
     try:
         ensure_customer_schema(db)
-        category_data, error = validate_category_available(db, category_id, mode)
-        if error:
-            flash(error, "warning")
+        catalogue = list_customer_catalogue(db, mode=mode)
+        category_data = next(
+            (item for item in catalogue if safe_int(item.get("id")) == safe_int(category_id)),
+            None,
+        )
+        if not category_data:
+            flash("This category is not currently listed.", "warning")
             return redirect(url_for("customer.home", mode=mode))
-        subcategories = customer_service_rows(db, category_data.get("name"))
-        price_key = "display_full_day_price" if mode == "full-day" else "display_price"
-        subcategories = [service for service in subcategories if money(service.get(price_key)) > 0]
+
+        subcategories = category_data.get("subcategories") or []
         if not subcategories:
-            flash("No subcategories with a configured price are available in this category yet.", "warning")
+            flash("No priced subcategories are listed in this category yet.", "warning")
             return redirect(url_for("customer.home", mode=mode))
+
         return render_template(
             "customer/subcategories.html",
             category=category_data,
@@ -2428,46 +2584,58 @@ def category(category_id):
 @customer_bp.route("/service/<int:service_id>")
 @customer_login_required
 def service(service_id):
+    """Authenticate a subcategory click, then validate location and area coverage."""
     mode = normalise_booking_mode(
         request.args.get("mode") or session.get("booking_mode") or "normal"
     )
     db = get_db()
     try:
         ensure_customer_schema(db)
-        service_data = get_service(db, service_id)
-        if not service_data:
-            flash("Subcategory not found.", "warning")
+
+        catalogue = list_customer_catalogue(db, mode=mode)
+        category_data = None
+        service_data = None
+        for category_item in catalogue:
+            match = next(
+                (item for item in category_item.get("subcategories", [])
+                 if safe_int(item.get("id")) == safe_int(service_id)),
+                None,
+            )
+            if match:
+                category_data = category_item
+                service_data = match
+                break
+
+        if not service_data or not category_data:
+            session.pop("pending_service_id", None)
+            flash("This subcategory is not currently active or priced.", "warning")
             return redirect(url_for("customer.home", mode=mode))
 
         latitude, longitude = customer_saved_coordinates(db)
         if latitude is None or longitude is None:
-            flash("Allow location on Home before continuing.", "warning")
+            session["pending_service_id"] = safe_int(service_id)
+            session["pending_service_mode"] = mode
+            session["booking_mode"] = mode
+            flash("Select your location to check this service before booking.", "warning")
             return redirect(url_for("customer.home", mode=mode))
 
-        permitted = {
-            str(item.get("name", "")).lower()
+        permitted_category_ids = {
+            safe_int(item.get("id"))
             for item in list_customer_categories(db, latitude, longitude, mode)
         }
-        if str(service_data.get("display_category", "")).lower() not in permitted:
+        category_id = safe_int(category_data.get("id"))
+        if category_id not in permitted_category_ids:
+            session.pop("pending_service_id", None)
+            session.pop("pending_service_mode", None)
             flash("This service is not currently available in your area.", "warning")
             return redirect(url_for("customer.home", mode=mode))
 
-        category_row = db.execute(
-            "SELECT * FROM service_categories WHERE LOWER(name)=LOWER(?) LIMIT 1",
-            (service_data.get("display_category"),),
-        ).fetchone()
-        category_data = row_dict(category_row) or {"name": service_data.get("display_category")}
-        if mode == "full-day" and money(service_data.get("display_full_day_price")) <= 0:
-            flash("Full-day price is not configured for this subcategory yet.", "warning")
-            return redirect(url_for("customer.category", category_id=safe_int(category_data.get("id"), 0), mode=mode))
-        if mode == "normal" and money(service_data.get("display_price")) <= 0:
-            flash("Normal price is not configured for this subcategory yet.", "warning")
-            return redirect(url_for("customer.category", category_id=safe_int(category_data.get("id"), 0), mode=mode))
-
+        session.pop("pending_service_id", None)
+        session.pop("pending_service_mode", None)
         session["selected_service_id"] = service_id
         session["selected_service_name"] = service_data.get("display_name")
         session["selected_category"] = service_data.get("display_category")
-        session["selected_category_id"] = safe_int(category_data.get("id"), 0)
+        session["selected_category_id"] = category_id
         session["selected_service_icon"] = service_data.get("display_icon")
         session["selected_problem_ids"] = []
         session["selected_problems_snapshot"] = []
@@ -2524,6 +2692,23 @@ def service_details():
         latitude, longitude = customer_saved_coordinates(db)
         if latitude is None or longitude is None:
             flash("Allow location on Home before continuing.", "warning")
+            return redirect(url_for("customer.home", mode=mode))
+
+        eligible_category_names = {
+            str(item.get("name") or "").strip().lower()
+            for item in list_customer_categories(db, latitude, longitude, mode)
+        }
+        selected_category_name = (
+            str(selected.get("display_category") or "").strip().lower()
+            if selected
+            else str((category_data or {}).get("name") or "").strip().lower()
+        )
+        if selected_category_name and selected_category_name not in eligible_category_names:
+            session.pop("selected_service_id", None)
+            session.pop("selected_category", None)
+            session.pop("selected_category_id", None)
+            session.pop("selected_full_day_price", None)
+            flash("This service is no longer available in your area. Please choose another service.", "warning")
             return redirect(url_for("customer.home", mode=mode))
 
         amount = calculate_current_amount(db)
@@ -4260,6 +4445,19 @@ def bookings():
             flash("Please login again.", "warning")
             return redirect(url_for("customer.login"))
 
+        review_rows = db.execute(
+            """
+            SELECT booking_id, rating, review, created_at
+            FROM reviews
+            WHERE customer_id=?
+            """,
+            (customer_row["id"],),
+        ).fetchall()
+        reviews_by_booking = {
+            safe_int(review_row["booking_id"], 0): review_row
+            for review_row in review_rows
+        }
+
         booking_rows = []
 
         if table_exists(db, "bookings"):
@@ -4375,6 +4573,14 @@ def bookings():
             is_assigned = bool(item.get("worker_id") or item.get("assigned_worker_id"))
             item["can_cancel"] = (not is_assigned and current_status in {"pending", "matching", "no_worker", "unassigned"})
 
+            booking_db_id = safe_int(item.get("id"), 0)
+            saved_review = reviews_by_booking.get(booking_db_id)
+            is_completed = current_status in {"completed", "complete"}
+            item["is_completed"] = is_completed
+            item["review_submitted"] = saved_review is not None
+            item["review_rating"] = safe_int(saved_review["rating"], 0) if saved_review else 0
+            item["review_text"] = str(saved_review["review"] or "") if saved_review else ""
+            
             item["total_amount"] = money(
                 item.get("total_amount")
                 if item.get("total_amount") is not None
@@ -4395,6 +4601,94 @@ def bookings():
             cashfree_environment=os.getenv("CASHFREE_ENV", "sandbox").strip().lower(),
         )
 
+    finally:
+        db.close()
+
+
+@customer_bp.route("/booking/<int:booking_db_id>/review", methods=["POST"])
+@customer_login_required
+def submit_booking_review(booking_db_id):
+    """Save one review only from the customer who owns a completed booking."""
+    db = get_db()
+    try:
+        ensure_customer_schema(db)
+        customer_row = get_customer(db)
+        if not customer_row:
+            session.clear()
+            flash("Please login again.", "warning")
+            return redirect(url_for("customer.login"))
+
+        booking = db.execute(
+            "SELECT * FROM bookings WHERE id=? AND customer_id=? LIMIT 1",
+            (booking_db_id, customer_row["id"]),
+        ).fetchone()
+        if not booking:
+            flash("This completed booking could not be found.", "warning")
+            return redirect(url_for("customer.bookings"))
+
+        keys = set(booking.keys())
+        status = str(
+            booking["booking_status"] if "booking_status" in keys and booking["booking_status"]
+            else booking["status"] if "status" in keys else ""
+        ).strip().lower()
+        if status not in {"completed", "complete"}:
+            flash("You can review a service only after its booking is completed.", "warning")
+            return redirect(url_for("customer.bookings", _anchor=f"booking-{booking_db_id}"))
+
+        rating = safe_int(request.form.get("rating"), 0)
+        if rating not in range(1, 6):
+            flash("Please select a rating from 1 to 5 stars.", "danger")
+            return redirect(url_for("customer.bookings", _anchor=f"booking-{booking_db_id}"))
+
+        review_text = (request.form.get("review") or "").strip()[:1000]
+        worker_id = booking["worker_id"] if "worker_id" in keys and booking["worker_id"] else None
+        saved = db.execute(
+            """
+            INSERT OR IGNORE INTO reviews (booking_id, customer_id, worker_id, rating, review)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (booking_db_id, customer_row["id"], worker_id, rating, review_text),
+        )
+        if saved.rowcount != 1:
+            db.rollback()
+            flash("A review has already been submitted for this booking.", "info")
+            return redirect(url_for("customer.bookings", _anchor=f"booking-{booking_db_id}"))
+
+        db.commit()
+        flash("Thank you. Your booking review has been submitted.", "success")
+        return redirect(url_for("customer.bookings", _anchor=f"booking-{booking_db_id}"))
+    finally:
+        db.close()
+
+
+@customer_bp.route("/reviews")
+def reviews():
+    """Public reviews from completed bookings; customer identities stay private."""
+    db = get_db()
+    try:
+        ensure_customer_schema(db)
+        rows = db.execute(
+            """
+            SELECT r.rating, COALESCE(r.review, '') AS review, r.created_at,
+                   COALESCE(NULLIF(s.name, ''), NULLIF(b.category, ''), 'Home Service') AS service_name
+            FROM reviews r
+            JOIN bookings b ON b.id=r.booking_id
+            LEFT JOIN services s ON s.id=b.service_id
+            WHERE LOWER(COALESCE(NULLIF(b.booking_status, ''), NULLIF(b.status, ''), 'pending'))
+                  IN ('completed', 'complete')
+              AND r.rating BETWEEN 1 AND 5
+            ORDER BY datetime(r.created_at) DESC, r.id DESC
+            """
+        ).fetchall()
+        review_list = [dict(row) for row in rows]
+        count = len(review_list)
+        average = round(sum(int(row["rating"]) for row in review_list) / count, 1) if count else 0
+        return render_template(
+            "customer/reviews.html",
+            reviews=review_list,
+            total_reviews=count,
+            average_rating=average,
+        )
     finally:
         db.close()
 
@@ -4821,8 +5115,12 @@ def _create_customer_support_ticket(db, customer_row, form_data):
 
 
 @customer_bp.route("/help", methods=["GET", "POST"])
-@customer_login_required
 def help():
+    if not session.get("customer_id"):
+        if request.method == "POST":
+            return redirect(url_for("customer.login", next=url_for("customer.help")))
+        return render_template("customer/help.html")
+
     db = get_db()
     try:
         ensure_customer_schema(db)
@@ -4985,7 +5283,6 @@ def support():
 
 
 @customer_bp.route("/faq")
-@customer_login_required
 def faq():
     return render_template("customer/faq.html")
 
@@ -4996,13 +5293,11 @@ def privacy():
 
 
 @customer_bp.route("/terms")
-@customer_login_required
 def terms():
     return render_template("customer/terms.html")
 
 
 @customer_bp.route("/about")
-@customer_login_required
 def about():
     return render_template("customer/about.html")
 

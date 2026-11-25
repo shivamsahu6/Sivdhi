@@ -720,6 +720,7 @@
                           action="{{ url_for('customer.signup') }}"
                           id="signupForm">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="next" value="{{ request.args.get('next') or request.form.get('next', '') }}">
 
                         <div class="field">
                             <div class="input-box">
@@ -813,7 +814,7 @@
                             >
                             <span>
                                 I agree to the
-                                <a href="#" id="termsLink">Terms &amp; Conditions</a>
+                                <a href="{{ url_for('customer.terms') }}" id="termsLink" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a>
                                 and Sivdhi's
                                 <a href="{{ url_for('customer.privacy') }}"
                                    id="privacyPolicyLink"
@@ -830,7 +831,7 @@
 
                     <div class="login-link">
                         Already have an account?
-                        <a href="{{ url_for('customer.login') }}">Login</a>
+                        <a href="{{ url_for('customer.login', next=(request.args.get('next') or request.form.get('next') or '')) }}">Login</a>
                     </div>
 
                 </div>
@@ -841,100 +842,6 @@
             Made for your comfort <span>♥</span> &nbsp; | &nbsp; SIVDHI
         </div>
     </main>
-
-    <dialog class="terms-dialog" id="termsDialog" aria-labelledby="termsDialogTitle">
-        <div class="terms-dialog-inner">
-            <div class="terms-dialog-header">
-                <h2 id="termsDialogTitle">Sivdhi Terms &amp; Conditions</h2>
-                <p>Please read these terms before creating your account.</p>
-            </div>
-
-            <div class="terms-dialog-body">
-                <h3>1. Your account</h3>
-                <p>
-                    Provide accurate, current information when registering and
-                    keep your login credentials secure. You are responsible for
-                    activity carried out through your account. Notify Sivdhi if
-                    you believe your account has been used without permission.
-                </p>
-
-                <h3>2. Booking services</h3>
-                <p>
-                    When you place a booking, you are requesting a home service
-                    through Sivdhi. Service availability, appointment timing,
-                    and worker assignment may depend on location and availability.
-                    Please check the service details before confirming a booking.
-                </p>
-
-                <h3>3. Prices and payments</h3>
-                <p>
-                    Review the price shown on the booking and payment screens
-                    before confirming. Applicable charges and payment status
-                    will be shown in the service flow. A test or demo payment
-                    confirmation is not proof of a real payment.
-                </p>
-
-                <h3>4. Changes and cancellations</h3>
-                <p>
-                    Booking changes, cancellations, refunds, and any applicable
-                    fees are handled according to the policy shown by Sivdhi
-                    for the relevant service or booking. Contact support if a
-                    booking or payment status appears incorrect.
-                </p>
-
-                <h3>5. Fair and lawful use</h3>
-                <p>
-                    Use Sivdhi lawfully and respectfully. Do not submit false
-                    information, misuse the platform, interfere with its
-                    operation, or use another person's account without permission.
-                </p>
-
-                <h3>6. Privacy</h3>
-                <p>
-                    Sivdhi uses account and booking information to operate the
-                    service, coordinate bookings, provide support, and maintain
-                    security. Personal information should only be shared where
-                    needed to deliver the service and in accordance with the
-                    applicable privacy notice and law.
-                </p>
-
-                <h3>7. Service availability and updates</h3>
-                <p>
-                    Service information and these terms may be updated as the
-                    platform changes. Applicable terms remain subject to
-                    relevant law.
-                </p>
-
-                <h3>8. Contact and acceptance</h3>
-                <p>
-                    If you do not agree to these terms, do not create an account.
-                    By checking the agreement box and submitting the signup form,
-                    you confirm that you have read and agree to these Terms &amp;
-                    Conditions and acknowledge the privacy practices described above.
-                </p>
-
-                <p>
-                    <strong>Note:</strong> These are general in-app terms and
-                    should be reviewed for legal and business-specific
-                    requirements before production use.
-                </p>
-            </div>
-
-            <div class="terms-dialog-footer">
-                <button
-                    type="button"
-                    class="terms-dialog-button"
-                    id="closeTerms"
-                >Close</button>
-
-                <button
-                    type="button"
-                    class="terms-dialog-button primary"
-                    id="acceptTerms"
-                >I Agree &amp; Continue</button>
-            </div>
-        </div>
-    </dialog>
 
     <script>
         const form = document.getElementById("signupForm");
@@ -978,31 +885,8 @@
             }
         });
 
-        const termsDialog = document.getElementById("termsDialog");
-        const termsCheckbox = document.getElementById("terms");
-
-        document.getElementById("termsLink").addEventListener("click", function (event) {
-            event.preventDefault();
-
-            if (typeof termsDialog.showModal === "function") {
-                termsDialog.showModal();
-            }
-        });
-
-        document.getElementById("closeTerms").addEventListener("click", function () {
-            termsDialog.close();
-        });
-
-        document.getElementById("acceptTerms").addEventListener("click", function () {
-            termsCheckbox.checked = true;
-            termsDialog.close();
-        });
-
-        termsDialog.addEventListener("click", function (event) {
-            if (event.target === termsDialog) {
-                termsDialog.close();
-            }
-        });
     </script>
+    {% set sivdhi_footer_role = 'customer' %}
+    {% include '_sivdhi_footer.html' %}
 </body>
 </html>
