@@ -282,7 +282,7 @@
         <section class="intro">
             <h2>How can we help?</h2>
             <p>
-                Find answers to common questions about bookings and your account.
+                Find guidance for bookings, payments, your account and service reviews.
             </p>
         </section>
 
@@ -295,10 +295,9 @@
                     <span class="arrow" aria-hidden="true">⌄</span>
                 </summary>
                 <div class="answer">
-                    Open Home, select a service category and subcategory,
-                    review the price, enter your location and choose the
-                    required quantity. Continue through the booking flow
-                    to submit your request.
+                    Browse categories and prices without signing in. Select a subcategory;
+                    sign in first, then choose your service location and check
+                    whether the selected service is available in your area.
                 </div>
             </details>
 
@@ -321,8 +320,9 @@
                     <span class="arrow" aria-hidden="true">⌄</span>
                 </summary>
                 <div class="answer">
-                    The booking may still be awaiting worker assignment.
-                    Check the booking status again for the latest information.
+                    A booking may show Finding a Worker while Sivdhi checks worker eligibility
+                    and availability. Assignment is confirmed only when your
+                    booking status changes to Booking Confirmed.
                 </div>
             </details>
 
@@ -333,9 +333,9 @@
                     <span class="arrow" aria-hidden="true">⌄</span>
                 </summary>
                 <div class="answer">
-                    Review the service price and total shown during the
-                    booking process. Refer to your booking details for
-                    the amount associated with your request.
+                    Review the configured service price and booking total before confirming.
+                    Where an advance is collected, any remaining balance is
+                    shown in your booking and becomes due after the worker arrives.
                 </div>
             </details>
 
@@ -346,9 +346,8 @@
                     <span class="arrow" aria-hidden="true">⌄</span>
                 </summary>
                 <div class="answer">
-                    Open your Profile, go to Settings and select Change
-                    Password. Follow the verification instructions shown
-                    on the screen.
+                    Open Profile, choose Settings, then Change Password. Complete the
+                    verification steps displayed by Sivdhi.
                 </div>
             </details>
 
@@ -366,19 +365,25 @@
 
         </section>
         <section class="owner-contact" aria-labelledby="ownerContactTitle">
-            <h2 id="ownerContactTitle">Sivdhi Contact Details</h2>
-            <p>For help or questions about Sivdhi, contact the owner using the details below.</p>
+            <h2 id="ownerContactTitle">Need more help?</h2>
+            <p>Browse the detailed Customer FAQs or sign in to create a private Support Request and follow replies. Booking and account information stays inside your signed-in account.</p>
             <div class="owner-contact-row">
-                <span class="owner-contact-icon" aria-hidden="true">👤</span>
-                <div><span class="owner-contact-label">Legal / Owner Name</span><strong class="owner-contact-value">Shivam Sahu</strong></div>
+                <span class="owner-contact-icon" aria-hidden="true">❔</span>
+                <div><a class="owner-contact-value" href="{{ url_for('customer.faq') }}">Browse Customer FAQs</a></div>
             </div>
             <div class="owner-contact-row">
-                <span class="owner-contact-icon" aria-hidden="true">✉</span>
-                <div><span class="owner-contact-label">Email</span><a class="owner-contact-value" href="mailto:shivamsahu.co@gmail.com">shivamsahu.co@gmail.com</a></div>
+                <span class="owner-contact-icon" aria-hidden="true">💬</span>
+                <div>
+                    {% if session.get('customer_id') %}
+                        <a class="owner-contact-value" href="{{ url_for('customer.support') }}">Open Support Requests</a>
+                    {% else %}
+                        <a class="owner-contact-value" href="{{ url_for('customer.login', next=url_for('customer.support')) }}">Sign in to Contact Support</a>
+                    {% endif %}
+                </div>
             </div>
             <div class="owner-contact-row">
-                <span class="owner-contact-icon" aria-hidden="true">☎</span>
-                <div><span class="owner-contact-label">Phone</span><a class="owner-contact-value" href="tel:9286557611">9286557611</a></div>
+                <span class="owner-contact-icon" aria-hidden="true">⭐</span>
+                <div><a class="owner-contact-value" href="{{ url_for('customer.reviews') }}">Read Customer Reviews</a></div>
             </div>
         </section>
     </main>
