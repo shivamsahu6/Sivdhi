@@ -116,7 +116,7 @@ def sitemap_xml():
 
     # Password-reset/OTP flows and authenticated account pages are deliberately excluded.
     public_urls = (
-        "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/",
         "https://sivdhi.duckdns.org/partner-opportunity",
         "https://sivdhi.duckdns.org/customer/signup",
         "https://sivdhi.duckdns.org/signup?role=worker",
