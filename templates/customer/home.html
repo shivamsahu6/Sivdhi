@@ -990,7 +990,7 @@
                     {% endfor %}
                 </div>
 
-                <div class="state-card" id="locationState" {% if location_allowed %}hidden{% endif %}>
+                <div class="state-card" id="locationState" {% if location_allowed or not pending_service_id %}hidden{% endif %}>
                     <div class="state-icon" aria-hidden="true">⌖</div>
                     <h3>{% if pending_service_id %}Continue with your selected service{% else %}Check services in your area{% endif %}</h3>
                     <p>
@@ -1218,9 +1218,15 @@
 
                 if (data.requires_location) {
                     locationAllowed = false;
-                    locationState.hidden = false;
-                    categoryGrid.hidden = true;
-                    resultCount.textContent = "0 categories";
+                    const hasPendingService = Number(
+                        document.body.dataset.pendingServiceId || 0
+                    ) > 0;
+                    locationState.hidden = !hasPendingService;
+                    categoryGrid.hidden = hasPendingService ||
+                        categoryGrid.querySelectorAll(".category-card").length === 0;
+                    resultCount.textContent = categoryGrid.hidden
+                        ? "0 categories"
+                        : categoryGrid.querySelectorAll(".category-card").length + " categories";
                     return;
                 }
 
@@ -1420,10 +1426,14 @@
             loadCategories();
         } else {
             categoryGrid.hidden = categoryGrid.querySelectorAll(".category-card").length === 0;
-            locationState.hidden = false;
+            const hasPendingService = Number(
+                document.body.dataset.pendingServiceId || 0
+            ) > 0;
+            locationState.hidden = !hasPendingService;
 
-            // Keep location permission user initiated. The customer can grant
-            // it with Allow Location instead of seeing an automatic browser prompt.
+            // Browsing categories and prices never asks for location.
+            // Location is requested only after a customer chooses a service
+            // and signs in, so the pending service can be checked for coverage.
         }
     </script>
 
