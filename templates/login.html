@@ -318,5 +318,7 @@
         }, 3000);
     </script>
 
+    {% set sivdhi_footer_role = 'worker' if role == 'worker' else 'partner' %}
+    {% include '_sivdhi_footer.html' %}
 </body>
 </html>
