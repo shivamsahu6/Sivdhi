@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="manifest" href="/static/pwa/customer/manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    <title>Customer Reviews | Sivdhi</title>
+    <style>
+        :root{--bg:#09070f;--text:#faf6ff;--muted:#ad9dbb;--border:rgba(190,130,255,.20);--gold:#ffc857}
+        *{box-sizing:border-box}body{min-height:100vh;margin:0;color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:radial-gradient(ellipse at top left,rgba(255,67,140,.10),transparent 42%),var(--bg)}
+        a{color:inherit;text-decoration:none}.topbar{display:flex;align-items:center;gap:13px;padding:22px 18px;color:#fff;background:linear-gradient(125deg,#a42470,#7625b9,#3939a8);border-radius:0 0 24px 24px}
+        .back{display:grid;place-items:center;width:42px;height:42px;flex-shrink:0;border:1px solid rgba(255,255,255,.25);border-radius:13px;background:rgba(255,255,255,.10);font-size:25px}
+        .topbar h1{margin:0;font-size:21px;font-weight:850}.topbar p{margin:5px 0 0;color:rgba(255,255,255,.82);font-size:11px}
+        .page{width:100%;max-width:850px;margin:0 auto;padding:24px 16px 35px}.summary{padding:22px;border:1px solid var(--border);border-radius:19px;background:linear-gradient(145deg,rgba(164,77,255,.15),rgba(23,18,31,.96));margin-bottom:18px}
+        .summary h2{margin:0 0 8px;font-size:18px}.summary p{margin:0;color:var(--muted);font-size:12px;line-height:1.8}.stats{display:flex;align-items:center;gap:14px;margin-top:14px}
+        .average{font-size:29px;font-weight:900}.gold{color:var(--gold);letter-spacing:2px}.count{color:var(--muted);font-size:11px;margin-top:3px}
+        .review-list{display:grid;gap:13px}.review-card{padding:18px;border:1px solid var(--border);border-radius:17px;background:rgba(23,18,31,.96)}
+        .review-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.service{font-size:13px;font-weight:800}.verified{margin-top:5px;color:#9cebc1;font-size:10px}.review-date{color:var(--muted);font-size:10px;text-align:right}
+        .stars{margin:12px 0 8px;color:var(--gold);font-size:17px;letter-spacing:2px}.review-text{margin:0;color:#e5d9ed;font-size:12px;line-height:1.85;overflow-wrap:anywhere;white-space:pre-wrap}
+        .empty{padding:42px 20px;text-align:center;border:1px dashed var(--border);border-radius:18px;background:rgba(23,18,31,.65)}.empty-icon{font-size:34px}.empty h2{margin:10px 0 7px;font-size:16px}.empty p{margin:0;color:var(--muted);font-size:12px;line-height:1.8}
+        .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.action{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 15px;border:1px solid rgba(190,130,255,.28);border-radius:12px;background:rgba(164,77,255,.11);font-size:11px;font-weight:750}
+        @media(max-width:420px){.page{padding:18px 12px 28px}.review-card{padding:15px}.review-head{display:block}.review-date{text-align:left;margin-top:6px}}
+    </style>
+</head>
+<body>
+{% set sivdhi_template_has_flash = False %}
+{% include '_shared_alerts.html' %}
+<header class="topbar"><a class="back" href="{{ url_for('customer.home') }}" aria-label="Back to Sivdhi Home">‹</a><div><h1>Customer Reviews</h1><p>Experiences shared after completed Sivdhi bookings</p></div></header>
+<main class="page">
+    <section class="summary">
+        <h2>What customers say about Sivdhi</h2>
+        <p>These reviews are submitted after bookings are marked completed. Customer names, phone numbers, addresses and booking references are not displayed.</p>
+        <div class="stats"><div class="average">{{ '%.1f'|format(average_rating|default(0)) }}</div><div><div class="gold" aria-label="{{ average_rating }} out of 5 stars">★★★★★</div><div class="count">{{ total_reviews }} customer review(s)</div></div></div>
+    </section>
+    {% if reviews %}
+    <section class="review-list" aria-label="All customer reviews">
+        {% for review in reviews %}
+        <article class="review-card">
+            <div class="review-head"><div><div class="service">{{ review['service_name'] }}</div><div class="verified">✓ Completed booking review</div></div><div class="review-date">{{ review['created_at'] or 'Date not available' }}</div></div>
+            <div class="stars" aria-label="{{ review['rating'] }} out of 5 stars">{% for star in range(1,6) %}{% if star <= review['rating']|int %}★{% else %}☆{% endif %}{% endfor %}</div>
+            <p class="review-text">{% if review['review'] %}{{ review['review'] }}{% else %}Customer shared a {{ review['rating'] }}-star rating for this service.{% endif %}</p>
+        </article>
+        {% endfor %}
+    </section>
+    {% else %}
+    <section class="empty"><div class="empty-icon">⭐</div><h2>No customer reviews yet</h2><p>When customers review their completed bookings, the reviews will appear here.</p></section>
+    {% endif %}
+    <div class="actions"><a class="action" href="{{ url_for('customer.home') }}">Explore Services</a><a class="action" href="{{ url_for('customer.help') }}">Help &amp; Support</a></div>
+</main>
+{% set sivdhi_footer_role = 'customer' %}
+{% include '_sivdhi_footer.html' %}
+</body>
+</html>
