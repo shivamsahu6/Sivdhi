@@ -365,6 +365,9 @@ def ensure_customer_schema(db):
         ("language", "TEXT DEFAULT 'en'"),
         ("latitude", "REAL"),
         ("longitude", "REAL"),
+        ("terms_accepted_at", "TEXT"),
+        ("terms_version", "TEXT"),
+        ("privacy_policy_version", "TEXT"),
         ("created_at", "TEXT"),
     ):
         _add_column_if_missing(
@@ -626,6 +629,24 @@ def ensure_customer_schema(db):
             )
 
     ensure_finance_schema(db)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_id INTEGER UNIQUE NOT NULL,
+            customer_id INTEGER NOT NULL,
+            worker_id INTEGER,
+            rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+            review TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (booking_id) REFERENCES bookings(id),
+            FOREIGN KEY (customer_id) REFERENCES customers(id),
+            FOREIGN KEY (worker_id) REFERENCES workers(id)
+        )
+    """)
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS idx_reviews_created_at
+        ON reviews (created_at DESC, id DESC)
+    """)
     db.commit()
 
 
@@ -2120,6 +2141,12 @@ def signup():
             or request.form.get("next")
             or ""
         ).strip()
+        if request.form.get("terms") != "accepted":
+            flash(
+                "Please accept the Terms & Conditions and Privacy Policy before creating your account.",
+                "danger",
+            )
+            return render_template("customer/signup.html")
         name = (
             request.form.get("fullname")
             or request.form.get("name")
@@ -2201,6 +2228,14 @@ def signup():
 
             columns = table_columns(db, "customers")
             payload = {}
+
+            consent_timestamp = datetime.now().isoformat(timespec="seconds")
+            if "terms_accepted_at" in columns:
+                payload["terms_accepted_at"] = consent_timestamp
+            if "terms_version" in columns:
+                payload["terms_version"] = "2026-11-25"
+            if "privacy_policy_version" in columns:
+                payload["privacy_policy_version"] = "2026-11-25"
 
             if "customer_id" in columns:
                 payload["customer_id"] = (
@@ -2501,6 +2536,7 @@ def home():
             ),
             booking_mode=mode,
             pending_service_id=safe_int(session.get("pending_service_id"), 0),
+            sivdhi_show_customer_support=True,
         )
     finally:
         db.close()
@@ -4409,6 +4445,19 @@ def bookings():
             flash("Please login again.", "warning")
             return redirect(url_for("customer.login"))
 
+        review_rows = db.execute(
+            """
+            SELECT booking_id, rating, review, created_at
+            FROM reviews
+            WHERE customer_id=?
+            """,
+            (customer_row["id"],),
+        ).fetchall()
+        reviews_by_booking = {
+            safe_int(review_row["booking_id"], 0): review_row
+            for review_row in review_rows
+        }
+
         booking_rows = []
 
         if table_exists(db, "bookings"):
@@ -4524,6 +4573,14 @@ def bookings():
             is_assigned = bool(item.get("worker_id") or item.get("assigned_worker_id"))
             item["can_cancel"] = (not is_assigned and current_status in {"pending", "matching", "no_worker", "unassigned"})
 
+            booking_db_id = safe_int(item.get("id"), 0)
+            saved_review = reviews_by_booking.get(booking_db_id)
+            is_completed = current_status in {"completed", "complete"}
+            item["is_completed"] = is_completed
+            item["review_submitted"] = saved_review is not None
+            item["review_rating"] = safe_int(saved_review["rating"], 0) if saved_review else 0
+            item["review_text"] = str(saved_review["review"] or "") if saved_review else ""
+            
             item["total_amount"] = money(
                 item.get("total_amount")
                 if item.get("total_amount") is not None
@@ -4544,6 +4601,94 @@ def bookings():
             cashfree_environment=os.getenv("CASHFREE_ENV", "sandbox").strip().lower(),
         )
 
+    finally:
+        db.close()
+
+
+@customer_bp.route("/booking/<int:booking_db_id>/review", methods=["POST"])
+@customer_login_required
+def submit_booking_review(booking_db_id):
+    """Save one review only from the customer who owns a completed booking."""
+    db = get_db()
+    try:
+        ensure_customer_schema(db)
+        customer_row = get_customer(db)
+        if not customer_row:
+            session.clear()
+            flash("Please login again.", "warning")
+            return redirect(url_for("customer.login"))
+
+        booking = db.execute(
+            "SELECT * FROM bookings WHERE id=? AND customer_id=? LIMIT 1",
+            (booking_db_id, customer_row["id"]),
+        ).fetchone()
+        if not booking:
+            flash("This completed booking could not be found.", "warning")
+            return redirect(url_for("customer.bookings"))
+
+        keys = set(booking.keys())
+        status = str(
+            booking["booking_status"] if "booking_status" in keys and booking["booking_status"]
+            else booking["status"] if "status" in keys else ""
+        ).strip().lower()
+        if status not in {"completed", "complete"}:
+            flash("You can review a service only after its booking is completed.", "warning")
+            return redirect(url_for("customer.bookings", _anchor=f"booking-{booking_db_id}"))
+
+        rating = safe_int(request.form.get("rating"), 0)
+        if rating not in range(1, 6):
+            flash("Please select a rating from 1 to 5 stars.", "danger")
+            return redirect(url_for("customer.bookings", _anchor=f"booking-{booking_db_id}"))
+
+        review_text = (request.form.get("review") or "").strip()[:1000]
+        worker_id = booking["worker_id"] if "worker_id" in keys and booking["worker_id"] else None
+        saved = db.execute(
+            """
+            INSERT OR IGNORE INTO reviews (booking_id, customer_id, worker_id, rating, review)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (booking_db_id, customer_row["id"], worker_id, rating, review_text),
+        )
+        if saved.rowcount != 1:
+            db.rollback()
+            flash("A review has already been submitted for this booking.", "info")
+            return redirect(url_for("customer.bookings", _anchor=f"booking-{booking_db_id}"))
+
+        db.commit()
+        flash("Thank you. Your booking review has been submitted.", "success")
+        return redirect(url_for("customer.bookings", _anchor=f"booking-{booking_db_id}"))
+    finally:
+        db.close()
+
+
+@customer_bp.route("/reviews")
+def reviews():
+    """Public reviews from completed bookings; customer identities stay private."""
+    db = get_db()
+    try:
+        ensure_customer_schema(db)
+        rows = db.execute(
+            """
+            SELECT r.rating, COALESCE(r.review, '') AS review, r.created_at,
+                   COALESCE(NULLIF(s.name, ''), NULLIF(b.category, ''), 'Home Service') AS service_name
+            FROM reviews r
+            JOIN bookings b ON b.id=r.booking_id
+            LEFT JOIN services s ON s.id=b.service_id
+            WHERE LOWER(COALESCE(NULLIF(b.booking_status, ''), NULLIF(b.status, ''), 'pending'))
+                  IN ('completed', 'complete')
+              AND r.rating BETWEEN 1 AND 5
+            ORDER BY datetime(r.created_at) DESC, r.id DESC
+            """
+        ).fetchall()
+        review_list = [dict(row) for row in rows]
+        count = len(review_list)
+        average = round(sum(int(row["rating"]) for row in review_list) / count, 1) if count else 0
+        return render_template(
+            "customer/reviews.html",
+            reviews=review_list,
+            total_reviews=count,
+            average_rating=average,
+        )
     finally:
         db.close()
 
