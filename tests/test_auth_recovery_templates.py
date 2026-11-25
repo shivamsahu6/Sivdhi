@@ -43,8 +43,14 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
 
     client = app.test_client()
     root_response = client.get("/")
-    assert root_response.status_code == 301
-    assert root_response.headers.get("Location") == "/customer/"
+    assert root_response.status_code == 200
+    assert root_response.headers.get("Location") is None
+    root_page = root_response.get_data(as_text=True)
+    assert "<title>Sivdhi | Home Services &amp; Online Booking</title>" in root_page
+    assert '<link rel="canonical" href="https://sivdhi.duckdns.org/">' in root_page
+    assert '<meta property="og:site_name" content="Sivdhi">' in root_page
+    assert '"@type": "WebSite"' in root_page
+    assert '"name": "Sivdhi"' in root_page
 
     sitemap_response = client.get("/sitemap.xml")
     assert sitemap_response.status_code == 200
@@ -56,7 +62,7 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
         for node in document.findall(".//sm:loc", namespace)
     }
     assert locations == {
-        "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/",
         "https://sivdhi.duckdns.org/partner-opportunity",
         "https://sivdhi.duckdns.org/customer/signup",
         "https://sivdhi.duckdns.org/signup?role=worker",
@@ -121,7 +127,7 @@ def test_customer_private_pages_are_noindex_but_home_and_signup_are_indexable():
     expected_robots = "noindex, nofollow, noarchive"
 
     # The public customer homepage must remain indexable.
-    for path in ("/customer/", "/customer/home"):
+    for path in ("/", "/customer/", "/customer/home"):
         response = client.get(path)
         assert response.status_code == 200
         assert response.headers.get("X-Robots-Tag") is None
@@ -257,15 +263,18 @@ def test_customer_homepage_has_focused_search_metadata():
     from app import app
 
     client = app.test_client()
-    response = client.get("/customer/")
-    assert response.status_code == 200
-    page = response.get_data(as_text=True)
-    assert "<title>Sivdhi | Home Services &amp; Online Booking</title>" in page
-    assert (
-        'name="description" content="Explore home services available in your area '
-        'with Sivdhi. Check service details and prices, then request a booking online."'
-    ) in page
-    assert "Sivdhi Sivdhi" not in page
+    for path in ("/", "/customer/", "/customer/home"):
+        response = client.get(path)
+        assert response.status_code == 200
+        page = response.get_data(as_text=True)
+        assert "<title>Sivdhi | Home Services &amp; Online Booking</title>" in page
+        assert (
+            'name="description" content="Explore home services available in your area '
+            'with Sivdhi. Check service details and prices, then request a booking online."'
+        ) in page
+        assert '<link rel="canonical" href="https://sivdhi.duckdns.org/">' in page
+        assert '<meta property="og:site_name" content="Sivdhi">' in page
+        assert "Sivdhi Sivdhi" not in page
 
 def test_public_privacy_notice_describes_ga4_and_no_longer_calls_it_a_draft():
     from pathlib import Path
