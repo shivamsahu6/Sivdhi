@@ -61,7 +61,7 @@ def customer_login_required(view_function):
     @wraps(view_function)
     def wrapped_view(*args, **kwargs):
         if not session.get("customer_id"):
-            return redirect(url_for("customer.login", next=request.path))
+            return redirect(url_for("customer.login", next=request.full_path))
 
         conn = get_db()
         try:
@@ -81,15 +81,15 @@ def customer_login_required(view_function):
 
         if not customer:
             session.clear()
-            return redirect(url_for("customer.login", next=request.path))
+            return redirect(url_for("customer.login", next=request.full_path))
 
         if "is_deleted" in customer.keys() and bool(customer["is_deleted"]):
             session.clear()
-            return redirect(url_for("customer.login", next=request.path))
+            return redirect(url_for("customer.login", next=request.full_path))
 
         if "status" in customer.keys() and str(customer["status"] or "active").strip().lower() == "suspended":
             session.clear()
-            return redirect(url_for("customer.login", next=request.path))
+            return redirect(url_for("customer.login", next=request.full_path))
 
         return view_function(*args, **kwargs)
 

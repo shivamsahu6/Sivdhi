@@ -680,6 +680,7 @@
 
                     <form method="POST" action="{{ url_for('customer.login') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="next" value="{{ request.args.get('next') or request.form.get('next', '') }}">
 
                         <div class="field">
                             <div class="input-box">
@@ -728,7 +729,7 @@
 
                     <div class="signup">
                         Don't have an account?
-                        <a href="{{ url_for('customer.signup') }}">Sign up</a>
+                        <a href="{{ url_for('customer.signup', next=(request.args.get('next') or request.form.get('next') or '')) }}">Sign up</a>
                     </div>
 
                 </div>

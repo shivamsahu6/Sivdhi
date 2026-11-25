@@ -1543,7 +1543,6 @@ def resend_bank_otp():
 # ======================================
 
 @partner_bp.route("/partner/help")
-@partner_required
 def help():
 
     return render_template("partner/help.html")
@@ -1554,7 +1553,6 @@ def help():
 # ======================================
 
 @partner_bp.route("/partner/faq")
-@partner_required
 def faq():
 
     return render_template("partner/faq.html")
@@ -1565,7 +1563,6 @@ def faq():
 # ======================================
 
 @partner_bp.route("/partner/privacy")
-@partner_required
 def privacy():
 
     return render_template("partner/privacy.html")
@@ -1576,7 +1573,6 @@ def privacy():
 # ======================================
 
 @partner_bp.route("/partner/terms")
-@partner_required
 def terms():
 
     return render_template("partner/terms.html")
@@ -1587,7 +1583,6 @@ def terms():
 # ======================================
 
 @partner_bp.route("/partner/about")
-@partner_required
 def about():
 
     return render_template("partner/about.html")

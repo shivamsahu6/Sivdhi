@@ -2040,6 +2040,11 @@ def signup():
         return redirect(url_for("customer.home"))
 
     if request.method == "POST":
+        next_url = (
+            request.args.get("next")
+            or request.form.get("next")
+            or ""
+        ).strip()
         name = (
             request.form.get("fullname")
             or request.form.get("name")
@@ -2104,7 +2109,7 @@ def signup():
                     "This mobile number is already registered. Please login.",
                     "danger",
                 )
-                return redirect(url_for("customer.login"))
+                return redirect(url_for("customer.login", next=next_url))
 
             if db.execute(
                 """
@@ -2117,7 +2122,7 @@ def signup():
                     "This email is already registered. Please login.",
                     "danger",
                 )
-                return redirect(url_for("customer.login"))
+                return redirect(url_for("customer.login", next=next_url))
 
             columns = table_columns(db, "customers")
             payload = {}
@@ -2157,6 +2162,10 @@ def signup():
 
             db.commit()
 
+            guest_latitude = safe_float(session.get("customer_latitude"))
+            guest_longitude = safe_float(session.get("customer_longitude"))
+            guest_location_name = session.get("customer_location_name")
+            guest_booking_mode = normalise_booking_mode(session.get("booking_mode") or "normal")
             session.clear()
             session["customer_id"] = cursor.lastrowid
             session["customer_code"] = payload.get(
@@ -2166,7 +2175,26 @@ def signup():
             session["customer_email"] = email
             session["customer_mobile"] = mobile
 
-            # Signup opens Home immediately, where location is requested.
+            if guest_latitude is not None and guest_longitude is not None:
+                session["customer_latitude"] = guest_latitude
+                session["customer_longitude"] = guest_longitude
+                session["customer_location_allowed"] = True
+                session["customer_location_name"] = guest_location_name or "Current location"
+            session["booking_mode"] = guest_booking_mode
+
+            parsed_next = urlsplit(next_url or "")
+            if (
+                next_url
+                and next_url.startswith("/")
+                and not next_url.startswith("//")
+                and "\\" not in next_url
+                and "\r" not in next_url
+                and "\n" not in next_url
+                and not parsed_next.scheme
+                and not parsed_next.netloc
+            ):
+                return redirect(next_url)
+
             return redirect(url_for("customer.home"))
 
         except Exception:
