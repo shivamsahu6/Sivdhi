@@ -92,12 +92,6 @@ def health_check():
         return jsonify({"status": "unavailable"}), 503
 
 
-@app.get("/")
-def customer_entrypoint():
-    """Permanently send the public Sivdhi URL to its canonical customer home page."""
-    return redirect("/customer/", code=301)
-
-
 @app.get("/partner-opportunity")
 def partner_opportunity():
     """Public information page for Sivdhi Partner role."""
@@ -301,6 +295,7 @@ def add_security_headers(response):
     ga4_measurement_id = current_app.config.get("GA4_MEASUREMENT_ID", "")
     analytics_public_path = (
         request.path in {
+            "/",
             "/customer/",
             "/customer/home",
             "/customer/signup",
@@ -485,6 +480,14 @@ app.register_blueprint(worker_bp)
 app.register_blueprint(partner_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(customer_bp)
+# Serve the existing public customer homepage at the domain root as the primary
+# site homepage. The customer-prefixed aliases remain available for compatibility.
+app.add_url_rule(
+    "/",
+    endpoint="customer_root_home",
+    view_func=app.view_functions["customer.home"],
+    methods=["GET"],
+)
 app.register_blueprint(cashfree_webhook_bp)
 # Only the dedicated provider webhook endpoint is exempt from browser CSRF tokens.
 csrf.exempt(cashfree_webhook_bp)
