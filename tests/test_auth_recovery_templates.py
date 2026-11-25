@@ -42,7 +42,7 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
     from app import app
 
     client = app.test_client()
-    root_response = client.get("/")
+    root_response = client.get("/", follow_redirects=False)
     assert root_response.status_code == 200
     assert root_response.headers.get("Location") is None
     root_page = root_response.get_data(as_text=True)
