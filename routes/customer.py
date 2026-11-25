@@ -59,7 +59,7 @@ except ImportError:
         def wrapped(*args, **kwargs):
             if not session.get("customer_id"):
                 flash("Please login to continue.", "warning")
-                return redirect(url_for("customer.login", next=request.path))
+                return redirect(url_for("customer.login", next=request.full_path))
             return view(*args, **kwargs)
         return wrapped
 
@@ -1620,6 +1620,81 @@ def list_customer_categories(
     return categories
 
 
+def list_customer_catalogue(db, latitude=None, longitude=None, mode="normal"):
+    """Return every active, priced customer category with optional area status.
+
+    Catalogue browsing is public and does not depend on a saved location.
+    Availability is a separate, area-specific flag and never removes a
+    category from the public catalogue.
+    """
+    mode = normalise_booking_mode(mode)
+    columns = table_columns(db, "service_categories")
+    if "name" not in columns:
+        return []
+
+    mode_col = "full_day_enabled" if mode == "full-day" else "normal_enabled"
+    if mode_col not in columns:
+        return []
+
+    where = [f"COALESCE({mode_col},0)=1"]
+    if "is_active" in columns:
+        where.append("COALESCE(is_active,1)=1")
+
+    rows = db.execute(
+        "SELECT * FROM service_categories WHERE "
+        + " AND ".join(where)
+        + " ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+
+    location_checked = latitude is not None and longitude is not None
+    available_ids = set()
+    if location_checked:
+        available_ids = {
+            safe_int(item.get("id"))
+            for item in list_customer_categories(db, latitude, longitude, mode)
+        }
+
+    price_key = "display_full_day_price" if mode == "full-day" else "display_price"
+    catalogue = []
+    for row in rows:
+        item = row_dict(row)
+        category_name = str(item.get("name") or "").strip()
+        if not category_name:
+            continue
+
+        subcategories = [
+            service for service in customer_service_rows(db, category_name)
+            if money(service.get(price_key)) > 0
+        ]
+        if not subcategories:
+            continue
+
+        for private_key in (
+            "commission", "partner_commission_percent", "platform_commission_percent",
+            "partner_commission_amount", "platform_commission_amount",
+            "worker_earning_amount", "platform_fee", "visit_fee",
+        ):
+            item.pop(private_key, None)
+
+        category_id = safe_int(item.get("id"))
+        item.update({
+            "display_name": category_name,
+            "display_icon": item.get("icon") or "✦",
+            "subcategories": subcategories,
+            "service_count": len(subcategories),
+            "display_full_day_price": money(item.get("full_day_price")),
+            "display_visit_fee": 0.0,
+            "display_included_work": item.get("included_work") or "",
+            "display_excluded_work": item.get("excluded_work") or "",
+            "available_in_area": (
+                category_id in available_ids if location_checked else None
+            ),
+        })
+        catalogue.append(item)
+
+    return catalogue
+
+
 def get_service(db, service_id):
     if not table_exists(db, "services"):
         return None
@@ -2289,22 +2364,52 @@ def save_customer_location_api():
         )
         session["booking_mode"] = mode
 
-        categories = list_customer_categories(
+        categories = list_customer_catalogue(
             db, latitude, longitude, mode
         )
+        service_area_available = any(
+            item.get("available_in_area") is True for item in categories
+        )
+        continue_service_url = None
+        pending_service_unavailable = False
+        pending_service_id = safe_int(session.get("pending_service_id"), 0)
+        if pending_service_id:
+            pending_service_category = next(
+                (
+                    item for item in categories
+                    if any(
+                        safe_int(service.get("id")) == pending_service_id
+                        for service in item.get("subcategories", [])
+                    )
+                ),
+                None,
+            )
+            if pending_service_category and pending_service_category.get("available_in_area") is True:
+                continue_service_url = url_for(
+                    "customer.service",
+                    service_id=pending_service_id,
+                    mode=mode,
+                )
+            else:
+                pending_service_unavailable = True
+                session.pop("pending_service_id", None)
+                session.pop("pending_service_mode", None)
 
         return jsonify({
             "success": True,
             "mode": mode,
             "location": {"label": "Current location"},
             "categories": categories,
-            "service_area_available": bool(categories),
+            "location_checked": True,
+            "service_area_available": service_area_available,
+            "continue_service_url": continue_service_url,
+            "pending_service_unavailable": pending_service_unavailable,
             "message": (
-                "Location saved."
-                if categories
-                else
-                "Location saved, but no eligible category is "
-                "available in this area for this service type."
+                "The selected service is not currently available in your area."
+                if pending_service_unavailable
+                else "Location checked."
+                if service_area_available
+                else "Location checked, but no eligible category is available in this area for this service type."
             ),
         })
 
@@ -2331,43 +2436,27 @@ def customer_categories_api():
         or "normal"
     )
     session["booking_mode"] = mode
-
     db = get_db()
-
     try:
         ensure_customer_schema(db)
-
         latitude, longitude = customer_saved_coordinates(db)
-
-        if latitude is None or longitude is None:
-            return jsonify({
-                "success": True,
-                "requires_location": True,
-                "categories": [],
-            })
-
-        categories = list_customer_categories(
-            db, latitude, longitude, mode
-        )
-
+        categories = list_customer_catalogue(db, latitude, longitude, mode)
         return jsonify({
             "success": True,
             "mode": mode,
+            "location_checked": latitude is not None and longitude is not None,
             "categories": categories,
-            "service_area_available": bool(categories),
+            "service_area_available": any(
+                item.get("available_in_area") is True for item in categories
+            ),
         })
-
     except Exception:
-        current_app.logger.exception(
-            "Could not load customer categories"
-        )
-
+        current_app.logger.exception("Could not load customer catalogue")
         return jsonify({
             "success": False,
             "message": "Could not load categories.",
             "categories": [],
         }), 500
-
     finally:
         db.close()
 
@@ -2375,33 +2464,20 @@ def customer_categories_api():
 @customer_bp.route("/")
 @customer_bp.route("/home")
 def home():
-    """Public service catalogue; account-specific actions remain protected."""
+    """Public customer catalogue; location only controls availability labels."""
     mode = normalise_booking_mode(
         request.args.get("mode")
         or session.get("booking_mode")
         or "normal"
     )
     session["booking_mode"] = mode
-
     db = get_db()
-
     try:
         ensure_customer_schema(db)
-
         customer = get_customer(db)
         latitude, longitude = customer_saved_coordinates(db)
-        location_allowed = (
-            latitude is not None and longitude is not None
-        )
-
-        categories = (
-            list_customer_categories(
-                db, latitude, longitude, mode
-            )
-            if location_allowed
-            else []
-        )
-
+        location_allowed = latitude is not None and longitude is not None
+        categories = list_customer_catalogue(db, latitude, longitude, mode)
         return render_template(
             "customer/home.html",
             customer=customer,
@@ -2412,8 +2488,8 @@ def home():
                 "Current location" if location_allowed else "",
             ),
             booking_mode=mode,
+            pending_service_id=safe_int(session.get("pending_service_id"), 0),
         )
-
     finally:
         db.close()
 
@@ -2424,8 +2500,8 @@ def home():
 # =========================================================
 
 @customer_bp.route("/category/<int:category_id>")
-@customer_login_required
 def category(category_id):
+    """Public category catalogue page; booking actions remain authenticated."""
     mode = normalise_booking_mode(
         request.args.get("mode") or session.get("booking_mode") or "normal"
     )
@@ -2433,16 +2509,20 @@ def category(category_id):
     db = get_db()
     try:
         ensure_customer_schema(db)
-        category_data, error = validate_category_available(db, category_id, mode)
-        if error:
-            flash(error, "warning")
+        catalogue = list_customer_catalogue(db, mode=mode)
+        category_data = next(
+            (item for item in catalogue if safe_int(item.get("id")) == safe_int(category_id)),
+            None,
+        )
+        if not category_data:
+            flash("This category is not currently listed.", "warning")
             return redirect(url_for("customer.home", mode=mode))
-        subcategories = customer_service_rows(db, category_data.get("name"))
-        price_key = "display_full_day_price" if mode == "full-day" else "display_price"
-        subcategories = [service for service in subcategories if money(service.get(price_key)) > 0]
+
+        subcategories = category_data.get("subcategories") or []
         if not subcategories:
-            flash("No subcategories with a configured price are available in this category yet.", "warning")
+            flash("No priced subcategories are listed in this category yet.", "warning")
             return redirect(url_for("customer.home", mode=mode))
+
         return render_template(
             "customer/subcategories.html",
             category=category_data,
@@ -2456,46 +2536,58 @@ def category(category_id):
 @customer_bp.route("/service/<int:service_id>")
 @customer_login_required
 def service(service_id):
+    """Authenticate a subcategory click, then validate location and area coverage."""
     mode = normalise_booking_mode(
         request.args.get("mode") or session.get("booking_mode") or "normal"
     )
     db = get_db()
     try:
         ensure_customer_schema(db)
-        service_data = get_service(db, service_id)
-        if not service_data:
-            flash("Subcategory not found.", "warning")
+
+        catalogue = list_customer_catalogue(db, mode=mode)
+        category_data = None
+        service_data = None
+        for category_item in catalogue:
+            match = next(
+                (item for item in category_item.get("subcategories", [])
+                 if safe_int(item.get("id")) == safe_int(service_id)),
+                None,
+            )
+            if match:
+                category_data = category_item
+                service_data = match
+                break
+
+        if not service_data or not category_data:
+            session.pop("pending_service_id", None)
+            flash("This subcategory is not currently active or priced.", "warning")
             return redirect(url_for("customer.home", mode=mode))
 
         latitude, longitude = customer_saved_coordinates(db)
         if latitude is None or longitude is None:
-            flash("Allow location on Home before continuing.", "warning")
+            session["pending_service_id"] = safe_int(service_id)
+            session["pending_service_mode"] = mode
+            session["booking_mode"] = mode
+            flash("Select your location to check this service before booking.", "warning")
             return redirect(url_for("customer.home", mode=mode))
 
-        permitted = {
-            str(item.get("name", "")).lower()
+        permitted_category_ids = {
+            safe_int(item.get("id"))
             for item in list_customer_categories(db, latitude, longitude, mode)
         }
-        if str(service_data.get("display_category", "")).lower() not in permitted:
+        category_id = safe_int(category_data.get("id"))
+        if category_id not in permitted_category_ids:
+            session.pop("pending_service_id", None)
+            session.pop("pending_service_mode", None)
             flash("This service is not currently available in your area.", "warning")
             return redirect(url_for("customer.home", mode=mode))
 
-        category_row = db.execute(
-            "SELECT * FROM service_categories WHERE LOWER(name)=LOWER(?) LIMIT 1",
-            (service_data.get("display_category"),),
-        ).fetchone()
-        category_data = row_dict(category_row) or {"name": service_data.get("display_category")}
-        if mode == "full-day" and money(service_data.get("display_full_day_price")) <= 0:
-            flash("Full-day price is not configured for this subcategory yet.", "warning")
-            return redirect(url_for("customer.category", category_id=safe_int(category_data.get("id"), 0), mode=mode))
-        if mode == "normal" and money(service_data.get("display_price")) <= 0:
-            flash("Normal price is not configured for this subcategory yet.", "warning")
-            return redirect(url_for("customer.category", category_id=safe_int(category_data.get("id"), 0), mode=mode))
-
+        session.pop("pending_service_id", None)
+        session.pop("pending_service_mode", None)
         session["selected_service_id"] = service_id
         session["selected_service_name"] = service_data.get("display_name")
         session["selected_category"] = service_data.get("display_category")
-        session["selected_category_id"] = safe_int(category_data.get("id"), 0)
+        session["selected_category_id"] = category_id
         session["selected_service_icon"] = service_data.get("display_icon")
         session["selected_problem_ids"] = []
         session["selected_problems_snapshot"] = []
@@ -2552,6 +2644,23 @@ def service_details():
         latitude, longitude = customer_saved_coordinates(db)
         if latitude is None or longitude is None:
             flash("Allow location on Home before continuing.", "warning")
+            return redirect(url_for("customer.home", mode=mode))
+
+        eligible_category_names = {
+            str(item.get("name") or "").strip().lower()
+            for item in list_customer_categories(db, latitude, longitude, mode)
+        }
+        selected_category_name = (
+            str(selected.get("display_category") or "").strip().lower()
+            if selected
+            else str((category_data or {}).get("name") or "").strip().lower()
+        )
+        if selected_category_name and selected_category_name not in eligible_category_names:
+            session.pop("selected_service_id", None)
+            session.pop("selected_category", None)
+            session.pop("selected_category_id", None)
+            session.pop("selected_full_day_price", None)
+            flash("This service is no longer available in your area. Please choose another service.", "warning")
             return redirect(url_for("customer.home", mode=mode))
 
         amount = calculate_current_amount(db)
@@ -4849,8 +4958,12 @@ def _create_customer_support_ticket(db, customer_row, form_data):
 
 
 @customer_bp.route("/help", methods=["GET", "POST"])
-@customer_login_required
 def help():
+    if not session.get("customer_id"):
+        if request.method == "POST":
+            return redirect(url_for("customer.login", next=url_for("customer.help")))
+        return render_template("customer/help.html")
+
     db = get_db()
     try:
         ensure_customer_schema(db)
@@ -5013,7 +5126,6 @@ def support():
 
 
 @customer_bp.route("/faq")
-@customer_login_required
 def faq():
     return render_template("customer/faq.html")
 
@@ -5024,13 +5136,11 @@ def privacy():
 
 
 @customer_bp.route("/terms")
-@customer_login_required
 def terms():
     return render_template("customer/terms.html")
 
 
 @customer_bp.route("/about")
-@customer_login_required
 def about():
     return render_template("customer/about.html")
 
