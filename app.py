@@ -92,6 +92,12 @@ def health_check():
         return jsonify({"status": "unavailable"}), 503
 
 
+@app.get("/")
+def customer_entrypoint():
+    """Serve the same public customer homepage at the domain root."""
+    return current_app.view_functions["customer.home"]()
+
+
 @app.get("/partner-opportunity")
 def partner_opportunity():
     """Public information page for Sivdhi Partner role."""
@@ -480,14 +486,6 @@ app.register_blueprint(worker_bp)
 app.register_blueprint(partner_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(customer_bp)
-# Serve the existing public customer homepage at the domain root as the primary
-# site homepage. The customer-prefixed aliases remain available for compatibility.
-app.add_url_rule(
-    "/",
-    endpoint="customer_root_home",
-    view_func=app.view_functions["customer.home"],
-    methods=["GET"],
-)
 app.register_blueprint(cashfree_webhook_bp)
 # Only the dedicated provider webhook endpoint is exempt from browser CSRF tokens.
 csrf.exempt(cashfree_webhook_bp)
