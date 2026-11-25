@@ -48,7 +48,9 @@ def _review_client(tmp_path, monkeypatch):
     monkeypatch.setattr(customer_decorators, "get_db", db_factory)
     monkeypatch.setattr(customer_routes, "ensure_customer_schema", lambda _db: None)
 
-    app = Flask(__name__)
+    from pathlib import Path
+    template_root = Path(__file__).resolve().parents[1] / "templates"
+    app = Flask(__name__, template_folder=str(template_root))
     app.secret_key = "test-customer-review-secret"
     app.config["TESTING"] = True
     app.register_blueprint(customer_routes.customer_bp)
