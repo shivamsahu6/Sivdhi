@@ -94,8 +94,8 @@ def health_check():
 
 @app.get("/")
 def customer_entrypoint():
-    """Permanently send the public Sivdhi URL to its canonical customer home page."""
-    return redirect("/customer/", code=301)
+    """Serve the same public customer homepage at the domain root."""
+    return current_app.view_functions["customer.home"]()
 
 
 @app.get("/partner-opportunity")
@@ -122,7 +122,7 @@ def sitemap_xml():
 
     # Password-reset/OTP flows and authenticated account pages are deliberately excluded.
     public_urls = (
-        "https://sivdhi.duckdns.org/customer/",
+        "https://sivdhi.duckdns.org/",
         "https://sivdhi.duckdns.org/partner-opportunity",
         "https://sivdhi.duckdns.org/customer/signup",
         "https://sivdhi.duckdns.org/signup?role=worker",
@@ -301,6 +301,7 @@ def add_security_headers(response):
     ga4_measurement_id = current_app.config.get("GA4_MEASUREMENT_ID", "")
     analytics_public_path = (
         request.path in {
+            "/",
             "/customer/",
             "/customer/home",
             "/customer/signup",
