@@ -505,3 +505,207 @@ def test_worker_partner_signup_footer_is_below_form_and_has_reviews_contact_link
         assert heading in role_column
         assert 'href="/customer/reviews"' in role_column
         assert 'href="/customer/support"' in role_column
+
+
+def test_worker_and_partner_forgot_password_forms_and_partner_login_are_role_wired():
+    from app import app
+
+    client = app.test_client()
+    for role in ("worker", "partner"):
+        login = client.get(f"/login?role={role}")
+        assert login.status_code == 200
+        login_html = login.get_data(as_text=True)
+        assert 'name="user_id"' in login_html
+        assert 'name="password"' in login_html
+        assert f"/forgot-password?role={role}" in login_html
+        assert f"/signup?role={role}" in login_html
+
+        forgot = client.get(f"/forgot-password?role={role}")
+        assert forgot.status_code == 200
+        forgot_html = forgot.get_data(as_text=True)
+        assert f"Forgot Password | Sivdhi {role.title()}" in forgot_html
+        assert f'name="role" value="{role}"' in forgot_html
+        assert 'name="csrf_token"' in forgot_html
+        assert 'name="email"' in forgot_html
+        assert "auth.forgot_password" in forgot_html
+
+        verify = client.get(f"/verify-otp?role={role}")
+        assert verify.status_code == 200
+        verify_html = verify.get_data(as_text=True)
+        assert "auth.verify_otp" in verify_html
+        assert 'name="csrf_token"' in verify_html
+        assert 'name="otp"' in verify_html
+        assert 'pattern="[0-9]{6}"' in verify_html
+        assert f"role='{role}'" in verify_html
+
+
+def test_customer_home_requires_location_then_only_renders_area_categories(monkeypatch):
+    from flask import session
+    from app import app
+    from routes import customer as customer_routes
+
+    class FakeDB:
+        def close(self):
+            pass
+
+    monkeypatch.setattr(customer_routes, "get_db", lambda: FakeDB())
+    monkeypatch.setattr(customer_routes, "ensure_customer_schema", lambda _db: None)
+    monkeypatch.setattr(customer_routes, "get_customer", lambda _db: None)
+    monkeypatch.setattr(customer_routes, "customer_saved_coordinates", lambda _db: (None, None))
+    monkeypatch.setattr(
+        customer_routes,
+        "list_customer_catalogue",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Signed-in customers must not receive the public catalogue.")
+        ),
+    )
+    monkeypatch.setattr(
+        customer_routes,
+        "list_customer_categories",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Categories must wait until a location is selected.")
+        ),
+    )
+
+    with app.test_request_context("/customer/"):
+        session["customer_id"] = 42
+        page = customer_routes.home()
+
+    assert 'data-location-required="true"' in page
+    assert 'id="locationState"' in page
+    assert "Set your location first" in page
+    assert "Share your location to see categories in your area" in page
+    assert 'id="categoryGrid"' in page
+
+
+def test_customer_home_uses_area_scoped_categories_after_location(monkeypatch):
+    from flask import session
+    from app import app
+    from routes import customer as customer_routes
+
+    class FakeDB:
+        def close(self):
+            pass
+
+    area_categories = [{
+        "id": 91,
+        "name": "Area-only category",
+        "display_name": "Area-only category",
+        "description": "Available locally",
+        "display_icon": "✦",
+        "available_in_area": True,
+    }]
+
+    monkeypatch.setattr(customer_routes, "get_db", lambda: FakeDB())
+    monkeypatch.setattr(customer_routes, "ensure_customer_schema", lambda _db: None)
+    monkeypatch.setattr(customer_routes, "get_customer", lambda _db: None)
+    monkeypatch.setattr(
+        customer_routes,
+        "customer_saved_coordinates",
+        lambda _db: (28.367, 79.430),
+    )
+    monkeypatch.setattr(
+        customer_routes,
+        "list_customer_categories",
+        lambda *_args, **_kwargs: area_categories,
+    )
+    monkeypatch.setattr(
+        customer_routes,
+        "list_customer_catalogue",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Signed-in customer should receive area-scoped categories.")
+        ),
+    )
+
+    with app.test_request_context("/customer/"):
+        session["customer_id"] = 42
+        page = customer_routes.home()
+
+    assert 'data-location-required="false"' in page
+    assert "Area-only category" in page
+    assert "Browse all active categories" not in page
+
+
+def test_customer_notification_bell_has_read_all_and_endpoint_returns_json(monkeypatch):
+    from flask import session
+    from app import app
+    from routes import customer as customer_routes
+
+    home_template = (ROOT / "templates" / "customer" / "home.html").read_text(encoding="utf-8")
+    assert 'id="customerNotificationReadAll"' in home_template
+    assert '"/customer/notifications/mark-all-read"' in home_template
+    assert 'X-CSRFToken' in home_template
+
+    class FakeDB:
+        def __init__(self):
+            self.executed = []
+        def execute(self, query, params=()):
+            self.executed.append((query, params))
+        def commit(self):
+            pass
+        def close(self):
+            pass
+
+    db = FakeDB()
+    monkeypatch.setattr(customer_routes, "get_db", lambda: db)
+    monkeypatch.setattr(
+        customer_routes,
+        "get_customer",
+        lambda _db: {"id": 42, "customer_id": "CUS-42"},
+    )
+    monkeypatch.setattr(customer_routes, "table_exists", lambda _db, name: name == "notifications")
+
+    with app.test_request_context(
+        "/customer/notifications/mark-all-read",
+        method="POST",
+        headers={"Accept": "application/json"},
+    ):
+        session["customer_id"] = 42
+        response = customer_routes.mark_all_notifications_read()
+
+    assert response.status_code == 200
+    assert response.get_json()["success"] is True
+    assert response.get_json()["unread_count"] == 0
+    assert db.executed
+    assert "user_type" in db.executed[0][0]
+    assert db.executed[0][1] == ["42", "CUS-42"]
+
+
+def test_customer_terms_and_faq_have_no_bottom_tabs_and_footer_company_faq_links():
+    faq = (ROOT / "templates" / "customer" / "faq.html").read_text(encoding="utf-8")
+    terms = (ROOT / "templates" / "customer" / "terms.html").read_text(encoding="utf-8")
+    footer = (ROOT / "templates" / "_sivdhi_footer.html").read_text(encoding="utf-8")
+
+    for page in (faq, terms):
+        assert 'class="bottom-nav"' not in page
+        assert ".bottom-nav" not in page
+        assert "nav-item" not in page
+        assert "{% include '_sivdhi_footer.html' %}" in page
+
+    assert "url_for('customer.faq')" in footer
+    assert "url_for('worker.faq')" in footer
+    assert "url_for('partner.faq')" in footer
+    assert "min-height: 200px" in footer
+
+
+def test_shared_footer_is_removed_from_service_areas_and_partner_opportunity():
+    service_areas = (ROOT / "templates" / "customer" / "service_areas.html").read_text(encoding="utf-8")
+    opportunity = (ROOT / "templates" / "partner_opportunity.html").read_text(encoding="utf-8")
+
+    assert "_sivdhi_footer.html" not in service_areas
+    assert "_sivdhi_footer.html" not in opportunity
+
+
+def test_worker_help_uses_customer_help_layout_with_worker_content():
+    customer_help = (ROOT / "templates" / "customer" / "help.html").read_text(encoding="utf-8")
+    worker_help = (ROOT / "templates" / "worker" / "help.html").read_text(encoding="utf-8")
+
+    for marker in (".help-item", ".owner-contact", "--bg: #09070f", 'class="help-list"'):
+        assert marker in customer_help
+        assert marker in worker_help
+
+    assert "Sivdhi Worker Help" in worker_help
+    assert "Browse Worker FAQs" in worker_help
+    assert "worker.faq" in worker_help
+    assert "customer.faq" not in worker_help
+    assert '<meta name="robots" content="noindex, follow">' in worker_help
