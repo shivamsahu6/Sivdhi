@@ -22,6 +22,7 @@ from flask import (
     Blueprint,
     current_app,
     flash,
+    abort,
     jsonify,
     redirect,
     render_template,
@@ -1716,6 +1717,90 @@ def list_customer_catalogue(db, latitude=None, longitude=None, mode="normal"):
     return catalogue
 
 
+def _seo_city_slug(value):
+    return re.sub(r"[^a-z0-9]+", "-", str(value or "").strip().lower()).strip("-")
+
+
+def customer_service_areas(db):
+    """Return only cities where active workers' saved skills match live customer categories.
+
+    This avoids publishing guessed locations or city pages for services that
+    are not represented by active worker profiles.
+    """
+    worker_columns = set(table_columns(db, "workers"))
+    if not {"city", "state"}.issubset(worker_columns):
+        return []
+
+    catalogue = [
+        item for item in list_customer_catalogue(db, mode="normal")
+        if item.get("subcategories")
+    ]
+    if not catalogue:
+        return []
+
+    workers = db.execute(
+        """
+        SELECT *
+        FROM workers
+        WHERE TRIM(COALESCE(city, '')) <> ''
+          AND TRIM(COALESCE(state, '')) <> ''
+        ORDER BY city COLLATE NOCASE, state COLLATE NOCASE
+        """
+    ).fetchall()
+
+    areas = {}
+    for worker in workers:
+        if not _worker_is_active(worker, worker_columns, allow_offline=True):
+            continue
+
+        city = str(worker["city"] or "").strip()
+        state = str(worker["state"] or "").strip()
+        slug = f"{_seo_city_slug(city)}-{_seo_city_slug(state)}"
+        if not city or not state or slug == "-":
+            continue
+
+        matched_categories = [
+            item for item in catalogue
+            if _worker_matches_category(
+                worker,
+                worker_columns,
+                item.get("name") or item.get("display_name"),
+            )
+        ]
+        if not matched_categories:
+            continue
+
+        area = areas.setdefault(
+            slug,
+            {
+                "slug": slug,
+                "city": city,
+                "state": state,
+                "categories": {},
+            },
+        )
+        for category in matched_categories:
+            category_id = safe_int(category.get("id"), 0)
+            if category_id:
+                area["categories"][category_id] = category
+
+    result = []
+    for area in areas.values():
+        categories = sorted(
+            area["categories"].values(),
+            key=lambda item: str(item.get("display_name") or item.get("name") or "").casefold(),
+        )
+        if categories:
+            result.append({
+                "slug": area["slug"],
+                "city": area["city"],
+                "state": area["state"],
+                "categories": categories,
+            })
+
+    return sorted(result, key=lambda item: (item["city"].casefold(), item["state"].casefold()))
+
+
 def get_service(db, service_id):
     if not table_exists(db, "services"):
         return None
@@ -2538,6 +2623,41 @@ def home():
             pending_service_id=safe_int(session.get("pending_service_id"), 0),
             sivdhi_show_customer_support=True,
         )
+    finally:
+        db.close()
+
+
+# =========================================================
+# PUBLIC SERVICE-AREA PAGES
+# =========================================================
+
+@customer_bp.route("/service-areas")
+@customer_bp.route("/service-areas/<area_slug>")
+def service_areas(area_slug=None):
+    """Public city pages based only on active workers and currently listed skills."""
+    db = get_db()
+    try:
+        areas = customer_service_areas(db)
+        if area_slug:
+            area = next((item for item in areas if item["slug"] == area_slug), None)
+            if not area:
+                abort(404)
+            return render_template(
+                "customer/service_areas.html",
+                areas=areas,
+                area=area,
+            )
+
+        response = current_app.make_response(
+            render_template(
+                "customer/service_areas.html",
+                areas=areas,
+                area=None,
+            )
+        )
+        if not areas:
+            response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        return response
     finally:
         db.close()
 
