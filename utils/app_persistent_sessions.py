@@ -3,8 +3,11 @@
 Sivdhi Android App:
     Users stay signed in for up to 365 days. Valid activity refreshes expiry.
 
-Website:
-    Uses Flask's normal permanent-session lifetime (8 hours in this project).
+Customer website:
+    Customer sessions last up to 30 days. Valid activity refreshes expiry.
+
+Worker and Partner websites:
+    Use Flask's normal permanent-session lifetime (8 hours in this project).
 
 Sessions are revocable. Logging out, changing a password, or administrator
 revocation invalidates the server-side token. Admin sessions are excluded
@@ -25,8 +28,9 @@ from database import get_db
 
 APP_USER_AGENT_MARKER = "SivdhiAndroidApp/1.0"
 
-# Android app persistent-session duration.
+# Role-specific web and Android persistent-session durations.
 PERSISTENT_SESSION_DAYS = 365
+CUSTOMER_WEB_SESSION_DAYS = 30
 
 # Check/update last activity at most once every six hours.
 APP_SESSION_TOUCH_INTERVAL = timedelta(hours=6)
@@ -45,12 +49,16 @@ def is_sivdhi_android_request(req=None) -> bool:
     return APP_USER_AGENT_MARKER in user_agent
 
 
-def _session_lifetime(req=None) -> timedelta:
-    """Return the session lifetime for the current client."""
+def _session_lifetime(req=None, data=None) -> timedelta:
+    """Return a role-aware lifetime for the current client."""
     if is_sivdhi_android_request(req):
         return timedelta(days=PERSISTENT_SESSION_DAYS)
 
-    # Website uses Flask's configured permanent-session lifetime.
+    identity = _identity_from_session(data)
+    if identity and identity[0] == "customer":
+        return timedelta(days=CUSTOMER_WEB_SESSION_DAYS)
+
+    # Worker and Partner websites keep Flask's configured lifetime.
     return current_app.permanent_session_lifetime
 
 
@@ -228,6 +236,11 @@ class AppAwareSecureCookieSessionInterface(SecureCookieSessionInterface):
             timedelta(days=PERSISTENT_SESSION_DAYS).total_seconds()
         )
 
+    def _customer_web_max_age(self) -> int:
+        return int(
+            timedelta(days=CUSTOMER_WEB_SESSION_DAYS).total_seconds()
+        )
+
     def open_session(self, app, req):
         serializer = self.get_signing_serializer(app)
 
@@ -265,7 +278,28 @@ class AppAwareSecureCookieSessionInterface(SecureCookieSessionInterface):
             except BadSignature:
                 pass
 
-        # Website and all other clients use Flask's normal cookie lifetime.
+        # Customer website sessions may last 30 days, but only when the
+        # signed cookie contains a Customer identity and a server-issued token.
+        if not is_sivdhi_android_request(req):
+            try:
+                data = serializer.loads(
+                    cookie_value,
+                    max_age=self._customer_web_max_age(),
+                )
+                identity = _identity_from_session(data)
+                if (
+                    identity
+                    and identity[0] == "customer"
+                    and isinstance(data.get("sivdhi_app_session_id"), str)
+                    and bool(data.get("sivdhi_app_session_id"))
+                ):
+                    return self.session_class(data)
+            except BadSignature:
+                pass
+
+        # Worker, Partner, admin and ordinary website cookies keep Flask's
+        # configured lifetime. The server-side session check still validates
+        # every accepted Customer token and its 30-day expiry.
         try:
             data = serializer.loads(
                 cookie_value,
@@ -279,20 +313,18 @@ class AppAwareSecureCookieSessionInterface(SecureCookieSessionInterface):
 
     def get_expiration_time(self, app, session_obj):
         """Set cookie expiry according to the current client."""
+        identity = _identity_from_session(session_obj)
         has_persistent_identity = bool(
-            _identity_from_session(session_obj)
-            and session_obj.get("sivdhi_app_session_id")
+            identity and session_obj.get("sivdhi_app_session_id")
         )
 
-        if (
-            has_persistent_identity
-            and is_sivdhi_android_request()
-        ):
-            return _utc_now() + timedelta(
-                days=PERSISTENT_SESSION_DAYS
-            )
+        if has_persistent_identity and is_sivdhi_android_request():
+            return _utc_now() + timedelta(days=PERSISTENT_SESSION_DAYS)
 
-        # Website keeps Flask's normal configured expiry.
+        if has_persistent_identity and identity[0] == "customer":
+            return _utc_now() + timedelta(days=CUSTOMER_WEB_SESSION_DAYS)
+
+        # Worker and Partner websites keep Flask's normal configured expiry.
         return super().get_expiration_time(app, session_obj)
 
 
@@ -400,8 +432,8 @@ def before_app_request():
         not last_seen
         or now - last_seen >= APP_SESSION_TOUCH_INTERVAL
     ):
-        # Android: refresh by 365 days.
-        # Website: refresh by its normal Flask session lifetime.
+        # Android refreshes by 365 days. Customer website refreshes by
+        # 30 days; Worker and Partner websites keep the configured lifetime.
         new_expiry = (
             now + _session_lifetime()
         ).isoformat()
@@ -493,7 +525,8 @@ def after_app_request(response):
 
     now = _utc_now()
 
-    # Android gets 365 days; website gets its configured Flask lifetime.
+    # Android gets 365 days, Customers get 30 days, and other website roles
+    # keep their configured Flask lifetime.
     expiry = now + _session_lifetime()
 
     db = get_db()

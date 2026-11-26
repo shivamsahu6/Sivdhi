@@ -2,6 +2,8 @@
     .sivdhi-site-footer {
         position: relative;
         width: min(calc(100% - 40px), 1120px);
+        min-height: 200px;
+        box-sizing: border-box;
         display: grid;
         grid-template-columns: 1fr 1fr 1.45fr;
         align-items: start;
@@ -124,14 +126,17 @@
         <h2 class="sivdhi-footer-title">Company</h2>
         {% if sivdhi_footer_role|default('customer') == 'worker' %}
             <a href="{{ url_for('worker.about') }}">About Us</a>
+            <a href="{{ url_for('worker.faq') }}">FAQ</a>
             <a href="{{ url_for('worker.terms') }}">Terms &amp; Conditions</a>
             <a href="{{ url_for('worker.privacy_policy') }}">Privacy Policy</a>
         {% elif sivdhi_footer_role|default('customer') == 'partner' %}
             <a href="{{ url_for('partner.about') }}">About Us</a>
+            <a href="{{ url_for('partner.faq') }}">FAQ</a>
             <a href="{{ url_for('partner.terms') }}">Terms &amp; Conditions</a>
             <a href="{{ url_for('partner.privacy') }}">Privacy Policy</a>
         {% else %}
             <a href="{{ url_for('customer.about') }}">About Us</a>
+            <a href="{{ url_for('customer.faq') }}">FAQ</a>
             <a href="{{ url_for('customer.terms') }}">Terms &amp; Conditions</a>
             <a href="{{ url_for('customer.privacy') }}">Privacy Policy</a>
             <a href="{{ url_for('customer.service_areas') }}">Service Areas</a>

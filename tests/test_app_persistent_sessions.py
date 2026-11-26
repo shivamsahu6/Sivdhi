@@ -7,7 +7,7 @@ from config import Config
 from utils import app_persistent_sessions as app_sessions
 
 
-def test_android_session_lifetime_is_long_but_website_policy_is_unchanged():
+def test_android_customer_and_website_role_session_lifetimes():
     app = Flask(__name__)
     app.secret_key = "test-only-secret-key-that-is-long-enough"
     app.config.from_object(Config)
@@ -28,11 +28,84 @@ def test_android_session_lifetime_is_long_but_website_policy_is_unchanged():
         remaining = app_expiry - datetime.now(timezone.utc)
         assert timedelta(days=364) < remaining <= timedelta(days=365)
 
-    web_data = interface.session_class({"customer_id": 7, "_permanent": True})
+    customer_data = interface.session_class(
+        {
+            "customer_id": 7,
+            "_permanent": True,
+            "sivdhi_app_session_id": "test-only-customer-session-token",
+        }
+    )
     with app.test_request_context("/", headers={"User-Agent": "Mozilla/5.0 Chrome/120"}):
-        web_expiry = interface.get_expiration_time(app, web_data)
-        web_remaining = web_expiry - datetime.now(timezone.utc)
-        assert timedelta(hours=7, minutes=59) < web_remaining <= timedelta(hours=8)
+        customer_expiry = interface.get_expiration_time(app, customer_data)
+        customer_remaining = customer_expiry - datetime.now(timezone.utc)
+        assert timedelta(days=29, hours=23) < customer_remaining <= timedelta(days=30)
+
+        for role, user_id in (("worker", "W-12"), ("partner", "P-12")):
+            role_data = interface.session_class(
+                {
+                    "role": role,
+                    "user_id": user_id,
+                    "_permanent": True,
+                    "sivdhi_app_session_id": f"test-only-{role}-session-token",
+                }
+            )
+            role_expiry = interface.get_expiration_time(app, role_data)
+            role_remaining = role_expiry - datetime.now(timezone.utc)
+            assert timedelta(hours=7, minutes=59) < role_remaining <= timedelta(hours=8)
+
+
+def test_customer_website_cookie_uses_30_day_age_only_for_server_token(monkeypatch):
+    from itsdangerous import BadSignature
+    from types import SimpleNamespace
+
+    app = Flask(__name__)
+    app.secret_key = "test-only-secret-key-that-is-long-enough"
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+    interface = app_sessions.AppAwareSecureCookieSessionInterface()
+
+    customer_payload = {
+        "customer_id": 7,
+        "_permanent": True,
+        "sivdhi_app_session_id": "server-issued-customer-token",
+    }
+
+    class FakeSerializer:
+        def __init__(self, payload):
+            self.payload = payload
+            self.calls = []
+
+        def loads(self, value, max_age):
+            self.calls.append(max_age)
+            if max_age == interface._customer_web_max_age():
+                return self.payload
+            raise BadSignature("outside configured website lifetime")
+
+    customer_serializer = FakeSerializer(customer_payload)
+    monkeypatch.setattr(interface, "get_signing_serializer", lambda _app: customer_serializer)
+    cookie_name = interface.get_cookie_name(app)
+    request = SimpleNamespace(
+        cookies={cookie_name: "signed-customer-cookie"},
+        headers={"User-Agent": "Mozilla/5.0 Chrome/120"},
+    )
+    loaded = interface.open_session(app, request)
+    assert loaded.get("customer_id") == 7
+    assert loaded.get("sivdhi_app_session_id") == "server-issued-customer-token"
+    assert customer_serializer.calls == [interface._customer_web_max_age()]
+
+    worker_payload = {
+        "role": "worker",
+        "user_id": "W-12",
+        "_permanent": True,
+        "sivdhi_app_session_id": "server-issued-worker-token",
+    }
+    worker_serializer = FakeSerializer(worker_payload)
+    monkeypatch.setattr(interface, "get_signing_serializer", lambda _app: worker_serializer)
+    loaded_worker = interface.open_session(app, request)
+    assert loaded_worker.get("role") is None
+    assert worker_serializer.calls == [
+        interface._customer_web_max_age(),
+        int(app.permanent_session_lifetime.total_seconds()),
+    ]
 
 
 def test_app_session_schema_is_additive_and_uses_hashed_token_ids(tmp_path):
