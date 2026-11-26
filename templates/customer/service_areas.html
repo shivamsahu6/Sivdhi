@@ -93,6 +93,7 @@
                     </article>
                 {% endfor %}
             </section>
+            <a class="back" href="{{ url_for('customer.category', category_id=service_category['id']) }}">Browse {{ service_category.display_name }} options in Sivdhi</a>
             <a class="back" href="{{ url_for('customer.service_areas', area_slug=area.slug) }}">← Back to {{ area.city }} services</a>
         {% elif area %}
             <p class="notice">
