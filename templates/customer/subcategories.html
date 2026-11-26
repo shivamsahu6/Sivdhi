@@ -7,7 +7,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#09070f">
-    <title>{{ category['display_name']|default(category['name']|default('Services')) }} | Sivdhi</title>
+    {% set category_label = category['display_name']|default(category['name']|default('Home Services')) %}
+    <title>{{ category_label }} Services &amp; Prices | Sivdhi</title>
+    <meta name="description" content="Browse {{ category_label }} services on Sivdhi. Compare available service options and displayed prices, then check local availability for your location.">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://sivdhi.duckdns.org/customer/category/{{ category['id'] }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Sivdhi">
+    <meta property="og:title" content="{{ category_label }} Services &amp; Prices | Sivdhi">
+    <meta property="og:description" content="Browse {{ category_label }} service options and displayed prices on Sivdhi.">
+    <meta property="og:url" content="https://sivdhi.duckdns.org/customer/category/{{ category['id'] }}">
 
     <style>
         :root {

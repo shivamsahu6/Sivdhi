@@ -1,6 +1,7 @@
 """Regression checks for recovered auth blueprint and role-specific OTP templates."""
 from pathlib import Path
 import ast
+import sqlite3
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -61,13 +62,25 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
         node.text
         for node in document.findall(".//sm:loc", namespace)
     }
-    assert locations == {
+    expected_public_pages = {
         "https://sivdhi.duckdns.org/",
         "https://sivdhi.duckdns.org/partner-opportunity",
-        "https://sivdhi.duckdns.org/customer/signup",
-        "https://sivdhi.duckdns.org/signup?role=worker",
-        "https://sivdhi.duckdns.org/signup?role=partner",
+        "https://sivdhi.duckdns.org/customer/reviews",
+        "https://sivdhi.duckdns.org/customer/about",
+        "https://sivdhi.duckdns.org/customer/faq",
+        "https://sivdhi.duckdns.org/customer/help",
+        "https://sivdhi.duckdns.org/worker/about",
+        "https://sivdhi.duckdns.org/partner/about",
     }
+    assert expected_public_pages <= locations
+    assert not any("/signup" in location or "/login" in location for location in locations)
+    assert not any(
+        "/customer/bookings" in location
+        or "/customer/profile" in location
+        or "/worker/settings" in location
+        or "/partner/settings" in location
+        for location in locations
+    )
 
     robots_response = client.get("/robots.txt")
     assert robots_response.status_code == 200
@@ -80,7 +93,7 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
     assert "Disallow: /customer/signup" not in robots
 
 
-def test_worker_and_partner_signup_pages_are_indexable_but_login_and_reset_flows_are_not():
+def test_worker_and_partner_signup_pages_require_consent_and_are_not_search_landing_pages():
     from app import app
 
     client = app.test_client()
@@ -108,10 +121,20 @@ def test_worker_and_partner_signup_pages_are_indexable_but_login_and_reset_flows
 
         signup = client.get(f"/signup?role={role}")
         assert signup.status_code == 200
-        assert signup.headers.get("X-Robots-Tag") is None
+        assert signup.headers.get("X-Robots-Tag") == "noindex, nofollow, noarchive"
         signup_page = signup.get_data(as_text=True)
-        assert '<meta name="robots" content="index, follow">' in signup_page
+        assert '<meta name="robots" content="noindex, follow">' in signup_page
+        assert "<h1>" in signup_page
         assert "Create Account" in signup_page
+        assert 'name="terms"' in signup_page
+        assert 'value="accepted"' in signup_page
+        assert 'required>' in signup_page
+        if role == "worker":
+            assert 'href="/worker/terms"' in signup_page
+            assert 'href="/worker/privacy_policy"' in signup_page
+        else:
+            assert 'href="/partner/terms"' in signup_page
+            assert 'href="/partner/privacy"' in signup_page
 
         forgot = client.get(f"/forgot-password?role={role}")
         assert forgot.headers.get("X-Robots-Tag") == "noindex, nofollow, noarchive"
@@ -120,7 +143,7 @@ def test_worker_and_partner_signup_pages_are_indexable_but_login_and_reset_flows
         assert verify.headers.get("X-Robots-Tag") == "noindex, nofollow, noarchive"
 
 
-def test_customer_private_pages_are_noindex_but_home_and_signup_are_indexable():
+def test_customer_private_pages_and_thin_signup_are_noindex_but_home_is_indexable():
     from app import app
 
     client = app.test_client()
@@ -133,29 +156,24 @@ def test_customer_private_pages_are_noindex_but_home_and_signup_are_indexable():
         assert response.headers.get("X-Robots-Tag") is None
         assert '<meta name="robots" content="index, follow, max-image-preview:large">' in response.get_data(as_text=True)
 
-    # Keep the customer homepage focused on service discovery. Role registration
-    # and partner information remain available through their dedicated public URLs.
+    # The main catalogue remains focused; recruitment and service-area links
+    # are available in the footer rather than as extra homepage call-to-action tiles.
     home_page = client.get("/customer/").get_data(as_text=True)
     for label in (
         "Create Account",
         "Find Worker",
         "Join as Worker",
         "Become a Partner",
-        "Partner Opportunity",
     ):
         assert label not in home_page
-    for href in (
-        'href="/signup?role=worker"',
-        'href="/signup?role=partner"',
-        'href="/partner-opportunity"',
-    ):
-        assert href not in home_page
+    assert 'href="/partner-opportunity"' in home_page
+    assert 'href="/customer/service-areas"' in home_page
 
-    # Customer registration is public and intentionally indexable.
+    # Registration is available to visitors but thin form-only pages stay noindex.
     signup_response = client.get("/customer/signup")
     assert signup_response.status_code == 200
-    assert signup_response.headers.get("X-Robots-Tag") is None
-    assert '<meta name="robots" content="index, follow">' in signup_response.get_data(as_text=True)
+    assert signup_response.headers.get("X-Robots-Tag") == expected_robots
+    assert '<meta name="robots" content="noindex, follow">' in signup_response.get_data(as_text=True)
 
     # The public privacy policy can be read before registration, but is not a search landing page.
     privacy_response = client.get("/customer/privacy")
@@ -201,6 +219,12 @@ def test_ga4_tracks_only_allowlisted_anonymous_public_pages(monkeypatch):
         "/customer/",
         "/customer/home?mode=full-day&email=private@example.com",
         "/customer/signup",
+        "/customer/reviews",
+        "/customer/about",
+        "/customer/faq",
+        "/customer/help",
+        "/worker/about",
+        "/partner/about",
         "/partner-opportunity",
         "/login?role=worker",
         "/login?role=partner",
@@ -223,8 +247,6 @@ def test_ga4_tracks_only_allowlisted_anonymous_public_pages(monkeypatch):
         "/customer/profile",
         "/customer/privacy",
         "/customer/terms",
-        "/customer/about",
-        "/customer/help",
         "/login",
         "/signup",
         "/worker/login",
@@ -269,12 +291,170 @@ def test_customer_homepage_has_focused_search_metadata():
         page = response.get_data(as_text=True)
         assert "<title>Sivdhi | Home Services &amp; Online Booking</title>" in page
         assert (
-            'name="description" content="Explore home services available in your area '
-            'with Sivdhi. Check service details and prices, then request a booking online."'
+            'name="description" content="Find local home services with Sivdhi. Browse listed categories, '
+            'compare displayed prices and check availability for your location before requesting a booking."'
         ) in page
         assert '<link rel="canonical" href="https://sivdhi.duckdns.org/">' in page
         assert '<meta property="og:site_name" content="Sivdhi">' in page
         assert "Sivdhi Sivdhi" not in page
+
+
+
+def test_public_customer_and_role_information_pages_are_indexable_with_metadata():
+    from app import app
+
+    client = app.test_client()
+    for path, canonical in (
+        ("/customer/reviews", "https://sivdhi.duckdns.org/customer/reviews"),
+        ("/customer/about", "https://sivdhi.duckdns.org/customer/about"),
+        ("/customer/faq", "https://sivdhi.duckdns.org/customer/faq"),
+        ("/customer/help", "https://sivdhi.duckdns.org/customer/help"),
+        ("/worker/about", "https://sivdhi.duckdns.org/worker/about"),
+        ("/partner/about", "https://sivdhi.duckdns.org/partner/about"),
+    ):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers.get("X-Robots-Tag") is None
+        page = response.get_data(as_text=True)
+        assert '<meta name="description"' in page
+        assert canonical in page
+
+
+def test_settings_links_are_removed_from_worker_and_partner_profile_menus():
+    worker = (ROOT / "templates" / "worker" / "profile.html").read_text(encoding="utf-8")
+    partner = (ROOT / "templates" / "partner" / "profile.html").read_text(encoding="utf-8")
+    assert "worker.worker_settings" not in worker
+    assert 'href="/partner/settings"' not in partner
+    # Existing settings routes/templates stay intact; only their profile-menu links are removed.
+    assert (ROOT / "templates" / "worker" / "settings.html").is_file()
+    assert (ROOT / "templates" / "partner" / "settings.html").is_file()
+
+
+def test_worker_partner_signup_post_is_blocked_without_explicit_consent(monkeypatch):
+    from app import app
+
+    client = app.test_client()
+    monkeypatch.setitem(app.config, "WTF_CSRF_ENABLED", False)
+    original = app.view_functions["auth.signup"]
+
+    def should_not_reach_signup_handler():
+        raise AssertionError("Signup handler must not run without required consent.")
+
+    app.view_functions["auth.signup"] = should_not_reach_signup_handler
+    try:
+        for role in ("worker", "partner"):
+            response = client.post(
+                f"/signup?role={role}",
+                data={
+                    "fullname": "Test User",
+                    "email": f"{role}@example.test",
+                    "mobile": "9999999999",
+                    "password": "TestPassword123!",
+                    "confirm_password": "TestPassword123!",
+                },
+                follow_redirects=False,
+            )
+            assert response.status_code == 302
+            assert f"/signup?role={role}" in response.headers.get("Location", "")
+    finally:
+        app.view_functions["auth.signup"] = original
+
+
+
+def test_public_city_service_pages_only_come_from_active_worker_skill_matches():
+    from routes.customer import customer_service_areas
+
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    try:
+        db.executescript(
+            """
+            CREATE TABLE service_categories (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                normal_enabled INTEGER NOT NULL DEFAULT 1,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                icon TEXT,
+                full_day_price REAL,
+                included_work TEXT,
+                excluded_work TEXT
+            );
+            CREATE TABLE services (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                price REAL NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE TABLE workers (
+                id INTEGER PRIMARY KEY,
+                city TEXT,
+                state TEXT,
+                skills TEXT,
+                status TEXT,
+                is_deleted INTEGER DEFAULT 0
+            );
+            INSERT INTO service_categories
+                (id, name, normal_enabled, is_active)
+                VALUES (1, 'Plumbing', 1, 1);
+            INSERT INTO services
+                (id, name, category, price, active)
+                VALUES (1, 'Tap Repair', 'Plumbing', 499, 1);
+            INSERT INTO workers
+                (id, city, state, skills, status, is_deleted)
+                VALUES
+                (1, 'Bareilly', 'Uttar Pradesh', 'Plumber', 'Active', 0),
+                (2, 'Rampur', 'Uttar Pradesh', 'Plumber', 'Suspended', 0);
+            """
+        )
+
+        areas = customer_service_areas(db)
+        assert len(areas) == 1
+        assert areas[0]["city"] == "Bareilly"
+        assert areas[0]["state"] == "Uttar Pradesh"
+        assert areas[0]["slug"] == "bareilly-uttar-pradesh"
+        assert areas[0]["categories"][0]["slug"] == "plumbing-1"
+        assert areas[0]["categories"][0]["subcategories"][0]["name"] == "Tap Repair"
+    finally:
+        db.close()
+
+
+def test_role_signup_consent_is_saved_without_plain_contact_details(monkeypatch, tmp_path):
+    from app import app, _record_role_signup_consent
+    from config import Config
+
+    database_path = tmp_path / "role-consent.sqlite"
+    monkeypatch.setattr(Config, "DATABASE", str(database_path))
+
+    with app.app_context():
+        _record_role_signup_consent(
+            "worker",
+            "worker@example.test",
+            "9876543210",
+        )
+
+    connection = sqlite3.connect(database_path)
+    try:
+        columns = [
+            row[1]
+            for row in connection.execute("PRAGMA table_info(role_signup_consents)")
+        ]
+        assert "identity_hash" in columns
+        assert "email" not in columns
+        assert "mobile" not in columns
+        row = connection.execute(
+            "SELECT role, identity_hash, terms_version, privacy_policy_version, accepted_at "
+            "FROM role_signup_consents"
+        ).fetchone()
+        assert row is not None
+        assert row[0] == "worker"
+        assert len(row[1]) == 64
+        assert row[2] == "2026-11-26"
+        assert row[3] == "2026-11-26"
+        assert "worker@example.test" not in repr(row)
+        assert "9876543210" not in repr(row)
+    finally:
+        connection.close()
 
 def test_public_privacy_notice_describes_ga4_and_no_longer_calls_it_a_draft():
     from pathlib import Path

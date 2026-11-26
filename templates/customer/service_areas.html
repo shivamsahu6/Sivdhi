@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#09070f">
+    {% if area and service_category %}
+        {% set category_label = service_category.display_name|default(service_category.name) %}
+        <title>{{ category_label }} Services in {{ area.city }}, {{ area.state }} | Sivdhi</title>
+        <meta name="description" content="Browse {{ category_label|lower }} services in {{ area.city }}, {{ area.state }} on Sivdhi. See listed options and prices, then check availability for your address and time.">
+        <link rel="canonical" href="https://sivdhi.duckdns.org/customer/service-areas/{{ area.slug }}/{{ service_category.slug }}">
+        <meta property="og:title" content="{{ category_label }} Services in {{ area.city }}, {{ area.state }} | Sivdhi">
+        <meta property="og:description" content="See currently listed {{ category_label|lower }} options in {{ area.city }}, {{ area.state }} and check exact-location availability before booking.">
+        <meta property="og:url" content="https://sivdhi.duckdns.org/customer/service-areas/{{ area.slug }}/{{ service_category.slug }}">
+    {% elif area %}
+        {% set service_names = area.categories|map(attribute='display_name')|join(', ') %}
+        <title>Home Services in {{ area.city }}, {{ area.state }} | Sivdhi</title>
+        <meta name="description" content="Browse {{ service_names|truncate(62, True, '...') }} in {{ area.city }}, {{ area.state }} with Sivdhi. Check exact-location availability and displayed prices before booking.">
+        <link rel="canonical" href="https://sivdhi.duckdns.org/customer/service-areas/{{ area.slug }}">
+        <meta property="og:title" content="Home Services in {{ area.city }}, {{ area.state }} | Sivdhi">
+        <meta property="og:description" content="Browse currently listed home-service categories in {{ area.city }}, {{ area.state }}. Check your exact location and preferred time before booking.">
+        <meta property="og:url" content="https://sivdhi.duckdns.org/customer/service-areas/{{ area.slug }}">
+    {% else %}
+        <title>Sivdhi Service Areas | Home Services by City</title>
+        <meta name="description" content="Explore cities where Sivdhi currently lists home-service categories. Check your exact location, displayed prices and booking-time availability.">
+        <link rel="canonical" href="https://sivdhi.duckdns.org/customer/service-areas">
+        <meta property="og:title" content="Sivdhi Service Areas | Home Services by City">
+        <meta property="og:description" content="Explore cities where Sivdhi currently lists home-service categories and check local availability before booking.">
+        <meta property="og:url" content="https://sivdhi.duckdns.org/customer/service-areas">
+    {% endif %}
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Sivdhi">
+    <meta property="og:locale" content="en_IN">
+    <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{% if area and service_category %}{{ service_category.display_name }} Services in {{ area.city }}, {{ area.state }} | Sivdhi{% elif area %}Home Services in {{ area.city }}, {{ area.state }} | Sivdhi{% else %}Sivdhi Service Areas | Home Services by City{% endif %}">
+    <meta name="twitter:description" content="{% if area and service_category %}Browse listed {{ service_category.display_name|lower }} options in {{ area.city }}, {{ area.state }} and check availability before booking.{% elif area %}Browse currently listed home-service categories in {{ area.city }}, {{ area.state }}.{% else %}Explore cities where Sivdhi currently lists home-service categories.{% endif %}">
+    <style>
+        :root{color-scheme:dark;--bg:#09070f;--panel:#17121f;--text:#faf6ff;--muted:#ad9dbb;--border:rgba(190,130,255,.2);--accent:#a44dff}
+        *{box-sizing:border-box}
+        body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top left,rgba(255,67,140,.09),transparent 42%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+        a{color:inherit;text-decoration:none}
+        .top{padding:24px 18px;background:linear-gradient(125deg,#a42470,#7625b9,#3939a8);border-radius:0 0 24px 24px}
+        .top-inner,.main{width:min(920px,calc(100% - 28px));margin:auto}
+        .brand{font-size:17px;font-weight:850;letter-spacing:.2px}
+        .top h1{font-size:clamp(24px,5vw,34px);margin:13px 0 8px;line-height:1.2}
+        .top p{max-width:760px;margin:0;color:#f1e8fa;font-size:13px;line-height:1.8}
+        .main{padding:25px 0 45px}
+        .notice{padding:16px 18px;border:1px solid var(--border);border-radius:15px;background:rgba(23,18,31,.88);color:#d8cbe5;font-size:12px;line-height:1.8}
+        .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:13px;margin-top:18px}
+        .item{display:block;padding:18px;border:1px solid var(--border);border-radius:15px;background:var(--panel);transition:border-color .15s,transform .15s}
+        .item:hover{border-color:rgba(190,130,255,.6);transform:translateY(-1px)}
+        .item strong{display:block;font-size:15px}
+        .item span{display:block;margin-top:7px;color:var(--muted);font-size:11px;line-height:1.7}
+        .back{display:inline-flex;margin-top:22px;color:#d8baff;font-size:12px;font-weight:750}
+        @media(prefers-reduced-motion:reduce){.item{transition:none}.item:hover{transform:none}}
+    </style>
+</head>
+<body>
+    <header class="top">
+        <div class="top-inner">
+            <a class="brand" href="{{ url_for('customer.home') }}">SIVDHI</a>
+            {% if area and service_category %}
+                <h1>{{ service_category.display_name }} Services in {{ area.city }}, {{ area.state }}</h1>
+                <p>Explore listed {{ service_category.display_name|lower }} options in this city and check availability for your exact address and requested time.</p>
+            {% elif area %}
+                <h1>Home Services in {{ area.city }}, {{ area.state }}</h1>
+                <p>Browse the home-service categories currently represented by active Sivdhi worker profiles in this city.</p>
+            {% else %}
+                <h1>Sivdhi Home-Service Areas</h1>
+                <p>Explore the cities where Sivdhi currently lists home-service categories.</p>
+            {% endif %}
+        </div>
+    </header>
+    <main class="main">
+        {% if area and service_category %}
+            <p class="notice">
+                Sivdhi currently lists active worker profiles in {{ area.city }}, {{ area.state }} with skills matching
+                this service category. This is not a promise that a worker is free for every address, date or time.
+                Enter your location in the booking flow to check current availability before sending a request.
+            </p>
+            <section class="grid" aria-label="{{ service_category.display_name }} service options in {{ area.city }}">
+                {% for service in service_category.subcategories %}
+                    <article class="item">
+                        <strong>{{ service.display_name }}</strong>
+                        {% if service.display_price %}
+                            <span>Displayed price: ₹{{ "%.2f"|format(service.display_price|float) }}</span>
+                        {% endif %}
+                        {% if service.description %}
+                            <span>{{ service.description }}</span>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </section>
+            <a class="back" href="{{ url_for('customer.category', category_id=service_category['id']) }}">Browse {{ service_category.display_name }} options in Sivdhi</a>
+            <a class="back" href="{{ url_for('customer.service_areas', area_slug=area.slug) }}">← Back to {{ area.city }} services</a>
+        {% elif area %}
+            <p class="notice">
+                The categories below are based on active worker profiles that list matching skills in {{ area.city }}.
+                This does not guarantee that a worker is free for every address, date or time. Enter your location and
+                check current availability in the booking flow before sending a request.
+            </p>
+            <section class="grid" aria-label="Home-service categories in {{ area.city }}">
+                {% for category in area.categories %}
+                    <a class="item" href="{{ url_for('customer.service_areas', area_slug=area.slug, category_slug=category.slug) }}">
+                        <strong>{{ category['display_name'] or category['name'] }}</strong>
+                        <span>{{ category['service_count'] }} listed service option(s). View service details and displayed prices.</span>
+                    </a>
+                {% endfor %}
+            </section>
+        {% else %}
+            {% if areas %}
+                <p class="notice">City listings appear only where active worker profiles match a currently listed Sivdhi service category. Exact availability is checked separately for each customer's location and requested time.</p>
+                <section class="grid" aria-label="Sivdhi service areas">
+                    {% for item in areas %}
+                        <a class="item" href="{{ url_for('customer.service_areas', area_slug=item['slug']) }}">
+                            <strong>{{ item['city'] }}, {{ item['state'] }}</strong>
+                            <span>{{ item['categories']|length }} currently listed service category/categories</span>
+                        </a>
+                    {% endfor %}
+                </section>
+            {% else %}
+                <p class="notice">There are no city-specific service listings to show right now. Browse the main Sivdhi catalogue and check availability after entering your location.</p>
+            {% endif %}
+        {% endif %}
+        <a class="back" href="{{ url_for('customer.home') }}">← Back to Sivdhi home</a>
+    </main>
+    {% set sivdhi_footer_role = 'customer' %}
+    {% include '_sivdhi_footer.html' %}
+</body>
+</html>

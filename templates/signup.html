@@ -7,15 +7,15 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
 {% if role == "worker" %}
-    {% set signup_title = "Sivdhi Worker Registration | Create a Worker Account" %}
-    {% set signup_description = "Create a Sivdhi Worker account to register for service jobs, manage assigned bookings and keep track of your work." %}
+    {% set signup_title = "Join Sivdhi as a Service Worker | Register Online" %}
+    {% set signup_description = "Register as a Sivdhi service worker to create an account, submit your details and manage eligible home-service jobs through the platform." %}
 {% else %}
-    {% set signup_title = "Sivdhi Partner Registration | Create a Partner Account" %}
-    {% set signup_description = "Create a Sivdhi Partner account to coordinate workers, manage service bookings and track partner activity." %}
+    {% set signup_title = "Join Sivdhi as a Service Partner | Register Online" %}
+    {% set signup_description = "Register as a Sivdhi Partner to coordinate linked service workers and home-service bookings through the platform. Partner earnings are commission-based." %}
 {% endif %}
     <title>{{ signup_title }}</title>
     <meta name="description" content="{{ signup_description }}">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="noindex, follow">
     <link rel="canonical" href="https://sivdhi.duckdns.org/signup?role={{ role|urlencode }}">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Sivdhi">
@@ -100,12 +100,11 @@ margin-bottom:20px;
 
 }
 
-h2{
-
+h1{
 text-align:center;
-
 margin-bottom:10px;
-
+font-size:1.5em;
+font-weight:700;
 }
 
 p{
@@ -166,6 +165,31 @@ background:#eff6ff;
 
 }
 
+.terms{
+display:flex;
+align-items:flex-start;
+gap:10px;
+margin:4px 0 18px;
+color:#eff6ff;
+font-size:12px;
+line-height:1.65;
+}
+.terms input{
+width:17px;
+height:17px;
+flex:0 0 17px;
+margin-top:2px;
+accent-color:#fff;
+cursor:pointer;
+}
+.terms a{
+color:#fff;
+font-weight:700;
+text-decoration:underline;
+text-underline-offset:3px;
+}
+
+
 .bottom{
 
 margin-top:20px;
@@ -214,7 +238,7 @@ S
 
 </div>
 
-<h2>
+<h1>
 
 {% if role=="worker" %}
 
@@ -226,7 +250,7 @@ Sivdhi Partner Registration
 
 {% endif %}
 
-</h2>
+</h1>
 
 <p>
 
@@ -299,6 +323,27 @@ type="password"
 name="confirm_password"
 placeholder="Confirm Password"
 required>
+
+<label class="terms">
+<input
+type="checkbox"
+id="terms"
+name="terms"
+value="accepted"
+required>
+<span>
+I agree to the
+{% if role == "worker" %}
+<a href="/worker/terms" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a>
+and Sivdhi's
+<a href="/worker/privacy_policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+{% else %}
+<a href="/partner/terms" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a>
+and Sivdhi's
+<a href="/partner/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+{% endif %}
+</span>
+</label>
 
 <button
 class="btn"
