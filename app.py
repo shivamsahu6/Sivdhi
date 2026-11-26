@@ -156,6 +156,12 @@ def sitemap_xml():
                 + item["slug"]
                 for item in areas
             )
+            for area in areas:
+                public_urls.extend(
+                    "https://sivdhi.duckdns.org/customer/service-areas/"
+                    + area["slug"] + "/" + category["slug"]
+                    for category in area["categories"]
+                )
     finally:
         db.close()
 
