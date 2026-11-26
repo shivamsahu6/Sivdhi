@@ -1,6 +1,7 @@
 """Regression checks for recovered auth blueprint and role-specific OTP templates."""
 from pathlib import Path
 import ast
+import sqlite3
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -353,6 +354,103 @@ def test_worker_partner_signup_post_is_blocked_without_explicit_consent(monkeypa
             assert f"/signup?role={role}" in response.headers.get("Location", "")
     finally:
         app.view_functions["auth.signup"] = original
+
+
+
+def test_public_city_service_pages_only_come_from_active_worker_skill_matches():
+    from routes.customer import customer_service_areas
+
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    try:
+        db.executescript(
+            """
+            CREATE TABLE service_categories (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                normal_enabled INTEGER NOT NULL DEFAULT 1,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                icon TEXT,
+                full_day_price REAL,
+                included_work TEXT,
+                excluded_work TEXT
+            );
+            CREATE TABLE services (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                price REAL NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE TABLE workers (
+                id INTEGER PRIMARY KEY,
+                city TEXT,
+                state TEXT,
+                skills TEXT,
+                status TEXT,
+                is_deleted INTEGER DEFAULT 0
+            );
+            INSERT INTO service_categories
+                (id, name, normal_enabled, is_active)
+                VALUES (1, 'Plumbing', 1, 1);
+            INSERT INTO services
+                (id, name, category, price, active)
+                VALUES (1, 'Tap Repair', 'Plumbing', 499, 1);
+            INSERT INTO workers
+                (id, city, state, skills, status, is_deleted)
+                VALUES
+                (1, 'Bareilly', 'Uttar Pradesh', 'Plumber', 'Active', 0),
+                (2, 'Rampur', 'Uttar Pradesh', 'Plumber', 'Suspended', 0);
+            """
+        )
+
+        areas = customer_service_areas(db)
+        assert len(areas) == 1
+        assert areas[0]["city"] == "Bareilly"
+        assert areas[0]["state"] == "Uttar Pradesh"
+        assert areas[0]["slug"] == "bareilly-uttar-pradesh"
+        assert areas[0]["categories"][0]["slug"] == "plumbing-1"
+        assert areas[0]["categories"][0]["subcategories"][0]["name"] == "Tap Repair"
+    finally:
+        db.close()
+
+
+def test_role_signup_consent_is_saved_without_plain_contact_details(monkeypatch, tmp_path):
+    from app import app, _record_role_signup_consent
+    from config import Config
+
+    database_path = tmp_path / "role-consent.sqlite"
+    monkeypatch.setattr(Config, "DATABASE", str(database_path))
+
+    with app.app_context():
+        _record_role_signup_consent(
+            "worker",
+            "worker@example.test",
+            "9876543210",
+        )
+
+    connection = sqlite3.connect(database_path)
+    try:
+        columns = [
+            row[1]
+            for row in connection.execute("PRAGMA table_info(role_signup_consents)")
+        ]
+        assert "identity_hash" in columns
+        assert "email" not in columns
+        assert "mobile" not in columns
+        row = connection.execute(
+            "SELECT role, identity_hash, terms_version, privacy_policy_version, accepted_at "
+            "FROM role_signup_consents"
+        ).fetchone()
+        assert row is not None
+        assert row[0] == "worker"
+        assert len(row[1]) == 64
+        assert row[2] == "2026-11-26"
+        assert row[3] == "2026-11-26"
+        assert "worker@example.test" not in repr(row)
+        assert "9876543210" not in repr(row)
+    finally:
+        connection.close()
 
 def test_public_privacy_notice_describes_ga4_and_no_longer_calls_it_a_draft():
     from pathlib import Path
