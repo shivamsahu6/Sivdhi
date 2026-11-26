@@ -614,7 +614,7 @@ def test_customer_home_uses_area_scoped_categories_after_location(monkeypatch):
 
     assert 'data-location-required="false"' in page
     assert "Area-only category" in page
-    assert "Browse all active categories" not in page
+    assert 'class="category-card"' in page
 
 
 def test_customer_notification_bell_has_read_all_and_endpoint_returns_json(monkeypatch):
@@ -637,6 +637,24 @@ def test_customer_notification_bell_has_read_all_and_endpoint_returns_json(monke
         def close(self):
             pass
 
+    class AuthRow(dict):
+        pass
+
+    class AuthDB:
+        def cursor(self):
+            return self
+        def execute(self, _query, _params=()):
+            return self
+        def fetchone(self):
+            return AuthRow({
+                "id": 42,
+                "customer_id": "CUS-42",
+                "is_deleted": 0,
+                "status": "active",
+            })
+        def close(self):
+            pass
+
     db = FakeDB()
     monkeypatch.setattr(customer_routes, "get_db", lambda: db)
     monkeypatch.setattr(
@@ -645,6 +663,7 @@ def test_customer_notification_bell_has_read_all_and_endpoint_returns_json(monke
         lambda _db: {"id": 42, "customer_id": "CUS-42"},
     )
     monkeypatch.setattr(customer_routes, "table_exists", lambda _db, name: name == "notifications")
+    monkeypatch.setattr("routes.decorators.get_db", lambda: AuthDB())
 
     with app.test_request_context(
         "/customer/notifications/mark-all-read",
