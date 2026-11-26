@@ -177,7 +177,7 @@ def test_shared_footer_is_not_duplicated_and_worker_role_is_preserved():
         updated = _inject_sivdhi_site_footer(response)
         html = updated.get_data(as_text=True)
 
-    assert html.count("sivdhi-site-footer") == 2
+    assert html.count('class="sivdhi-site-footer"') == 1
     assert html.count("Existing footer") == 1
     assert 'href="/worker/faq"' in html
     assert 'id="sivdhi-global-footer-layout"' in html
