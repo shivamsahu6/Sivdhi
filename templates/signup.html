@@ -41,11 +41,14 @@ font-family:Poppins,sans-serif;
 
 body{
 
-height:100vh;
+min-height:100vh;
+min-height:100dvh;
+height:auto;
 
 display:flex;
+flex-direction:column;
 
-justify-content:center;
+justify-content:flex-start;
 
 align-items:center;
 
@@ -392,6 +395,10 @@ flash.remove();
 </script>
     {% set sivdhi_footer_role = 'worker' if role == 'worker' else 'partner' %}
     {% include '_sivdhi_footer.html' %}
+<style>
+    .signup-box { flex: 0 0 auto; }
+    .sivdhi-site-footer { flex: 0 0 auto; margin: auto auto 20px; }
+</style>
 </body>
 
 </html>
