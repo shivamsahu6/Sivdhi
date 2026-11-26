@@ -429,7 +429,17 @@ def add_security_headers(response):
             "/customer/",
             "/customer/home",
             "/customer/signup",
+            "/customer/reviews",
+            "/customer/about",
+            "/customer/faq",
+            "/customer/help",
             "/partner-opportunity",
+        }
+        or request.endpoint in {
+            "customer.category",
+            "customer.service_areas",
+            "worker.about",
+            "partner.about",
         }
         or (
             request.path in {"/login", "/signup"}
