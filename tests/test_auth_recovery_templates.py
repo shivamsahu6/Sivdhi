@@ -158,8 +158,8 @@ def test_customer_private_pages_and_thin_signup_are_noindex_but_home_is_indexabl
         assert response.headers.get("X-Robots-Tag") is None
         assert '<meta name="robots" content="index, follow, max-image-preview:large">' in response.get_data(as_text=True)
 
-    # The main catalogue remains focused; recruitment and service-area links
-    # are available in the footer rather than as extra homepage call-to-action tiles.
+    # The main catalogue remains focused and these two destinations are
+    # intentionally not promoted through the shared footer.
     home_page = client.get("/customer/").get_data(as_text=True)
     for label in (
         "Create Account",
@@ -168,8 +168,8 @@ def test_customer_private_pages_and_thin_signup_are_noindex_but_home_is_indexabl
         "Become a Partner",
     ):
         assert label not in home_page
-    assert 'href="/partner-opportunity"' in home_page
-    assert 'href="/customer/service-areas"' in home_page
+    assert 'href="/partner-opportunity"' not in home_page
+    assert 'href="/customer/service-areas"' not in home_page
 
     # Registration is available to visitors but thin form-only pages stay noindex.
     signup_response = client.get("/customer/signup")
