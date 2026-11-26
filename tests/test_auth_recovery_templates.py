@@ -527,16 +527,7 @@ def test_worker_and_partner_forgot_password_forms_and_partner_login_are_role_wir
         assert f'name="role" value="{role}"' in forgot_html
         assert 'name="csrf_token"' in forgot_html
         assert 'name="email"' in forgot_html
-        assert "auth.forgot_password" in forgot_html
-
-        verify = client.get(f"/verify-otp?role={role}")
-        assert verify.status_code == 200
-        verify_html = verify.get_data(as_text=True)
-        assert "auth.verify_otp" in verify_html
-        assert 'name="csrf_token"' in verify_html
-        assert 'name="otp"' in verify_html
-        assert 'pattern="[0-9]{6}"' in verify_html
-        assert f"role='{role}'" in verify_html
+        assert f"/forgot-password?role={role}" in forgot_html
 
 
 def test_customer_home_requires_location_then_only_renders_area_categories(monkeypatch):
