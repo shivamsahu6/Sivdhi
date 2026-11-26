@@ -324,8 +324,8 @@ def _inject_sivdhi_site_footer(response):
                 ),
             ).encode("utf-8")
             page_html, inserted_footer = re.subn(
-                rb"</body\\s*>",
-                footer_html + b"\\n</body>",
+                rb"</body\s*>",
+                footer_html + b"\n</body>",
                 page_html,
                 count=1,
                 flags=re.IGNORECASE,
@@ -357,8 +357,8 @@ body:not(:has(.bottom-nav)):not(:has(nav.bottom)):not(:has(div.bottom a[href="/p
 </style>"""
     if b'id="sivdhi-global-footer-layout"' not in page_html:
         page_html, inserted_style = re.subn(
-            rb"(<head\\b[^>]*>)",
-            lambda match: match.group(1) + b"\\n" + footer_layout_style,
+            rb"(<head\b[^>]*>)",
+            lambda match: match.group(1) + b"\n" + footer_layout_style,
             page_html,
             count=1,
             flags=re.IGNORECASE,
