@@ -1721,6 +1721,48 @@ def _seo_city_slug(value):
     return re.sub(r"[^a-z0-9]+", "-", str(value or "").strip().lower()).strip("-")
 
 
+def _worker_matches_seo_category(worker, columns, category_name):
+    """Match common service/worker wording variants without guessing coverage."""
+    if _worker_matches_category(worker, columns, category_name):
+        return True
+
+    target = re.sub(r"[^a-z0-9]+", " ", str(category_name or "").lower()).strip()
+    skills = re.sub(r"[^a-z0-9]+", " ", _worker_category_text(worker, columns)).strip()
+    if not target or not skills:
+        return False
+
+    def stems(value):
+        words = set()
+        for word in value.split():
+            words.add(word)
+            for suffix in ("ing", "ers", "er", "es", "s"):
+                if len(word) > len(suffix) + 2 and word.endswith(suffix):
+                    words.add(word[:-len(suffix)])
+        return words
+
+    target_words = stems(target)
+    skill_words = stems(skills)
+    if target_words.intersection(skill_words):
+        return True
+
+    synonym_groups = (
+        {"plumb", "plumber", "plumbing", "pipe repair", "pipe fitting"},
+        {"clean", "cleaner", "cleaning", "housekeeping"},
+        {"electric", "electrical", "electrician", "wiring"},
+        {"carpenter", "carpentry"},
+        {"paint", "painter", "painting"},
+        {"helper", "helpers", "maid", "domestic help", "household help"},
+        {"ac", "air conditioner", "air conditioning"},
+    )
+    for group in synonym_groups:
+        target_match = any(term in target for term in group)
+        skill_match = any(term in skills for term in group)
+        if target_match and skill_match:
+            return True
+
+    return False
+
+
 def customer_service_areas(db):
     """Return only cities where active workers' saved skills match live customer categories.
 
@@ -1761,7 +1803,7 @@ def customer_service_areas(db):
 
         matched_categories = [
             item for item in catalogue
-            if _worker_matches_category(
+            if _worker_matches_seo_category(
                 worker,
                 worker_columns,
                 item.get("name") or item.get("display_name"),
@@ -1782,7 +1824,11 @@ def customer_service_areas(db):
         for category in matched_categories:
             category_id = safe_int(category.get("id"), 0)
             if category_id:
-                area["categories"][category_id] = category
+                category_name = category.get("display_name") or category.get("name") or "service"
+                area["categories"][category_id] = {
+                    **category,
+                    "slug": f"{_seo_city_slug(category_name)}-{category_id}",
+                }
 
     result = []
     for area in areas.values():
@@ -2633,8 +2679,9 @@ def home():
 
 @customer_bp.route("/service-areas")
 @customer_bp.route("/service-areas/<area_slug>")
-def service_areas(area_slug=None):
-    """Public city pages based only on active workers and currently listed skills."""
+@customer_bp.route("/service-areas/<area_slug>/<category_slug>")
+def service_areas(area_slug=None, category_slug=None):
+    """Public city and service pages backed by active workers' listed skills."""
     db = get_db()
     try:
         areas = customer_service_areas(db)
@@ -2642,10 +2689,21 @@ def service_areas(area_slug=None):
             area = next((item for item in areas if item["slug"] == area_slug), None)
             if not area:
                 abort(404)
+
+            service_category = None
+            if category_slug:
+                service_category = next(
+                    (item for item in area["categories"] if item["slug"] == category_slug),
+                    None,
+                )
+                if not service_category:
+                    abort(404)
+
             return render_template(
                 "customer/service_areas.html",
                 areas=areas,
                 area=area,
+                service_category=service_category,
             )
 
         response = current_app.make_response(
@@ -2653,6 +2711,7 @@ def service_areas(area_slug=None):
                 "customer/service_areas.html",
                 areas=areas,
                 area=None,
+                service_category=None,
             )
         )
         if not areas:
