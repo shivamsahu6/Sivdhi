@@ -297,8 +297,11 @@ def _inject_sivdhi_site_footer(response):
         return response
 
     page_html = response.get_data()
-    footer_marker = b"sivdhi-site-footer"
-    has_footer = re.search(\n        rb"<footer\\b[^>]*\\bsivdhi-site-footer\\b",\n        page_html,\n        flags=re.IGNORECASE,\n    ) is not None
+    has_footer = re.search(
+        rb"<footer\b[^>]*\bsivdhi-site-footer\b",
+        page_html,
+        flags=re.IGNORECASE,
+    ) is not None
 
     # Keep the correct Company links for the active website role.
     path = request.path or "/"
