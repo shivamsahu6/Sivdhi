@@ -685,6 +685,7 @@ def test_shared_footer_is_removed_from_service_areas_and_partner_opportunity():
 
     assert "_sivdhi_footer.html" not in service_areas
     assert "_sivdhi_footer.html" not in opportunity
+    assert "<footer" not in opportunity.lower()
 
 
 def test_worker_help_uses_customer_help_layout_with_worker_content():
