@@ -179,8 +179,18 @@ def test_shared_footer_is_not_duplicated_and_worker_role_is_preserved():
 
     assert html.count('class="sivdhi-site-footer"') == 1
     assert html.count("Existing footer") == 1
-    assert 'href="/worker/faq"' in html
     assert 'id="sivdhi-global-footer-layout"' in html
+
+    with app.test_request_context("/worker/forgot-password"):
+        response = app.response_class(
+            "<html><head></head><body><main>Forgot password</main></body></html>",
+            mimetype="text/html",
+        )
+        updated = _inject_sivdhi_site_footer(response)
+        worker_html = updated.get_data(as_text=True)
+
+    assert 'href="/worker/faq"' in worker_html
+    assert worker_html.count('class="sivdhi-site-footer"') == 1
 
 
 def test_shared_footer_is_not_injected_into_admin_or_non_html_responses():
