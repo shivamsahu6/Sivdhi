@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#09070f">
-    {% if area %}
+    {% if area and service_category %}
+        {% set category_label = service_category.display_name|default(service_category.name) %}
+        <title>{{ category_label }} Services in {{ area.city }}, {{ area.state }} | Sivdhi</title>
+        <meta name="description" content="Browse {{ category_label|lower }} services in {{ area.city }}, {{ area.state }} on Sivdhi. See listed options and prices, then check availability for your address and time.">
+        <link rel="canonical" href="https://sivdhi.duckdns.org/customer/service-areas/{{ area.slug }}/{{ service_category.slug }}">
+        <meta property="og:title" content="{{ category_label }} Services in {{ area.city }}, {{ area.state }} | Sivdhi">
+        <meta property="og:description" content="See currently listed {{ category_label|lower }} options in {{ area.city }}, {{ area.state }} and check exact-location availability before booking.">
+        <meta property="og:url" content="https://sivdhi.duckdns.org/customer/service-areas/{{ area.slug }}/{{ service_category.slug }}">
+    {% elif area %}
         {% set service_names = area.categories|map(attribute='display_name')|join(', ') %}
         <title>Home Services in {{ area.city }}, {{ area.state }} | Sivdhi</title>
         <meta name="description" content="Browse {{ service_names|truncate(62, True, '...') }} in {{ area.city }}, {{ area.state }} with Sivdhi. Check exact-location availability and displayed prices before booking.">
@@ -26,8 +34,8 @@
     <meta property="og:locale" content="en_IN">
     <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="{% if area %}Home Services in {{ area.city }}, {{ area.state }} | Sivdhi{% else %}Sivdhi Service Areas | Home Services by City{% endif %}">
-    <meta name="twitter:description" content="{% if area %}Browse currently listed home-service categories in {{ area.city }}, {{ area.state }}. Check exact-location availability before booking.{% else %}Explore cities where Sivdhi currently lists home-service categories.{% endif %}">
+    <meta name="twitter:title" content="{% if area and service_category %}{{ service_category.display_name }} Services in {{ area.city }}, {{ area.state }} | Sivdhi{% elif area %}Home Services in {{ area.city }}, {{ area.state }} | Sivdhi{% else %}Sivdhi Service Areas | Home Services by City{% endif %}">
+    <meta name="twitter:description" content="{% if area and service_category %}Browse listed {{ service_category.display_name|lower }} options in {{ area.city }}, {{ area.state }} and check availability before booking.{% elif area %}Browse currently listed home-service categories in {{ area.city }}, {{ area.state }}.{% else %}Explore cities where Sivdhi currently lists home-service categories.{% endif %}">
     <style>
         :root{color-scheme:dark;--bg:#09070f;--panel:#17121f;--text:#faf6ff;--muted:#ad9dbb;--border:rgba(190,130,255,.2);--accent:#a44dff}
         *{box-sizing:border-box}
@@ -53,7 +61,10 @@
     <header class="top">
         <div class="top-inner">
             <a class="brand" href="{{ url_for('customer.home') }}">SIVDHI</a>
-            {% if area %}
+            {% if area and service_category %}
+                <h1>{{ service_category.display_name }} Services in {{ area.city }}, {{ area.state }}</h1>
+                <p>Explore listed {{ service_category.display_name|lower }} options in this city and check availability for your exact address and requested time.</p>
+            {% elif area %}
                 <h1>Home Services in {{ area.city }}, {{ area.state }}</h1>
                 <p>Browse the home-service categories currently represented by active Sivdhi worker profiles in this city.</p>
             {% else %}
@@ -63,7 +74,27 @@
         </div>
     </header>
     <main class="main">
-        {% if area %}
+        {% if area and service_category %}
+            <p class="notice">
+                Sivdhi currently lists active worker profiles in {{ area.city }}, {{ area.state }} with skills matching
+                this service category. This is not a promise that a worker is free for every address, date or time.
+                Enter your location in the booking flow to check current availability before sending a request.
+            </p>
+            <section class="grid" aria-label="{{ service_category.display_name }} service options in {{ area.city }}">
+                {% for service in service_category.subcategories %}
+                    <article class="item">
+                        <strong>{{ service.display_name }}</strong>
+                        {% if service.display_price %}
+                            <span>Displayed price: ₹{{ "%.2f"|format(service.display_price|float) }}</span>
+                        {% endif %}
+                        {% if service.description %}
+                            <span>{{ service.description }}</span>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </section>
+            <a class="back" href="{{ url_for('customer.service_areas', area_slug=area.slug) }}">← Back to {{ area.city }} services</a>
+        {% elif area %}
             <p class="notice">
                 The categories below are based on active worker profiles that list matching skills in {{ area.city }}.
                 This does not guarantee that a worker is free for every address, date or time. Enter your location and
@@ -71,9 +102,9 @@
             </p>
             <section class="grid" aria-label="Home-service categories in {{ area.city }}">
                 {% for category in area.categories %}
-                    <a class="item" href="{{ url_for('customer.category', category_id=category['id']) }}">
+                    <a class="item" href="{{ url_for('customer.service_areas', area_slug=area.slug, category_slug=category.slug) }}">
                         <strong>{{ category['display_name'] or category['name'] }}</strong>
-                        <span>{{ category['service_count'] }} listed service option(s). View details and displayed prices.</span>
+                        <span>{{ category['service_count'] }} listed service option(s). View service details and displayed prices.</span>
                     </a>
                 {% endfor %}
             </section>
