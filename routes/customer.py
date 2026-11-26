@@ -2670,7 +2670,7 @@ def customer_categories_api():
 @customer_bp.route("/")
 @customer_bp.route("/home")
 def home():
-    """Public customer catalogue; location only controls availability labels."""
+    """Render public categories or the signed-in customer's area-scoped catalogue."""
     pending_service_mode = (
         session.get("pending_service_mode")
         if safe_int(session.get("pending_service_id"), 0)
