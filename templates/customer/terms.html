@@ -27,7 +27,7 @@
 
         body {
             margin: 0;
-            padding-bottom: 85px;
+            padding-bottom: 20px;
             color: var(--text);
             background: var(--background);
             font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -319,44 +319,7 @@
             font-size: 11px;
             line-height: 1.7;
         }
-
-        .bottom-nav {
-            position: fixed;
-            right: 0;
-            bottom: 0;
-            left: 0;
-            z-index: 20;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-            background: rgba(255, 255, 255, 0.97);
-            border-top: 1px solid var(--border);
-            backdrop-filter: blur(14px);
-        }
-
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            min-height: 48px;
-            color: #9ca3af;
-            text-decoration: none;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .nav-icon {
-            font-size: 20px;
-            line-height: 1.2;
-        }
-
-        .nav-item.active {
-            color: var(--primary);
-        }
-
-        @media (max-width: 520px) {
+@media (max-width: 520px) {
             .topbar {
                 padding: 13px 14px;
             }
@@ -528,26 +491,8 @@
             Effective date: 25 November 2026. Last updated: 25 November 2026.
         </footer>
     </main>
-
-    <nav class="bottom-nav" aria-label="Customer navigation">
-        <a href="{{ url_for('customer.home') }}" class="nav-item">
-            <span class="nav-icon" aria-hidden="true">⌂</span>
-            <span>Home</span>
-        </a>
-
-        <a href="{{ url_for('customer.bookings') }}" class="nav-item">
-            <span class="nav-icon" aria-hidden="true">▣</span>
-            <span>Bookings</span>
-        </a>
-
-        <a href="{{ url_for('customer.profile') }}"
-           class="nav-item active"
-           aria-current="page">
-            <span class="nav-icon" aria-hidden="true">♙</span>
-            <span>Profile</span>
-        </a>
-    </nav>
-    {% set sivdhi_footer_role = 'customer' %}
+{% set sivdhi_footer_role = 'customer' %}
     {% include '_sivdhi_footer.html' %}
+    <style>.sivdhi-site-footer { margin-bottom: 20px; }</style>
 </body>
 </html>
