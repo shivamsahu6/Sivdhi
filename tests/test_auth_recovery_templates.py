@@ -474,3 +474,32 @@ def test_public_privacy_notice_describes_ga4_and_no_longer_calls_it_a_draft():
     assert "best-effort safeguards" in policy
     assert "does not currently publish one fixed retention" in policy
     assert "shivamsahu.co@gmail.com" in policy
+
+
+def test_worker_partner_signup_footer_is_below_form_and_has_reviews_contact_links():
+    from app import app
+
+    signup_template = (ROOT / "templates" / "signup.html").read_text(encoding="utf-8")
+    body_css = signup_template.split("body{", 1)[1].split("}", 1)[0]
+    assert "min-height:100vh" in body_css
+    assert "min-height:100dvh" in body_css
+    assert "height:auto" in body_css
+    assert "flex-direction:column" in body_css
+    assert ".signup-box { flex: 0 0 auto; margin-bottom: auto; }" in signup_template
+    assert ".sivdhi-site-footer { flex: 0 0 auto; margin: 30px auto 20px; }" in signup_template
+    assert signup_template.index("{% include '_sivdhi_footer.html' %}") > signup_template.index("</div>\n<script>")
+
+    client = app.test_client()
+    for role, heading in (("worker", "For Worker"), ("partner", "For Partner")):
+        response = client.get(f"/signup?role={role}")
+        assert response.status_code == 200
+        page = response.get_data(as_text=True)
+        footer_start = page.index('<footer class="sivdhi-site-footer"')
+        footer_end = page.index("</footer>", footer_start)
+        footer = page[footer_start:footer_end]
+        role_start = footer.index('aria-label="Role links"')
+        role_end = footer.index("</section>", role_start)
+        role_column = footer[role_start:role_end]
+        assert heading in role_column
+        assert 'href="/customer/reviews"' in role_column
+        assert 'href="/customer/support"' in role_column

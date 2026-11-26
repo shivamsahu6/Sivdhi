@@ -145,8 +145,12 @@
     <section class="sivdhi-footer-column" aria-label="Role links">
         {% if sivdhi_footer_role|default('customer') == 'worker' %}
             <h2 class="sivdhi-footer-title">For Worker</h2>
+            <a href="{{ url_for('customer.reviews') }}">Reviews</a>
+            <a href="{{ url_for('customer.support') }}">Contact Us</a>
         {% elif sivdhi_footer_role|default('customer') == 'partner' %}
             <h2 class="sivdhi-footer-title">For Partner</h2>
+            <a href="{{ url_for('customer.reviews') }}">Reviews</a>
+            <a href="{{ url_for('customer.support') }}">Contact Us</a>
         {% else %}
             <h2 class="sivdhi-footer-title">For Customer</h2>
             <a href="{{ url_for('customer.reviews') }}">Reviews</a>
