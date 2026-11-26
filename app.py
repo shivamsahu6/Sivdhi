@@ -1,10 +1,13 @@
 from datetime import datetime, timezone
-from flask import redirect, url_for, render_template
-
+import hashlib
+import hmac
 import os
 from pathlib import Path
 
-from flask import Flask, request, jsonify, current_app, session
+from flask import (
+    Flask, request, jsonify, current_app, session, redirect, url_for,
+    render_template, flash, g,
+)
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_wtf.csrf import CSRFProtect
@@ -31,7 +34,7 @@ from routes.auth import auth_bp
 from routes.worker import worker_bp
 from routes.partner import partner_bp
 from routes.admin import admin_bp, _ensure_admin_catalog_schema, ADMIN_PANEL_BASE
-from routes.customer import customer_bp
+from routes.customer import customer_bp, customer_service_areas, list_customer_catalogue
 from routes.cashfree_webhook import cashfree_webhook_bp
 
 # ==========================
@@ -117,20 +120,48 @@ def robots_txt():
 
 @app.get("/sitemap.xml")
 def sitemap_xml():
-    """Expose canonical public customer, registration, and role-specific login pages."""
+    """Publish canonical, indexable public pages and data-backed service URLs."""
     from xml.sax.saxutils import escape
 
-    # Password-reset/OTP flows and authenticated account pages are deliberately excluded.
-    public_urls = (
+    public_urls = [
         "https://sivdhi.duckdns.org/",
         "https://sivdhi.duckdns.org/partner-opportunity",
-        "https://sivdhi.duckdns.org/customer/signup",
-        "https://sivdhi.duckdns.org/signup?role=worker",
-        "https://sivdhi.duckdns.org/signup?role=partner",
-    )
+        "https://sivdhi.duckdns.org/customer/reviews",
+        "https://sivdhi.duckdns.org/customer/about",
+        "https://sivdhi.duckdns.org/customer/faq",
+        "https://sivdhi.duckdns.org/customer/help",
+        "https://sivdhi.duckdns.org/worker/about",
+        "https://sivdhi.duckdns.org/partner/about",
+    ]
+
+    db = get_db()
+    try:
+        # Category URLs are public catalogue pages with real, priced services.
+        categories = list_customer_catalogue(db, mode="normal")
+        public_urls.extend(
+            f"https://sivdhi.duckdns.org/customer/category/{int(item['id'])}"
+            for item in categories
+            if item.get("id")
+        )
+
+        # Only publish the service-area hub and city pages backed by active
+        # worker profiles whose listed skills match live customer categories.
+        areas = customer_service_areas(db)
+        if areas:
+            public_urls.append(
+                "https://sivdhi.duckdns.org/customer/service-areas"
+            )
+            public_urls.extend(
+                "https://sivdhi.duckdns.org/customer/service-areas/"
+                + item["slug"]
+                for item in areas
+            )
+    finally:
+        db.close()
+
     url_entries = "".join(
         f'<url><loc>{escape(public_url)}</loc></url>'
-        for public_url in public_urls
+        for public_url in sorted(set(public_urls))
     )
     content = (
         '<?xml version="1.0" encoding="UTF-8"?>'
@@ -138,10 +169,7 @@ def sitemap_xml():
         f'{url_entries}'
         '</urlset>'
     )
-    return current_app.response_class(
-        content,
-        mimetype="application/xml",
-    )
+    return current_app.response_class(content, mimetype="application/xml")
 
 
 @app.get("/worker-partner/login")
@@ -160,21 +188,123 @@ def partner_entrypoint():
     return redirect(url_for("auth.login", role="partner"))
 
 
+@app.before_request
+def require_worker_partner_signup_consent():
+    """Enforce consent on the shared Worker/Partner signup form on the server."""
+    if request.endpoint != "auth.signup" or request.method != "POST":
+        return None
+
+    role = (request.args.get("role") or request.form.get("role") or "").strip().lower()
+    if role not in {"worker", "partner"}:
+        return None
+
+    if request.form.get("terms") != "accepted":
+        flash(
+            "Please agree to the Terms & Conditions and Privacy Policy before creating your account.",
+            "warning",
+        )
+        return redirect(url_for("auth.signup", role=role))
+
+    g.sivdhi_role_signup_consent = {
+        "role": role,
+        "email": (request.form.get("email") or "").strip().lower(),
+        "mobile": "".join(
+            character for character in (request.form.get("mobile") or "")
+            if character.isdigit()
+        ),
+        "terms_version": "2026-11-26",
+        "privacy_policy_version": "2026-11-26",
+    }
+    return None
+
+
+@app.after_request
+def persist_worker_partner_signup_consent(response):
+    """Record accepted role-signup consent without retaining contact details."""
+    consent = getattr(g, "sivdhi_role_signup_consent", None)
+    if not consent or response.status_code >= 400:
+        return response
+
+    identity = "|".join(
+        (consent["role"], consent["email"], consent["mobile"])
+    )
+    secret = current_app.secret_key
+    secret_bytes = secret.encode("utf-8") if isinstance(secret, str) else secret
+    identity_hash = hmac.new(
+        secret_bytes,
+        identity.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    db = get_db()
+    try:
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS role_signup_consents (
+                role TEXT NOT NULL CHECK (role IN ('worker', 'partner')),
+                identity_hash TEXT NOT NULL,
+                terms_version TEXT NOT NULL,
+                privacy_policy_version TEXT NOT NULL,
+                accepted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (role, identity_hash)
+            )
+            """
+        )
+        db.execute(
+            """
+            INSERT INTO role_signup_consents (
+                role, identity_hash, terms_version, privacy_policy_version,
+                accepted_at
+            )
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(role, identity_hash) DO UPDATE SET
+                terms_version=excluded.terms_version,
+                privacy_policy_version=excluded.privacy_policy_version,
+                accepted_at=CURRENT_TIMESTAMP
+            """,
+            (
+                consent["role"],
+                identity_hash,
+                consent["terms_version"],
+                consent["privacy_policy_version"],
+            ),
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        current_app.logger.exception("Could not save Worker/Partner signup consent")
+    finally:
+        db.close()
+
+    return response
+
+
 @app.after_request
 def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    public_customer_endpoints = {
+        "customer.home",
+        "customer.reviews",
+        "customer.about",
+        "customer.faq",
+        "customer.help",
+        "customer.category",
+        "customer.service_areas",
+    }
+    public_worker_partner_paths = {
+        "/worker/about",
+        "/partner/about",
+    }
     is_private_worker_partner_page = (
         request.path.startswith(("/worker/", "/partner/"))
         and request.path not in {"/worker/login", "/partner/login"}
+        and request.path not in public_worker_partner_paths
     )
     is_private_customer_page = (
         request.blueprint == "customer"
-        and request.path not in {
-            "/customer/",
-            "/customer/home",
-            "/customer/signup",
-        }
+        and request.endpoint not in public_customer_endpoints
     )
+    is_role_signup = request.endpoint == "auth.signup"
     is_sensitive_auth_flow = request.endpoint in {
         "auth.forgot_password",
         "auth.verify_otp",
@@ -183,9 +313,9 @@ def add_security_headers(response):
     if (
         request.blueprint == "admin"
         or request.path == "/customer/login"
-        or request.endpoint == "customer.privacy"
         or is_sensitive_auth_flow
         or request.path == "/login"
+        or is_role_signup
         or is_private_worker_partner_page
         or is_private_customer_page
     ):
