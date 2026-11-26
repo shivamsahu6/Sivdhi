@@ -161,6 +161,10 @@ def test_shared_footer_is_added_to_pages_that_do_not_include_it():
 
     assert html.count('class="sivdhi-site-footer"') == 1
     assert 'href="/customer/faq"' in html
+    assert 'href="/customer/service-areas"' not in html
+    assert 'href="/partner-opportunity"' not in html
+    assert "Service Areas" not in html
+    assert "Partner Opportunity" not in html
     assert 'id="sivdhi-global-footer-layout"' in html
     assert "margin-top: auto !important" in html
 
