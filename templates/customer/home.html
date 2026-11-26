@@ -229,10 +229,35 @@
             box-shadow: 0 18px 55px rgba(0,0,0,.45);
         }
 
+        .notification-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
         .notification-heading {
-            margin: 0 0 10px;
+            margin: 0;
             font-size: 14px;
             font-weight: 800;
+        }
+
+        .notification-read-all-button {
+            flex-shrink: 0;
+            padding: 7px 10px;
+            border: 1px solid rgba(255,255,255,.14);
+            border-radius: 9px;
+            background: rgba(164,77,255,.15);
+            color: #e8d6fa;
+            font-size: 11px;
+            font-weight: 750;
+            cursor: pointer;
+        }
+
+        .notification-read-all-button:disabled {
+            opacity: .55;
+            cursor: wait;
         }
 
         .notification-item {
@@ -838,6 +863,7 @@
 
 <body
     data-location-allowed="{{ 'true' if location_allowed else 'false' }}"
+    data-location-required="{{ 'true' if customer_location_required else 'false' }}"
     data-booking-mode="{{ booking_mode|e }}"
     data-pending-service-id="{{ pending_service_id|default(0) }}"
 >
@@ -881,7 +907,15 @@
                         aria-label="Your notifications"
                         hidden
                     >
-                        <h2 class="notification-heading">Notifications</h2>
+                        <div class="notification-panel-header">
+                            <h2 class="notification-heading">Notifications</h2>
+                            <button
+                                type="button"
+                                class="notification-read-all-button"
+                                id="customerNotificationReadAll"
+                                hidden
+                            >Read All</button>
+                        </div>
                         <div id="customerNotificationList" aria-live="polite">
                             <div class="notification-status">Loading notifications…</div>
                         </div>
@@ -951,7 +985,9 @@
                         <h2>Categories</h2>
                         <p id="categoryDescription">
                             {% if location_allowed %}
-                                Availability checked for your area
+                                Categories available in your area
+                            {% elif customer_location_required %}
+                                Share your location to see categories in your area
                             {% else %}
                                 Browse all active categories; select your area to check availability
                             {% endif %}
@@ -996,18 +1032,20 @@
                     {% endfor %}
                 </div>
 
-                <div class="state-card" id="locationState" {% if location_allowed or not pending_service_id %}hidden{% endif %}>
+                <div class="state-card" id="locationState" {% if location_allowed or (not customer_location_required and not pending_service_id) %}hidden{% endif %}>
                     <div class="state-icon" aria-hidden="true">⌖</div>
-                    <h3>{% if pending_service_id %}Continue with your selected service{% else %}Check services in your area{% endif %}</h3>
+                    <h3>{% if customer_location_required %}Set your location first{% elif pending_service_id %}Continue with your selected service{% else %}Check services in your area{% endif %}</h3>
                     <p>
-                        {% if pending_service_id %}
+                        {% if customer_location_required %}
+                            Allow Sivdhi to access your current location first. We will then show only active service categories available in your area.
+                        {% elif pending_service_id %}
                             Allow location so Sivdhi can verify availability for the selected service before continuing.
                         {% else %}
                             Select your current location to see which active categories are available in your area. You can browse categories and prices without signing in.
                         {% endif %}
                     </p>
                     <button type="button" class="state-button" id="allowLocationButton">
-                        {% if pending_service_id %}Select Location to Continue{% else %}Allow Location{% endif %}
+                        {% if pending_service_id and not customer_location_required %}Select Location to Continue{% else %}Allow Location{% endif %}
                     </button>
                     <div class="state-status" id="locationStatus" role="status" aria-live="polite"></div>
                 </div>
@@ -1018,7 +1056,7 @@
                     <p>Finding categories available at your location.</p>
                 </div>
 
-                <div class="state-card" id="noCategoriesState" {% if categories %}hidden{% endif %}>
+                <div class="state-card" id="noCategoriesState" {% if categories or customer_location_required %}hidden{% endif %}>
                     <div class="state-icon" aria-hidden="true">⌖</div>
                     <h3>No active categories are listed yet</h3>
                     <p>There are no active, priced categories for this service type right now.</p>
@@ -1061,6 +1099,8 @@
 
         let locationAllowed =
             document.body.dataset.locationAllowed === "true";
+        let customerLocationRequired =
+            document.body.dataset.locationRequired === "true";
 
         let locationRequestStarted = false;
 
@@ -1100,7 +1140,8 @@
                 allowLocationButton.disabled = value;
                 allowLocationButton.textContent = value
                     ? "Please wait…"
-                    : (Number(document.body.dataset.pendingServiceId || 0) > 0
+                    : (Number(document.body.dataset.pendingServiceId || 0) > 0 &&
+                        !customerLocationRequired
                         ? "Select Location to Continue"
                         : "Allow Location");
             }
@@ -1118,8 +1159,10 @@
             });
 
             categoryDescription.textContent = locationAllowed
-                ? "Availability checked for your area"
-                : "Browse all active categories; select your area to check availability";
+                ? "Categories available in your area"
+                : customerLocationRequired
+                    ? "Share your location to see categories in your area"
+                    : "Browse all active categories; select your area to check availability";
         }
 
         function renderCategories(categories) {
@@ -1188,11 +1231,18 @@
                 categories.length > 0 ||
                 Boolean(query);
 
-            if (categories.length === 0) {
+            if (categories.length === 0 && locationAllowed) {
+                noCategoriesState.querySelector("h3").textContent =
+                    "No categories available in your area";
+                noCategoriesState.querySelector("p").textContent =
+                    "There are no active workers with priced services in this area for the selected service type right now.";
+                categoryDescription.textContent =
+                    "No categories currently available in your area";
+            } else if (categories.length === 0) {
                 categoryDescription.textContent = "No active categories are listed yet";
             } else {
                 categoryDescription.textContent = locationAllowed
-                    ? "Availability checked for your area"
+                    ? "Categories available in your area"
                     : "Browse all active categories; select your area to check availability";
             }
         }
@@ -1227,12 +1277,10 @@
                     const hasPendingService = Number(
                         document.body.dataset.pendingServiceId || 0
                     ) > 0;
-                    locationState.hidden = !hasPendingService;
-                    categoryGrid.hidden = hasPendingService ||
-                        categoryGrid.querySelectorAll(".category-card").length === 0;
-                    resultCount.textContent = categoryGrid.hidden
-                        ? "0 categories"
-                        : categoryGrid.querySelectorAll(".category-card").length + " categories";
+                    locationState.hidden = !(customerLocationRequired || hasPendingService);
+                    categoryGrid.hidden = true;
+                    noCategoriesState.hidden = true;
+                    resultCount.textContent = "0 categories";
                     return;
                 }
 
@@ -1308,6 +1356,7 @@
                         }
 
                         locationAllowed = true;
+                        customerLocationRequired = false;
                         locationState.hidden = true;
                         locationLine.hidden = false;
                         if (changeLocationButton) {
@@ -1431,15 +1480,18 @@
             locationLine.hidden = false;
             loadCategories();
         } else {
-            categoryGrid.hidden = categoryGrid.querySelectorAll(".category-card").length === 0;
             const hasPendingService = Number(
                 document.body.dataset.pendingServiceId || 0
             ) > 0;
-            locationState.hidden = !hasPendingService;
+            categoryGrid.hidden = customerLocationRequired ||
+                categoryGrid.querySelectorAll(".category-card").length === 0;
+            noCategoriesState.hidden = customerLocationRequired ||
+                Boolean(hasPendingService) ||
+                categoryGrid.querySelectorAll(".category-card").length > 0;
+            locationState.hidden = !(customerLocationRequired || hasPendingService);
 
-            // Browsing categories and prices never asks for location.
-            // Location is requested only after a customer chooses a service
-            // and signs in, so the pending service can be checked for coverage.
+            // Visitors may browse the public catalogue. Signed-in customers
+            // must choose a location before area-specific categories appear.
         }
     </script>
 
@@ -1449,10 +1501,12 @@
             const panel = document.getElementById("customerNotificationPanel");
             const list = document.getElementById("customerNotificationList");
             const count = document.getElementById("customerNotificationCount");
+            const readAllButton = document.getElementById("customerNotificationReadAll");
 
-            if (!button || !panel || !list || !count) return;
+            if (!button || !panel || !list || !count || !readAllButton) return;
 
             let loading = false;
+            let currentNotifications = [];
 
             function escapeHtml(value) {
                 return String(value == null ? "" : value).replace(/[&<>"']/g, character => ({
@@ -1465,6 +1519,9 @@
             }
 
             function renderNotifications(items) {
+                currentNotifications = items;
+                readAllButton.hidden = !items.some(item => !item.is_read);
+
                 if (!items.length) {
                     list.innerHTML =
                         '<div class="notification-empty">You’re all caught up. New booking updates will appear here.</div>';
@@ -1520,6 +1577,46 @@
                     loading = false;
                 }
             }
+
+            readAllButton.addEventListener("click", async () => {
+                if (readAllButton.disabled) return;
+
+                readAllButton.disabled = true;
+                readAllButton.textContent = "Marking…";
+
+                try {
+                    const csrfToken =
+                        document.querySelector('meta[name="csrf-token"]')?.content || "";
+                    const response = await fetch(
+                        "/customer/notifications/mark-all-read",
+                        {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                "Accept": "application/json",
+                                "X-CSRFToken": csrfToken
+                            }
+                        }
+                    );
+                    const data = await response.json();
+
+                    if (!response.ok || data.success !== true) {
+                        throw new Error(data.message || "Notifications could not be updated.");
+                    }
+
+                    renderNotifications(
+                        currentNotifications.map(item => ({ ...item, is_read: true }))
+                    );
+                    count.textContent = "0";
+                    count.hidden = true;
+                } catch (error) {
+                    list.innerHTML =
+                        '<div class="notification-status">Could not mark notifications as read. Please try again.</div>';
+                } finally {
+                    readAllButton.disabled = false;
+                    readAllButton.textContent = "Read All";
+                }
+            });
 
             button.addEventListener("click", () => {
                 const opening = panel.hidden;
