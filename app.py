@@ -6,7 +6,7 @@ from pathlib import Path
 
 from flask import (
     Flask, request, jsonify, current_app, session, redirect, url_for,
-    render_template, flash, g,
+    render_template, flash,
 )
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -188,46 +188,12 @@ def partner_entrypoint():
     return redirect(url_for("auth.login", role="partner"))
 
 
-@app.before_request
-def require_worker_partner_signup_consent():
-    """Enforce consent on the shared Worker/Partner signup form on the server."""
-    if request.endpoint != "auth.signup" or request.method != "POST":
-        return None
+def _record_role_signup_consent(role, email, mobile):
+    """Persist consent with a keyed identifier hash; never store signup contact details."""
+    if not email or not mobile:
+        raise ValueError("Email and mobile are required to record signup consent.")
 
-    role = (request.args.get("role") or request.form.get("role") or "").strip().lower()
-    if role not in {"worker", "partner"}:
-        return None
-
-    if request.form.get("terms") != "accepted":
-        flash(
-            "Please agree to the Terms & Conditions and Privacy Policy before creating your account.",
-            "warning",
-        )
-        return redirect(url_for("auth.signup", role=role))
-
-    g.sivdhi_role_signup_consent = {
-        "role": role,
-        "email": (request.form.get("email") or "").strip().lower(),
-        "mobile": "".join(
-            character for character in (request.form.get("mobile") or "")
-            if character.isdigit()
-        ),
-        "terms_version": "2026-11-26",
-        "privacy_policy_version": "2026-11-26",
-    }
-    return None
-
-
-@app.after_request
-def persist_worker_partner_signup_consent(response):
-    """Record accepted role-signup consent without retaining contact details."""
-    consent = getattr(g, "sivdhi_role_signup_consent", None)
-    if not consent or response.status_code >= 400:
-        return response
-
-    identity = "|".join(
-        (consent["role"], consent["email"], consent["mobile"])
-    )
+    identity = "|".join((role, email, mobile))
     secret = current_app.secret_key
     secret_bytes = secret.encode("utf-8") if isinstance(secret, str) else secret
     identity_hash = hmac.new(
@@ -262,21 +228,49 @@ def persist_worker_partner_signup_consent(response):
                 privacy_policy_version=excluded.privacy_policy_version,
                 accepted_at=CURRENT_TIMESTAMP
             """,
-            (
-                consent["role"],
-                identity_hash,
-                consent["terms_version"],
-                consent["privacy_policy_version"],
-            ),
+            (role, identity_hash, "2026-11-26", "2026-11-26"),
         )
         db.commit()
     except Exception:
         db.rollback()
-        current_app.logger.exception("Could not save Worker/Partner signup consent")
+        raise
     finally:
         db.close()
 
-    return response
+
+@app.before_request
+def require_worker_partner_signup_consent():
+    """Enforce and record consent before the shared signup handler can create an account."""
+    if request.endpoint != "auth.signup" or request.method != "POST":
+        return None
+
+    role = (request.args.get("role") or request.form.get("role") or "").strip().lower()
+    if role not in {"worker", "partner"}:
+        return None
+
+    if request.form.get("terms") != "accepted":
+        flash(
+            "Please agree to the Terms & Conditions and Privacy Policy before creating your account.",
+            "warning",
+        )
+        return redirect(url_for("auth.signup", role=role))
+
+    email = (request.form.get("email") or "").strip().lower()
+    mobile = "".join(
+        character for character in (request.form.get("mobile") or "")
+        if character.isdigit()
+    )
+    if email and mobile:
+        try:
+            _record_role_signup_consent(role, email, mobile)
+        except Exception:
+            current_app.logger.exception("Could not save Worker/Partner signup consent")
+            return current_app.response_class(
+                "We could not record your consent. Please try again.",
+                status=503,
+                mimetype="text/plain",
+            )
+    return None
 
 
 @app.after_request
