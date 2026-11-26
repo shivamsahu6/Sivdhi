@@ -52,6 +52,8 @@ def test_public_entrypoint_and_sitemap_advertise_customer_worker_and_partner_pag
     assert '<meta property="og:site_name" content="Sivdhi">' in root_page
     assert '"@type": "WebSite"' in root_page
     assert '"name": "Sivdhi"' in root_page
+    assert '"telephone": "+91 89540 15683"' in root_page
+    assert '"areaServed": "Bareilly, Uttar Pradesh, India"' in root_page
 
     sitemap_response = client.get("/sitemap.xml")
     assert sitemap_response.status_code == 200
