@@ -2238,6 +2238,14 @@ def login():
                 session["customer_location_allowed"] = True
             session["booking_mode"] = guest_booking_mode
 
+            # A customer with no saved location must choose an area before
+            # continuing to any requested customer page or booking step.
+            if (
+                safe_float(session.get("customer_latitude")) is None
+                or safe_float(session.get("customer_longitude")) is None
+            ):
+                return redirect(url_for("customer.home"))
+
             next_url = request.args.get("next") or request.form.get("next")
             parsed = urlsplit(next_url or "")
 
@@ -2423,6 +2431,13 @@ def signup():
                 session["customer_location_name"] = guest_location_name or "Current location"
             session["booking_mode"] = guest_booking_mode
 
+            # New customers must select a service area before proceeding.
+            if (
+                safe_float(session.get("customer_latitude")) is None
+                or safe_float(session.get("customer_longitude")) is None
+            ):
+                return redirect(url_for("customer.home"))
+
             parsed_next = urlsplit(next_url or "")
             if (
                 next_url
@@ -2536,8 +2551,10 @@ def save_customer_location_api():
         )
         session["booking_mode"] = mode
 
-        categories = list_customer_catalogue(
-            db, latitude, longitude, mode
+        categories = (
+            list_customer_categories(db, latitude, longitude, mode)
+            if session.get("customer_id")
+            else list_customer_catalogue(db, latitude, longitude, mode)
         )
         service_area_available = any(
             item.get("available_in_area") is True for item in categories
@@ -2612,11 +2629,27 @@ def customer_categories_api():
     try:
         ensure_customer_schema(db)
         latitude, longitude = customer_saved_coordinates(db)
-        categories = list_customer_catalogue(db, latitude, longitude, mode)
+        location_checked = latitude is not None and longitude is not None
+        if session.get("customer_id") and not location_checked:
+            return jsonify({
+                "success": True,
+                "mode": mode,
+                "location_checked": False,
+                "requires_location": True,
+                "categories": [],
+                "service_area_available": False,
+            })
+
+        categories = (
+            list_customer_categories(db, latitude, longitude, mode)
+            if session.get("customer_id")
+            else list_customer_catalogue(db, latitude, longitude, mode)
+        )
         return jsonify({
             "success": True,
             "mode": mode,
-            "location_checked": latitude is not None and longitude is not None,
+            "location_checked": location_checked,
+            "requires_location": False,
             "categories": categories,
             "service_area_available": any(
                 item.get("available_in_area") is True for item in categories
@@ -2655,12 +2688,22 @@ def home():
         customer = get_customer(db)
         latitude, longitude = customer_saved_coordinates(db)
         location_allowed = latitude is not None and longitude is not None
-        categories = list_customer_catalogue(db, latitude, longitude, mode)
+        customer_location_required = bool(
+            session.get("customer_id") and not location_allowed
+        )
+        if customer_location_required:
+            categories = []
+        elif session.get("customer_id"):
+            categories = list_customer_categories(db, latitude, longitude, mode)
+        else:
+            categories = list_customer_catalogue(db, latitude, longitude, mode)
+
         return render_template(
             "customer/home.html",
             customer=customer,
             categories=categories,
             location_allowed=location_allowed,
+            customer_location_required=customer_location_required,
             location_name=session.get(
                 "customer_location_name",
                 "Current location" if location_allowed else "",
@@ -5782,6 +5825,12 @@ def mark_all_notifications_read():
             identifiers,
         )
         db.commit()
+        if request.accept_mimetypes.best == "application/json":
+            return jsonify({
+                "success": True,
+                "message": "All notifications marked as read.",
+                "unread_count": 0,
+            })
         flash("All notifications marked as read.", "success")
         return redirect(url_for("customer.notifications"))
     finally:
