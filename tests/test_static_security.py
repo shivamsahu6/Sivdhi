@@ -147,6 +147,70 @@ def test_legacy_brand_name_is_absent_from_text_files():
     assert not matches, "Old product branding remains:\n" + "\n".join(matches)
 
 
+
+def test_shared_footer_is_added_to_pages_that_do_not_include_it():
+    from app import app, _inject_sivdhi_site_footer
+
+    with app.test_request_context("/customer/service-areas"):
+        response = app.response_class(
+            "<html><head></head><body><main>Service areas</main></body></html>",
+            mimetype="text/html",
+        )
+        updated = _inject_sivdhi_site_footer(response)
+        html = updated.get_data(as_text=True)
+
+    assert html.count('class="sivdhi-site-footer"') == 1
+    assert 'href="/customer/faq"' in html
+    assert 'id="sivdhi-global-footer-layout"' in html
+    assert "margin-top: auto !important" in html
+
+
+def test_shared_footer_is_not_duplicated_and_worker_role_is_preserved():
+    from app import app, _inject_sivdhi_site_footer
+
+    existing = (
+        '<html><head></head><body><main>Worker</main>'
+        '<footer class="sivdhi-site-footer">Existing footer</footer></body></html>'
+    )
+    with app.test_request_context("/worker/home"):
+        response = app.response_class(existing, mimetype="text/html")
+        updated = _inject_sivdhi_site_footer(response)
+        html = updated.get_data(as_text=True)
+
+    assert html.count('class="sivdhi-site-footer"') == 1
+    assert html.count("Existing footer") == 1
+    assert 'id="sivdhi-global-footer-layout"' in html
+
+    with app.test_request_context("/worker/forgot-password"):
+        response = app.response_class(
+            "<html><head></head><body><main>Forgot password</main></body></html>",
+            mimetype="text/html",
+        )
+        updated = _inject_sivdhi_site_footer(response)
+        worker_html = updated.get_data(as_text=True)
+
+    assert 'href="/worker/faq"' in worker_html
+    assert worker_html.count('class="sivdhi-site-footer"') == 1
+
+
+def test_shared_footer_is_not_injected_into_admin_or_non_html_responses():
+    from app import app, _inject_sivdhi_site_footer
+    from routes.admin import ADMIN_PANEL_BASE
+
+    with app.test_request_context(ADMIN_PANEL_BASE + "/dashboard"):
+        response = app.response_class(
+            "<html><head></head><body>Admin</body></html>",
+            mimetype="text/html",
+        )
+        updated = _inject_sivdhi_site_footer(response)
+        assert "sivdhi-site-footer" not in updated.get_data(as_text=True)
+
+    with app.test_request_context("/customer/api/example"):
+        response = app.response_class('{"ok":true}', mimetype="application/json")
+        updated = _inject_sivdhi_site_footer(response)
+        assert updated.get_data(as_text=True) == '{"ok":true}'
+
+
 def test_flask_minimum_version_excludes_known_affected_release():
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     assert re.search(r"(?m)^Flask>=3\.1\.3,<4\.0$", requirements)

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import hashlib
 import hmac
 import os
+import re
 from pathlib import Path
 
 from flask import (
@@ -279,6 +280,103 @@ def require_worker_partner_signup_consent():
     return None
 
 
+def _inject_sivdhi_site_footer(response):
+    """Add the shared role-aware footer to every public website HTML page."""
+    if (
+        response.mimetype != "text/html"
+        or response.status_code != 200
+        or request.method != "GET"
+        or response.is_streamed
+    ):
+        return response
+
+    admin_base = str(ADMIN_PANEL_BASE or "").rstrip("/")
+    if admin_base and (
+        request.path == admin_base
+        or request.path.startswith(admin_base + "/")
+    ):
+        return response
+
+    page_html = response.get_data()
+    has_footer = re.search(
+        rb"<footer\b[^>]*\bsivdhi-site-footer\b",
+        page_html,
+        flags=re.IGNORECASE,
+    ) is not None
+
+    # Keep the correct Company links for the active website role.
+    path = request.path or "/"
+    requested_role = (request.args.get("role") or "").strip().lower()
+    if path.startswith("/worker/"):
+        footer_role = "worker"
+    elif path.startswith("/partner/") or path == "/partner-opportunity":
+        footer_role = "partner"
+    elif requested_role in {"worker", "partner"}:
+        footer_role = requested_role
+    else:
+        footer_role = "customer"
+
+    if not has_footer:
+        try:
+            footer_html = current_app.jinja_env.get_template(
+                "_sivdhi_footer.html"
+            ).render(
+                sivdhi_footer_role=footer_role,
+                sivdhi_show_customer_support=(
+                    footer_role == "customer"
+                    and request.endpoint == "customer.home"
+                ),
+            ).encode("utf-8")
+            page_html, inserted_footer = re.subn(
+                rb"</body\s*>",
+                footer_html + b"\n</body>",
+                page_html,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            if not inserted_footer:
+                return response
+        except Exception:
+            current_app.logger.exception(
+                "Could not add the shared Sivdhi footer to %s",
+                request.path,
+            )
+            return response
+
+    footer_layout_style = b"""<style id="sivdhi-global-footer-layout">
+html { min-height: 100%; }
+body {
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+.sivdhi-site-footer {
+    flex: 0 0 auto;
+    margin-top: auto !important;
+}
+body:not(:has(.bottom-nav)):not(:has(nav.bottom)):not(:has(div.bottom a[href="/partner/home"])) .sivdhi-site-footer {
+    margin-bottom: 20px !important;
+}
+</style>"""
+    if b'id="sivdhi-global-footer-layout"' not in page_html:
+        page_html, inserted_style = re.subn(
+            rb"(<head\b[^>]*>)",
+            lambda match: match.group(1) + b"\n" + footer_layout_style,
+            page_html,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        if not inserted_style:
+            current_app.logger.warning(
+                "Could not add global footer layout styles to %s",
+                request.path,
+            )
+
+    response.set_data(page_html)
+    return response
+
+
 @app.after_request
 def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -515,7 +613,7 @@ def add_security_headers(response):
         if analytics_inserted:
             response.set_data(page_html)
 
-    return response
+    return _inject_sivdhi_site_footer(response)
 
 
 
