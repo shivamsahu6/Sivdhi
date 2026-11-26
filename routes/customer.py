@@ -1631,6 +1631,7 @@ def list_customer_categories(
             "display_icon": item.get("icon") or "✦",
             "subcategories": subcategories,
             "service_count": len(subcategories),
+            "available_in_area": True,
             "display_full_day_price": money(item.get("full_day_price")),
             "display_visit_fee": 0.0,
             "display_included_work": item.get("included_work") or "",
