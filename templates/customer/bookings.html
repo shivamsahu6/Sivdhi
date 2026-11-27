@@ -545,13 +545,21 @@
                     </div>
 
                     {% if booking['worker_arrived_at'] and balance_due > 0 and balance_state not in paid_states and
-                    status_key not in ['cancelled', 'canceled', 'completed', 'complete', 'refunded', 'failed'] %}
+                    status_key not in ['cancelled', 'canceled', 'refunded', 'failed'] and
+                    (status_key not in ['completed', 'complete'] or booking['auto_completed_at']) %}
                     <section class="balance-panel" aria-label="Remaining balance payment">
+                        {% if booking['auto_completed_at'] %}
+                        <div class="balance-title">✓ Full-Day service auto-completed at 5:00 PM</div>
+                        <p class="balance-copy">
+                            Your remaining balance of ₹{{ '%.2f'|format(balance_due) }} is still due. You can securely pay it here.
+                        </p>
+                        {% else %}
                         <div class="balance-title">📍 Worker has arrived</div>
                         <p class="balance-copy">
                             Your remaining balance of ₹{{ '%.2f'|format(balance_due) }} is now due.
                             Your booking advance was recorded earlier.
                         </p>
+                        {% endif %}
 
                         {% if demo_mode %}
                         <form method="post"
