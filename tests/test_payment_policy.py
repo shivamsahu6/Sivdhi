@@ -1,6 +1,6 @@
 import os
 
-from utils.sivdhi_finance import is_demo_mode
+from utils.sivdhi_finance import is_demo_mode, booking_is_fully_paid
 
 
 def test_demo_mode_allowed_in_development(monkeypatch):
@@ -220,3 +220,52 @@ def test_partner_start_requires_arrival_and_paid_balance_not_booking_time():
     assert "_partner_booking_balance_due(row)" in start
     assert "balance_payment_status" in start
     assert "scheduled_at" not in start
+
+
+def test_full_booking_payment_requires_advance_and_remaining_balance_for_all_modes():
+    for mode in ("normal", "full-day"):
+        booking = {
+            "booking_type": mode,
+            "total_amount": 1000.00,
+            "advance_amount": 50.00,
+            "advance_paid_amount": 50.00,
+            "advance_payment_status": "DEMO_PAID",
+            "balance_due_amount": 950.00,
+            "balance_paid_amount": 0.00,
+            "balance_payment_status": "DUE",
+        }
+        assert booking_is_fully_paid(booking) is False
+
+        booking["balance_paid_amount"] = 950.00
+        booking["balance_due_amount"] = 0.00
+        booking["balance_payment_status"] = "DEMO_PAID"
+        assert booking_is_fully_paid(booking) is True
+
+        # A zero balance field must not bypass a missing/unpaid advance.
+        booking["advance_payment_status"] = "PENDING"
+        assert booking_is_fully_paid(booking) is False
+
+
+def test_worker_and_partner_start_endpoints_share_full_payment_guard():
+    worker = _source("routes/worker.py")
+    worker_start = worker.split("def start_job(job_id):", 1)[1]
+    worker_start = worker_start.split("# ============================================================\\n# COMPLETE JOB", 1)[0]
+    assert "booking_is_fully_paid(current)" in worker_start
+
+    partner = _source("routes/partner.py")
+    partner_start = partner.split("def partner_start_job(booking_id):", 1)[1]
+    partner_start = partner_start.split('@partner_bp.route("/partner/job/<int:booking_id>/complete"', 1)[0]
+    assert "booking_is_fully_paid(row)" in partner_start
+
+
+def test_start_job_templates_show_button_only_after_full_payment():
+    worker_template = _source("templates/worker/job_details.html")
+    worker_actions = worker_template.split("{% elif status == 'accepted' and worker_arrived %}", 1)[1]
+    worker_actions = worker_actions.split("{% elif status in ['started','in_progress'] %}", 1)[0]
+    assert "{% if not payment_complete %}" in worker_actions
+    assert "Start Job" in worker_actions
+
+    partner_template = _source("templates/partner/job_details.html")
+    partner_actions = partner_template.split('{% elif current_status == "accepted" %}', 1)[1]
+    partner_actions = partner_actions.split('{% elif current_status in ["in_progress", "started"] %}', 1)[0]
+    assert "{% if payment_complete %}" in partner_actions
