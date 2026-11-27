@@ -451,6 +451,7 @@
     {% set balance_state = job["balance_payment_status"]|default('DUE')|string|upper %}
     {% set paid_states = ['PAID','SUCCESS','DEMO_PAID','COLLECTED','COMPLETED'] %}
     {% set worker_arrived = job["worker_arrived_at"]|default('') %}
+    {% set booking_mode = (job["booking_type"] or job["service_type"] or "normal")|lower|replace("_", "-") %}
     {% set booking_ref = job["booking_id"] or job["job_id"] or job["id"] %}
 
     <header class="header">
@@ -682,9 +683,15 @@
 
                 {% elif status in ['started','in_progress'] %}
 
-                <button class="action complete" type="button" onclick="runAction('complete', this)">
-                    ✔ Complete Job
-                </button>
+                    {% if booking_mode == 'full-day' %}
+                    <div class="notice">
+                        Full-Day job automatically completes at 5:00 PM after the service day. You do not need to press Complete Job.
+                    </div>
+                    {% else %}
+                    <button class="action complete" type="button" onclick="runAction('complete', this)">
+                        ✔ Complete Job
+                    </button>
+                    {% endif %}
 
                 {% elif status in ['completed','cancelled','canceled'] %}
 
