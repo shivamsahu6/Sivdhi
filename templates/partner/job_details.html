@@ -196,6 +196,7 @@
         {% set booking_ref = job["booking_id"] or job["job_id"] or job["id"] %}
         {% set service_name = job["partner_service"] or job["category"] or "Service" %}
         {% set current_status = (job["job_status"] or "pending")|string|lower %}
+        {% set job_mode = (job["booking_type"] or job["service_type"] or "normal")|string|lower|replace("_", "-") %}
         {% set amount = job["partner_amount"] %}
 
         <section class="card">
@@ -323,10 +324,14 @@
 
         {% elif current_status in ["in_progress", "started"] %}
         <section class="card">
+            {% if job_mode == "full-day" %}
+            <div class="notice">Full-Day job automatically completes at 5:00 PM after the service day. No manual completion is needed.</div>
+            {% else %}
             <form method="post" action="/partner/job/{{ job['id'] }}/complete" onsubmit="return lockAction(this);">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn accept" type="submit">Complete Job</button>
             </form>
+            {% endif %}
         </section>
 
         {% else %}
