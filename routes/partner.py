@@ -16,7 +16,7 @@ from utils.otp_security import reserve_otp_request
 from utils.pending_changes import issue_pending_change, refresh_pending_change, verify_pending_change, delete_pending_change
 from routes.decorators import partner_required
 from utils.assignment_monitor import ensure_assignment_monitor_schema, reassign_booking
-from utils.sivdhi_finance import ensure_finance_schema, money as finance_money, settle_completed_booking
+from utils.sivdhi_finance import ensure_finance_schema, money as finance_money, settle_completed_booking, booking_is_fully_paid
 from utils.booking_schedule import india_now
 
 import os
@@ -517,13 +517,13 @@ def job_details(job_ref):
     balance_due = _partner_booking_balance_due(job)
     balance_status = str(job["balance_payment_status"] or "DUE").upper()
     paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
-    balance_paid = balance_due <= 0 or balance_status in paid_states
+    payment_complete = booking_is_fully_paid(job)
     return render_template(
         "partner/job_details.html", job=job,
         can_arrive=can_arrive,
         arrive_available_at=arrive_available_at,
         balance_due=balance_due,
-        balance_paid=balance_paid,
+        payment_complete=payment_complete,
     )
 
 
@@ -703,10 +703,13 @@ def partner_start_job(booking_id):
             flash("Record worker arrival before starting the job.", "warning")
             return redirect(f"/partner/job/{booking_id}")
         due = _partner_booking_balance_due(row)
-        paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
-        if due > 0 and str(row["balance_payment_status"] or "").upper() not in paid_states:
+        if not booking_is_fully_paid(row):
             conn.rollback()
-            flash(f"Customer must pay the remaining ₹{due:.2f} before the job can start.", "warning")
+            if due > 0:
+                message = f"Customer must pay the remaining ₹{due:.2f} and have the full booking payment confirmed before the job can start."
+            else:
+                message = "Customer's full booking payment, including the advance, must be confirmed before the job can start."
+            flash(message, "warning")
             return redirect(f"/partner/job/{booking_id}")
         conn.execute("UPDATE bookings SET booking_status='in_progress', status='in_progress', updated_at=CURRENT_TIMESTAMP WHERE id=?", (booking_id,))
         _partner_internal_notice(conn, worker["id"], partner_id, "Booking Started", f"Service started for booking {row['booking_id']}.")
