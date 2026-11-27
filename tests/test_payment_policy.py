@@ -107,6 +107,50 @@ def test_worker_ui_has_arrival_action_and_balance_wait_state():
     assert "Waiting for the customer to pay the remaining" in source
 
 
+
+def test_verified_cashfree_advance_auto_creates_booking_without_continue_button():
+    template = _source("templates/customer/payment.html")
+    customer_routes = _source("routes/customer.py")
+
+    assert 'id="cashfreeAutoConfirmForm"' in template
+    assert "cashfreeAutoConfirmForm.submit()" in template
+    assert "payment_action" in template
+    assert "Confirm booking" not in template
+    assert "payment_action != \"confirm_cashfree\"" in customer_routes
+
+
+def test_auto_completed_full_day_booking_can_collect_balance_and_settle_later():
+    customer_routes = _source("routes/customer.py")
+    balance_route = customer_routes.split("def pay_booking_balance(booking_ref):", 1)[1]
+    balance_route = balance_route.split('@customer_bp.route("/api/category-services")', 1)[0]
+    assert "auto_completed_full_day" in balance_route
+    assert "settle_completed_booking" in balance_route
+
+    cashfree_finalizer = customer_routes.split("def _finalize_cashfree_balance_payment(", 1)[1]
+    cashfree_finalizer = cashfree_finalizer.split('@customer_bp.route("/cashfree/return"', 1)[0]
+    assert "auto_completed_full_day" in cashfree_finalizer
+    assert "settle_completed_booking" in cashfree_finalizer
+
+    bookings_template = _source("templates/customer/bookings.html")
+    assert "booking['auto_completed_at']" in bookings_template
+
+
+def test_full_day_worker_and_partner_cannot_manually_complete_jobs():
+    worker_routes = _source("routes/worker.py")
+    worker_complete = worker_routes.split("def complete_job(job_id):", 1)[1]
+    worker_complete = worker_complete.split("# ============================================================\n# WORKER", 1)[0]
+    assert "Full-Day jobs are automatically completed at 5:00 PM." in worker_complete
+
+    partner_routes = _source("routes/partner.py")
+    partner_complete = partner_routes.split("def partner_complete_job(booking_id):", 1)[1]
+    partner_complete = partner_complete.split('@partner_bp.route("/partner/job/<int:booking_id>/reject"', 1)[0]
+    assert "Full-Day jobs are automatically completed at 5:00 PM." in partner_complete
+
+    worker_template = _source("templates/worker/job_details.html")
+    partner_template = _source("templates/partner/job_details.html")
+    assert "booking_mode == 'full-day'" in worker_template
+    assert 'job_mode == "full-day"' in partner_template
+
 def test_checkout_payment_button_is_for_advance_not_full_amount():
     source = _source("templates/customer/payment.html")
     assert "Pay ₹{{ '%.2f'|format(advance_value|float) }} securely" in source
