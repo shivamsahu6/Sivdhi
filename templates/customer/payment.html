@@ -829,23 +829,18 @@
                                 </div>
                             </div>
                             {% elif cashfree_verified_order_id %}
-                            <form method="POST" action="{{ url_for('customer.payment') }}" id="paymentForm">
+                            <div class="notice" role="status" aria-live="polite">
+                                <div class="notice-icon" aria-hidden="true">✓</div>
+                                <div>
+                                    <strong>Payment successful</strong>
+                                    <p>Your ₹{{ '%.2f'|format(advance_value|float) }} payment is verified. Sivdhi is confirming your booking automatically. You do not need to press Continue or Confirm.</p>
+                                </div>
+                            </div>
+                            <form method="POST" action="{{ url_for('customer.payment') }}" id="cashfreeAutoConfirmForm" hidden>
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="payment_method" value="cashfree">
                                 <input type="hidden" name="payment_action" value="confirm_cashfree">
                                 <input type="hidden" name="cashfree_order_id" value="{{ cashfree_verified_order_id|e }}">
-                                <div class="notice">
-                                    <div class="notice-icon" aria-hidden="true">✓</div>
-                                    <div>
-                                        <strong>Cashfree payment verified</strong>
-                                        <p>Your ₹{{ '%.2f'|format(advance_value|float) }} advance is confirmed by Cashfree. Confirm below to create your booking and start worker matching.</p>
-                                    </div>
-                                </div>
-                                <div class="error-message" id="paymentMessage" hidden></div>
-                                <button class="pay-button" id="payButton" type="submit">
-                                    Confirm booking
-                                    <span aria-hidden="true">→</span>
-                                </button>
                             </form>
                             {% else %}
                             <div class="notice">
@@ -1080,6 +1075,14 @@
                     payButton.textContent = "Please wait…";
                 }
             });
+        const cashfreeAutoConfirmForm = document.getElementById("cashfreeAutoConfirmForm");
+        if (paymentIsCashfree && cashfreeAutoConfirmForm) {
+            // The server rendered this form only after Cashfree verified the
+            // successful advance. Submit it automatically; no Continue button
+            // or second customer confirmation is required.
+            window.requestAnimationFrame(() => cashfreeAutoConfirmForm.submit());
+        }
+
         }
     </script>
     {% set sivdhi_footer_role = 'customer' %}
