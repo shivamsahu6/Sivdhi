@@ -238,8 +238,10 @@ def test_full_booking_payment_requires_advance_and_remaining_balance_for_all_mod
         assert booking_is_fully_paid(booking) is False
 
         booking["balance_paid_amount"] = 950.00
-        booking["balance_due_amount"] = 0.00
         booking["balance_payment_status"] = "DEMO_PAID"
+        # A stale positive due field is still treated as unpaid.
+        assert booking_is_fully_paid(booking) is False
+        booking["balance_due_amount"] = 0.00
         assert booking_is_fully_paid(booking) is True
 
         # A zero balance field must not bypass a missing/unpaid advance.
