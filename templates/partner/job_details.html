@@ -311,13 +311,17 @@
                 {% endif %}
             {% else %}
                 <div class="notice">Arrival recorded. Remaining balance: ₹{{ '%.2f'|format(balance_due) }}.</div>
-                {% if balance_paid %}
+                {% if payment_complete %}
                 <form method="post" action="/partner/job/{{ job['id'] }}/start" onsubmit="return lockAction(this);" style="margin-top:12px;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn accept" type="submit">Start Job</button>
                 </form>
-                {% elif balance_due > 0 %}
-                <div class="notice" style="margin-top:12px;">Waiting for the customer to pay the remaining ₹{{ '%.2f'|format(balance_due) }}. Start Job will unlock after payment is recorded.</div>
+                {% elif not payment_complete %}
+                    {% if balance_due > 0 %}
+                    <div class="notice" style="margin-top:12px;">Waiting for the customer to pay the remaining ₹{{ '%.2f'|format(balance_due) }}. Start Job will unlock only after the full booking payment is confirmed.</div>
+                    {% else %}
+                    <div class="notice" style="margin-top:12px;">Waiting for confirmation that the complete booking amount, including the advance, has been paid.</div>
+                    {% endif %}
                 {% endif %}
             {% endif %}
         </section>
