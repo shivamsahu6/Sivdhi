@@ -468,7 +468,8 @@ def test_successful_advance_is_recovered_when_customer_misses_return_url(
     page = client.get("/customer/payment")
     assert page.status_code == 200
     assert b"Cashfree payment verified" in page.data
-    assert b"Confirm booking" in page.data
+    assert b'id="cashfreeAutoConfirmForm"' in page.data
+    assert b"Confirm booking" not in page.data
     assert f'value="{order_id}"'.encode() in page.data
 
     # Confirming the recovered payment creates one booking and consumes the
