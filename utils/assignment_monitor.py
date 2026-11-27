@@ -1253,6 +1253,7 @@ def _auto_complete_full_day_jobs(conn, now: datetime, limit: int = 200) -> int:
     now = now.replace(tzinfo=IST) if now.tzinfo is None else now.astimezone(IST)
     limit = max(1, min(int(limit), 2000))
     ensure_finance_schema(conn)
+    conn.commit()
 
     rows = conn.execute(
         """
