@@ -592,12 +592,17 @@
             </div>
 
             {% if not payment_complete %}
-                {% if worker_arrived %}
+                {% if worker_arrived and balance_due > 0 %}
                 <div class="notice warning" style="margin-top:15px">
                     Waiting for the customer to pay the remaining
                     ₹{{ "%.2f"|format(balance_due) }} from My Bookings.
-                    Do not start the service until the server confirms the
-                    balance payment.
+                    Do not start the service until the full booking payment
+                    is confirmed.
+                </div>
+                {% elif worker_arrived %}
+                <div class="notice warning" style="margin-top:15px">
+                    Waiting for confirmation that the complete booking
+                    amount, including the advance, has been paid.
                 </div>
                 {% else %}
                 <div class="notice" style="margin-top:15px">
@@ -665,14 +670,21 @@
 
                 {% elif status == 'accepted' and worker_arrived %}
 
-                    {% if balance_due > 0 and balance_state not in paid_states %}
+                    {% if not payment_complete %}
 
+                    {% if balance_due > 0 %}
                     <div class="notice warning">
                         Waiting for the customer to pay the remaining
                         ₹{{ "%.2f"|format(balance_due) }} from My Bookings.
-                        Start Job will become available after the backend
-                        confirms payment.
+                        Start Job will become available only after the full
+                        booking payment is confirmed.
                     </div>
+                    {% else %}
+                    <div class="notice warning">
+                        Waiting for confirmation that the complete booking
+                        amount, including the advance, has been paid.
+                    </div>
+                    {% endif %}
 
                     {% else %}
 
