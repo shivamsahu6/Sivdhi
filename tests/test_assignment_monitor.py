@@ -9,6 +9,7 @@ from utils.assignment_monitor import (
     IST,
     _assignment_monitor_skip_booking_ids,
     _assignment_clock_start,
+    _auto_complete_full_day_jobs,
     _record_event_once,
     ensure_assignment_monitor_schema,
     reminder_minutes,
@@ -337,6 +338,94 @@ def test_full_day_monitor_clock_waits_until_7am_on_service_date():
         2026, 10, 16, 7, 0,
         tzinfo=IST,
     )
+
+
+def test_full_day_jobs_auto_complete_at_5pm_only_after_start(monkeypatch):
+    import utils.assignment_monitor as monitor
+
+    conn = _conn_with_bookings()
+    notifications = []
+    monkeypatch.setattr(
+        monitor,
+        "_notify_assignment_event",
+        lambda *_args: notifications.append(_args[1:]),
+    )
+    try:
+        ensure_assignment_monitor_schema(conn)
+        conn.execute("""
+            INSERT INTO bookings (
+                id, booking_id, customer_id, category,
+                booking_status, status, worker_id, assigned_worker_id,
+                booking_type, service_type, preferred_date, booking_date,
+                preferred_time, booking_time, worker_arrived_at,
+                total_amount, amount, advance_amount, advance_paid_amount,
+                advance_payment_status, balance_due_amount,
+                balance_payment_status
+            ) VALUES (
+                1, 'SIV-FULL-1', 1, 'Cleaning',
+                'in_progress', 'in_progress', 7, 7,
+                'full-day', 'full-day', '2026-11-27', '2026-11-27',
+                '09:00', '09:00', '2026-11-27T09:05:00+05:30',
+                1000, 1000, 50, 50, 'PAID', 950, 'DUE'
+            )
+        """)
+        conn.execute("""
+            INSERT INTO bookings (
+                id, booking_id, customer_id, category,
+                booking_status, status, worker_id, assigned_worker_id,
+                booking_type, service_type, preferred_date, booking_date,
+                worker_arrived_at
+            ) VALUES (
+                2, 'SIV-FULL-NOT-STARTED', 1, 'Cleaning',
+                'accepted', 'accepted', 8, 8,
+                'full-day', 'full-day', '2026-11-27', '2026-11-27',
+                '2026-11-27T09:05:00+05:30'
+            )
+        """)
+        conn.execute("""
+            INSERT INTO bookings (
+                id, booking_id, customer_id, category,
+                booking_status, status, worker_id, assigned_worker_id,
+                booking_type, service_type, preferred_date, booking_date,
+                worker_arrived_at
+            ) VALUES (
+                3, 'SIV-NORMAL', 1, 'Cleaning',
+                'in_progress', 'in_progress', 9, 9,
+                'normal', 'normal', '2026-11-27', '2026-11-27',
+                '2026-11-27T09:05:00+05:30'
+            )
+        """)
+        conn.commit()
+
+        before_five = datetime(2026, 11, 27, 16, 59, tzinfo=IST)
+        assert _auto_complete_full_day_jobs(conn, before_five) == 0
+
+        at_five = datetime(2026, 11, 27, 17, 0, tzinfo=IST)
+        assert _auto_complete_full_day_jobs(conn, at_five) == 1
+
+        completed = conn.execute(
+            "SELECT booking_status, auto_completed_at, commission_settled_at "
+            "FROM bookings WHERE id=1"
+        ).fetchone()
+        assert completed["booking_status"] == "completed"
+        assert completed["auto_completed_at"]
+        # The balance remains due, so service completion must not settle wallets.
+        assert completed["commission_settled_at"] is None
+
+        assert conn.execute(
+            "SELECT booking_status FROM bookings WHERE id=2"
+        ).fetchone()[0] == "accepted"
+        assert conn.execute(
+            "SELECT booking_status FROM bookings WHERE id=3"
+        ).fetchone()[0] == "in_progress"
+        assert len(notifications) == 2
+        assert {row[0] for row in notifications} == {"customer", "worker"}
+
+        # The same monitor pass must never send duplicate completion notices.
+        assert _auto_complete_full_day_jobs(conn, at_five) == 0
+        assert len(notifications) == 2
+    finally:
+        conn.close()
 
 
 def test_reassignment_timeout_is_after_reminder_timeout(monkeypatch):
