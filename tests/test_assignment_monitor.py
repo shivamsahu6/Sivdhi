@@ -354,6 +354,7 @@ def test_full_day_jobs_auto_complete_at_5pm_only_after_start(monkeypatch):
         ensure_assignment_monitor_schema(conn)
         conn.execute("ALTER TABLE bookings ADD COLUMN total_amount REAL DEFAULT 0")
         conn.execute("ALTER TABLE bookings ADD COLUMN amount REAL DEFAULT 0")
+        conn.execute("ALTER TABLE bookings ADD COLUMN updated_at TEXT")
         conn.execute("""
             INSERT INTO bookings (
                 id, booking_id, customer_id, category,
