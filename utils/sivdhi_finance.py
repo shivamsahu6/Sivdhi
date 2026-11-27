@@ -293,6 +293,49 @@ def money(value: Any) -> float:
         return 0.0
 
 
+def booking_is_fully_paid(booking: Any) -> bool:
+    """Return True only when the complete booking amount is recorded as paid.
+
+    The check is deliberately independent of booking mode so Normal and
+    Full-Day jobs follow the same Start Job payment rule. Both paid statuses
+    and recorded amounts must agree; a zero/stale due field alone is not proof
+    that the advance or remaining balance was collected.
+    """
+    def value(name: str, default: Any = 0) -> Any:
+        try:
+            result = booking[name]
+        except (KeyError, IndexError, TypeError):
+            result = default
+        return default if result is None else result
+
+    total = money(
+        value("total_amount", value("amount", 0))
+        if value("total_amount", None) is not None
+        else value("amount", 0)
+    )
+    advance_amount = money(value("advance_amount", 0))
+    advance_paid = money(value("advance_paid_amount", 0))
+    balance_paid = money(value("balance_paid_amount", 0))
+    advance_status = str(
+        value("advance_payment_status", value("payment_status", "")) or ""
+    ).strip().upper()
+    balance_status = str(value("balance_payment_status", "") or "").strip().upper()
+
+    if advance_amount > 0:
+        if advance_status not in PAID_STATES or advance_paid + 0.004 < advance_amount:
+            return False
+
+    remaining_after_advance = money(max(0.0, total - advance_paid))
+    if remaining_after_advance > 0:
+        if (
+            balance_status not in PAID_STATES
+            or balance_paid + 0.004 < remaining_after_advance
+        ):
+            return False
+
+    return advance_paid + balance_paid + 0.004 >= total
+
+
 def get_commission_rates(conn) -> tuple[float, float]:
     """Return partner and platform percentages; invalid settings fail safe."""
     try:
