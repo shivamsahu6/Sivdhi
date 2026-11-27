@@ -1396,7 +1396,15 @@ def _auto_complete_full_day_jobs(conn, now: datetime, limit: int = 200) -> int:
                 "Full-Day Job Completed",
                 f"Full-Day booking {booking_ref} was automatically completed at 5:00 PM. No Complete Job action was needed.",
             )
-            partner_id = booking["assigned_partner_id"] or booking["partner_id"]
+            partner_id = (
+                booking["assigned_partner_id"]
+                if "assigned_partner_id" in booking.keys()
+                else None
+            ) or (
+                booking["partner_id"]
+                if "partner_id" in booking.keys()
+                else None
+            )
             if not partner_id:
                 try:
                     partner_id = find_partner_for_worker(conn, int(worker_id))
