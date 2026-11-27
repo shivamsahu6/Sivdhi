@@ -90,7 +90,8 @@ def test_worker_cannot_start_service_before_remaining_balance_is_recorded():
     segment = source.split("def start_job(job_id):", 1)[1]
     segment = segment.split("# ============================================================\n# COMPLETE JOB", 1)[0]
     assert "if not current[\"worker_arrived_at\"]:" in segment
-    assert "customer must pay/record the remaining balance" in segment
+    assert "full booking amount recorded as paid" in segment
+    assert "booking_is_fully_paid(current)" in segment
 
 
 def test_customer_ui_reveals_balance_action_only_after_arrival():
@@ -243,6 +244,17 @@ def test_full_booking_payment_requires_advance_and_remaining_balance_for_all_mod
 
         # A zero balance field must not bypass a missing/unpaid advance.
         booking["advance_payment_status"] = "PENDING"
+        assert booking_is_fully_paid(booking) is False
+
+        # Status alone is not sufficient if the full balance amount was not recorded.
+        booking["advance_payment_status"] = "DEMO_PAID"
+        booking["balance_paid_amount"] = 0.00
+        booking["balance_payment_status"] = "DEMO_PAID"
+        assert booking_is_fully_paid(booking) is False
+
+        # A paid status cannot hide a short-recorded advance amount either.
+        booking["balance_paid_amount"] = 950.00
+        booking["advance_paid_amount"] = 49.00
         assert booking_is_fully_paid(booking) is False
 
 
