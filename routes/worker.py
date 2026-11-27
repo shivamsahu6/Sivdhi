@@ -29,7 +29,7 @@ from utils.pending_changes import issue_pending_change, refresh_pending_change, 
 from database import get_db
 from utils.sivdhi_finance import (
     ensure_finance_schema, is_demo_mode, add_finance_ledger_entry,
-    settle_completed_booking, money as finance_money,
+    settle_completed_booking, money as finance_money, booking_is_fully_paid,
 )
 from routes.decorators import worker_required
 from utils.assignment_monitor import ensure_assignment_monitor_schema, reassign_booking
@@ -972,6 +972,7 @@ def job_details(
         job_id=job_id,
         can_arrive=can_arrive,
         arrive_available_at=arrive_available_at,
+        payment_complete=booking_is_fully_paid(job),
     )
 
 
@@ -1593,14 +1594,14 @@ def start_job(job_id):
         if current:
             if not current["worker_arrived_at"]:
                 return jsonify({"success": False, "message": "Mark arrival before starting the service."}), 400
-            total_amount = finance_money(current["total_amount"] if current["total_amount"] is not None else current["amount"])
-            advance_paid = finance_money(current["advance_paid_amount"])
-            balance_paid = finance_money(current["balance_paid_amount"])
-            saved_due = finance_money(current["balance_due_amount"])
-            remaining_due = saved_due if saved_due > 0 else finance_money(max(0.0, total_amount - advance_paid - balance_paid))
-            paid_states = {"PAID", "SUCCESS", "DEMO_PAID", "COLLECTED", "COMPLETED"}
-            if remaining_due > 0 and str(current["balance_payment_status"] or "").upper() not in paid_states:
-                return jsonify({"success": False, "message": "The customer must pay/record the remaining balance from My Bookings after arrival before the service can start."}), 400
+            if not booking_is_fully_paid(current):
+                return jsonify({
+                    "success": False,
+                    "message": (
+                        "The customer must have the full booking amount recorded as paid "
+                        "(advance and remaining balance) from My Bookings before the service can start."
+                    ),
+                }), 400
     finally:
         conn.close()
 
