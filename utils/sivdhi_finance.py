@@ -320,10 +320,19 @@ def booking_is_fully_paid(booking: Any) -> bool:
         value("advance_payment_status", value("payment_status", "")) or ""
     ).strip().upper()
     balance_status = str(value("balance_payment_status", "") or "").strip().upper()
+    stored_due = money(value("balance_due_amount", 0))
 
-    if advance_amount > 0:
-        if advance_status not in PAID_STATES or advance_paid + 0.004 < advance_amount:
+    # Treat a positive stored due as unpaid even if a payment status was
+    # changed incorrectly; customer balance handlers clear this field only
+    # after the full remaining amount has been recorded.
+    if stored_due > 0:
+        return False
+
+    if advance_amount > 0 or advance_paid > 0:
+        if advance_status not in PAID_STATES:
             return False
+    if advance_paid + 0.004 < advance_amount:
+        return False
 
     remaining_after_advance = money(max(0.0, total - advance_paid))
     if remaining_after_advance > 0:
