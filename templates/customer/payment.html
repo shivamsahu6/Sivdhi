@@ -832,8 +832,8 @@
                             <div class="notice" role="status" aria-live="polite">
                                 <div class="notice-icon" aria-hidden="true">✓</div>
                                 <div>
-                                    <strong>Payment successful</strong>
-                                    <p>Your ₹{{ '%.2f'|format(advance_value|float) }} payment is verified. Sivdhi is confirming your booking automatically. You do not need to press Continue or Confirm.</p>
+                                    <strong>Cashfree payment verified</strong>
+                                    <p>Your ₹{{ '%.2f'|format(advance_value|float) }} payment is successful. Sivdhi is confirming your booking automatically. You do not need to press Continue or Confirm.</p>
                                 </div>
                             </div>
                             <form method="POST" action="{{ url_for('customer.payment') }}" id="cashfreeAutoConfirmForm" hidden>
