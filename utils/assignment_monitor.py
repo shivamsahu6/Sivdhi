@@ -1399,7 +1399,7 @@ def _auto_complete_full_day_jobs(conn, now: datetime, limit: int = 200) -> int:
             partner_id = booking["assigned_partner_id"] or booking["partner_id"]
             if not partner_id:
                 try:
-                    partner_id = find_partner_for_worker(int(worker_id))
+                    partner_id = find_partner_for_worker(conn, int(worker_id))
                 except (TypeError, ValueError):
                     partner_id = None
             if partner_id:
@@ -1700,6 +1700,9 @@ def process_unanswered_assignments_once(limit: int = 200) -> dict:
     try:
         ensure_assignment_monitor_schema(conn)
         conn.commit()
+        auto_completed_count = _auto_complete_full_day_jobs(
+            conn, now, limit=limit
+        )
 
         rows = conn.execute(
             """
@@ -1734,6 +1737,7 @@ def process_unanswered_assignments_once(limit: int = 200) -> dict:
 
     counts = {
         "checked": 0,
+        "auto_completed": auto_completed_count,
         "reminded": 0,
         "reassigned": 0,
         "pending": 0,
@@ -1816,7 +1820,8 @@ def _monitor_loop(app=None) -> None:
                 report = process_unanswered_assignments_once()
 
             if (
-                report.get("reminded")
+                report.get("auto_completed")
+                or report.get("reminded")
                 or report.get("reassigned")
                 or report.get("pending")
                 or report.get("errors")
