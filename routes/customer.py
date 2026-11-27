@@ -45,6 +45,7 @@ from utils.booking_schedule import (
 from utils.sivdhi_finance import (
     ADVANCE_CAP, ensure_finance_schema, is_demo_mode, get_commission_rates,
     find_partner_for_worker, add_finance_ledger_entry, payment_audit_metadata,
+    settle_completed_booking,
 )
 from utils.cashfree_gateway import (
     CashfreeGatewayError, cashfree_enabled, create_cashfree_order,
@@ -3702,7 +3703,15 @@ def _finalize_cashfree_balance_payment(
         lifecycle = str(
             booking["booking_status"] or booking["status"] or "pending"
         ).strip().lower()
-        if lifecycle in {"cancelled", "canceled", "refunded", "failed", "completed", "complete"}:
+        auto_completed_full_day = (
+            normalise_booking_mode(
+                booking["booking_type"] or booking["service_type"] or "normal"
+            ) == "full-day"
+            and bool(booking["auto_completed_at"])
+        )
+        if lifecycle in {"cancelled", "canceled", "refunded", "failed"} or (
+            lifecycle in {"completed", "complete"} and not auto_completed_full_day
+        ):
             return hold_for_reconciliation()
 
         total = money(booking["total_amount"] if booking["total_amount"] is not None else booking["amount"])
@@ -3838,6 +3847,17 @@ def _finalize_cashfree_balance_payment(
                     f"Balance payment ₹{balance_due:.2f} received for booking {booking['booking_id']}."
                 ),
             ))
+
+        if auto_completed_full_day:
+            settled, settlement_message = settle_completed_booking(
+                db, int(booking["id"])
+            )
+            if not settled:
+                current_app.logger.error(
+                    "Auto-completed Full-Day booking %s has paid balance but settlement is pending: %s",
+                    booking["booking_id"],
+                    settlement_message,
+                )
 
         return finish("booked")
     except Exception:
@@ -4079,7 +4099,15 @@ def pay_booking_balance(booking_ref):
         booking_status = str(
             booking["booking_status"] or booking["status"] or "pending"
         ).strip().lower()
-        if booking_status in {"cancelled", "canceled", "refunded", "failed", "completed", "complete"}:
+        auto_completed_full_day = (
+            normalise_booking_mode(
+                booking["booking_type"] or booking["service_type"] or "normal"
+            ) == "full-day"
+            and bool(booking["auto_completed_at"])
+        )
+        if booking_status in {"cancelled", "canceled", "refunded", "failed"} or (
+            booking_status in {"completed", "complete"} and not auto_completed_full_day
+        ):
             db.rollback()
             flash("This booking is not eligible for balance payment.", "warning")
             return redirect(url_for("customer.bookings"))
@@ -4348,6 +4376,17 @@ def pay_booking_balance(booking_ref):
                 "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('partner',?,'Demo Balance Recorded',?,0,CURRENT_TIMESTAMP)",
                 (str(partner_id), f"Demo balance ₹{balance_due:.2f} recorded for booking {booking['booking_id']}. No real payment was collected."),
             )
+
+        if auto_completed_full_day:
+            settled, settlement_message = settle_completed_booking(
+                db, int(booking["id"])
+            )
+            if not settled:
+                current_app.logger.error(
+                    "Auto-completed Full-Day booking %s has paid demo balance but settlement is pending: %s",
+                    booking["booking_id"],
+                    settlement_message,
+                )
 
         db.commit()
         flash(
