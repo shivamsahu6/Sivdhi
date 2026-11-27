@@ -1653,6 +1653,16 @@ def complete_job(job_id):
         if not current:
             conn.rollback()
             return jsonify({"success": False, "message": "Booking not found."}), 404
+        booking_mode = str(
+            current["booking_type"] or current["service_type"] or "normal"
+        ).strip().lower().replace("_", "-")
+        if booking_mode in {"full-day", "fullday", "full day"}:
+            conn.rollback()
+            return jsonify({
+                "success": False,
+                "message": "Full-Day jobs are automatically completed at 5:00 PM.",
+            }), 409
+
         status = str(current["booking_status"] or current["status"] or "").lower()
         if status not in {"in_progress", "started"}:
             conn.rollback()
