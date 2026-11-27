@@ -450,6 +450,7 @@
     {% set balance_due = job["balance_due_amount"]|default(0)|float %}
     {% set balance_state = job["balance_payment_status"]|default('DUE')|string|upper %}
     {% set paid_states = ['PAID','SUCCESS','DEMO_PAID','COLLECTED','COMPLETED'] %}
+    {% set payment_complete = payment_complete|default(false) %}
     {% set worker_arrived = job["worker_arrived_at"]|default('') %}
     {% set booking_mode = (job["booking_type"] or job["service_type"] or "normal")|lower|replace("_", "-") %}
     {% set booking_ref = job["booking_id"] or job["job_id"] or job["id"] %}
@@ -590,7 +591,7 @@
                 </div>
             </div>
 
-            {% if balance_due > 0 and balance_state not in paid_states %}
+            {% if not payment_complete %}
                 {% if worker_arrived %}
                 <div class="notice warning" style="margin-top:15px">
                     Waiting for the customer to pay the remaining
