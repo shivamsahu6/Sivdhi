@@ -218,7 +218,7 @@ def test_partner_start_requires_arrival_and_paid_balance_not_booking_time():
     start = start.split('@partner_bp.route("/partner/job/<int:booking_id>/complete"', 1)[0]
     assert 'if not row["worker_arrived_at"]:' in start
     assert "_partner_booking_balance_due(row)" in start
-    assert "balance_payment_status" in start
+    assert "booking_is_fully_paid(row)" in start
     assert "scheduled_at" not in start
 
 
@@ -249,7 +249,7 @@ def test_full_booking_payment_requires_advance_and_remaining_balance_for_all_mod
 def test_worker_and_partner_start_endpoints_share_full_payment_guard():
     worker = _source("routes/worker.py")
     worker_start = worker.split("def start_job(job_id):", 1)[1]
-    worker_start = worker_start.split("# ============================================================\\n# COMPLETE JOB", 1)[0]
+    worker_start = worker_start.split("# ============================================================\n# COMPLETE JOB", 1)[0]
     assert "booking_is_fully_paid(current)" in worker_start
 
     partner = _source("routes/partner.py")
