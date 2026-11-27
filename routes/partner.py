@@ -735,6 +735,13 @@ def partner_complete_job(booking_id):
             conn.rollback()
             flash("Job or assigned worker was not found in your partner account.", "danger")
             return redirect("/partner/jobs")
+        booking_mode = str(
+            row["booking_type"] or row["service_type"] or "normal"
+        ).strip().lower().replace("_", "-")
+        if booking_mode in {"full-day", "fullday", "full day"}:
+            conn.rollback()
+            flash("Full-Day jobs are automatically completed at 5:00 PM.", "info")
+            return redirect(f"/partner/job/{booking_id}")
         if str(row["current_status"] or "").lower() not in {"in_progress", "started"}:
             conn.rollback()
             flash("The job must be in progress before completion.", "warning")
