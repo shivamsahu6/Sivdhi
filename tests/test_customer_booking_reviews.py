@@ -133,8 +133,29 @@ def test_signup_policy_links_and_server_side_consent():
     assert "privacy_policy_version" in routes
 
 
-def test_customer_footer_reviews_link_is_not_the_app_rating_form():
+def test_shared_footer_uses_role_specific_review_and_contact_pages():
     from pathlib import Path
-    footer = (Path(__file__).resolve().parents[1] / "templates/_sivdhi_footer.html").read_text(encoding="utf-8")
-    assert "url_for('customer.reviews')" in footer
-    assert "url_for('customer.rate_app')" not in footer
+
+    footer = (
+        Path(__file__).resolve().parents[1] / "templates/_sivdhi_footer.html"
+    ).read_text(encoding="utf-8")
+
+    role_links = footer.split(
+        '<section class="sivdhi-footer-column" aria-label="Role links">', 1
+    )[1]
+    worker_section = role_links.split(
+        "{% if sivdhi_footer_role|default('customer') == 'worker' %}", 1
+    )[1].split(
+        "{% elif sivdhi_footer_role|default('customer') == 'partner' %}", 1
+    )[0]
+    partner_section = role_links.split(
+        "{% elif sivdhi_footer_role|default('customer') == 'partner' %}", 1
+    )[1].split(
+        "{% else %}", 1
+    )[0]
+
+    assert "url_for('worker.rate_app')" in worker_section
+    assert "url_for('worker.help')" in worker_section
+    assert "url_for('partner.rate_app')" in partner_section
+    assert "url_for('partner.help')" in partner_section
+    assert footer.count("url_for('customer.reviews')") == 1
