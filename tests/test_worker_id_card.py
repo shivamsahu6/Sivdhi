@@ -70,10 +70,12 @@ def test_customer_can_view_assigned_worker_id_card_without_confirming_it():
     template = (root / "templates" / "customer" / "bookings.html").read_text(encoding="utf-8")
     route = (root / "routes" / "customer.py").read_text(encoding="utf-8")
 
-    assert "Your Assigned Sivdhi Worker" in template
-    assert "Worker ID:" in template
-    assert "View Official Worker ID Card" in template
+    assert 'class="worker-id-view"' in template
+    assert "View Worker ID Card" in template
     assert "booking['worker_id_card_url']" in template
+    assert "worker-id-photo" not in template
+    assert "worker-id-name" not in template
+    assert "worker-id-skills" not in template
     assert '"/booking/<int:booking_db_id>/worker-id-card.svg"' in route
     assert "WHERE id=? AND customer_id=?" in route
     assert "build_worker_id_card_svg(worker)" in route
