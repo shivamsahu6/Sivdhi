@@ -1,4 +1,4 @@
-"""Worker identity card and per-booking customer verification helpers."""
+"""Build downloadable Sivdhi Worker ID cards for authenticated users."""
 from __future__ import annotations
 
 import base64
@@ -9,45 +9,6 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 WORKER_UPLOAD_DIR = PROJECT_ROOT / "static" / "uploads"
-
-
-def ensure_worker_id_verification_schema(conn) -> None:
-    """Create the additive audit table used to gate service start."""
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS booking_worker_id_verifications (
-            booking_id INTEGER PRIMARY KEY,
-            customer_id INTEGER NOT NULL,
-            worker_id INTEGER NOT NULL,
-            verified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-    conn.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_worker_id_verification_owner
-        ON booking_worker_id_verifications(customer_id, booking_id)
-        """
-    )
-
-
-def is_worker_id_verified(conn, booking_id, customer_id, worker_id) -> bool:
-    """True only when this customer verified this exact assigned worker."""
-    if not booking_id or not customer_id or not worker_id:
-        return False
-    ensure_worker_id_verification_schema(conn)
-    row = conn.execute(
-        """
-        SELECT 1
-        FROM booking_worker_id_verifications
-        WHERE booking_id=?
-          AND customer_id=?
-          AND worker_id=?
-        LIMIT 1
-        """,
-        (int(booking_id), int(customer_id), int(worker_id)),
-    ).fetchone()
-    return row is not None
 
 
 def _photo_data_uri(filename) -> str:
