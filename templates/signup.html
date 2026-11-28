@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% set invited_referral_code = (request.args.get("referral_code") or referral_code or "SV00000")|trim|upper %}
 
 {% if role == "worker" %}
     {% set signup_title = "Join Sivdhi as a Service Worker | Register Online" %}
@@ -303,12 +304,12 @@ class="input"
 type="text"
 name="referral_code"
 placeholder="Referral Code (Optional)"
-value="{{ referral_code or 'SV00000' }}">
+value="{{ invited_referral_code }}">
 
 <input
 type="hidden"
 name="signup_default_referral_code"
-value="{{ referral_code or 'SV00000' }}">
+value="{{ invited_referral_code }}">
 
 {% endif %}
 
