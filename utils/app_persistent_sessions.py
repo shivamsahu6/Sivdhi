@@ -220,6 +220,32 @@ def _login_redirect(role: str):
     return redirect(url_for("auth.login", role=role))
 
 
+def _is_login_request() -> bool:
+    """Return True for pages that accept fresh credentials or choose a role."""
+    return (
+        request.endpoint in {"auth.login", "customer.login", "auth.choose_role"}
+        or request.path in {
+            "/login",
+            "/customer/login",
+            "/worker/login",
+            "/partner/login",
+            "/worker-partner/login",
+        }
+    )
+
+
+def _clear_invalid_session_response(role: str):
+    """Clear a stale session; never block a fresh login submission behind it."""
+    session.clear()
+    if _is_login_request():
+        # Let this same GET/POST reach the normal login handler. When the
+        # submitted credentials authenticate, after_app_request can issue a
+        # fresh server-revocable session token in this response.
+        g.sivdhi_app_authentication_request = True
+        return None
+    return _login_redirect(role)
+
+
 def _is_app_identity_payload(data):
     """Check that a signed cookie contains a supported user identity."""
     if not isinstance(data, dict):
@@ -345,8 +371,9 @@ def before_app_request():
 
     if not raw_token:
         # Do not silently promote an old session into a persistent session.
-        session.clear()
-        return _login_redirect(role)
+        # But let a login page/POST authenticate immediately rather than
+        # redirecting the first credential submission away.
+        return _clear_invalid_session_response(role)
 
     hashed = _token_hash(str(raw_token))
 
@@ -374,8 +401,7 @@ def before_app_request():
             "Could not validate Sivdhi persistent session"
         )
 
-        session.clear()
-        return _login_redirect(role)
+        return _clear_invalid_session_response(role)
 
     finally:
         db.close()
@@ -398,8 +424,7 @@ def before_app_request():
             "Could not verify Sivdhi persistent-session credentials"
         )
 
-        session.clear()
-        return _login_redirect(role)
+        return _clear_invalid_session_response(role)
 
     valid = bool(
         record
@@ -421,8 +446,7 @@ def before_app_request():
                 "Could not revoke invalid Sivdhi persistent session"
             )
 
-        session.clear()
-        return _login_redirect(role)
+        return _clear_invalid_session_response(role)
 
     g.sivdhi_app_session_hash = hashed
 
