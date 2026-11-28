@@ -228,6 +228,7 @@
 
     {% for job in jobs %}
         {% set status = (job["booking_status"] or job["status"] or "pending")|lower %}
+        {% set job_mode = (job["booking_type"] or job["service_type"] or "normal")|lower|replace("_", "-") %}
 
         <div class="job" data-job-id="{{ job['id'] }}">
 
@@ -275,19 +276,23 @@
             {% elif status == 'accepted' %}
                 <p class="muted">
                     Open job details to mark arrival. Start Job is available
-                    only after arrival is recorded and the remaining balance
-                    is paid.
+                    only after arrival is recorded and the full booking amount
+                    (advance plus remaining balance) is confirmed paid.
                 </p>
 
             {% elif status in ['started', 'in_progress'] %}
-                <div class="buttons">
-                    <button
-                        type="button"
-                        class="accept job-action"
-                        data-job-id="{{ job['id'] }}"
-                        data-action="complete"
-                    >Complete Job</button>
-                </div>
+                {% if job_mode == 'full-day' %}
+                    <p class="muted">Full-Day job automatically completes at 5:00 PM. No Complete Job action is needed.</p>
+                {% else %}
+                    <div class="buttons">
+                        <button
+                            type="button"
+                            class="accept job-action"
+                            data-job-id="{{ job['id'] }}"
+                            data-action="complete"
+                        >Complete Job</button>
+                    </div>
+                {% endif %}
             {% endif %}
 
             <button

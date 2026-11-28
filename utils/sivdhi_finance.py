@@ -57,6 +57,7 @@ def ensure_finance_schema(conn) -> None:
         "platform_commission_amount": "REAL NOT NULL DEFAULT 0",
         "worker_earning_amount": "REAL NOT NULL DEFAULT 0",
         "commission_settled_at": "TEXT",
+        "auto_completed_at": "TEXT",
         "refund_status": "TEXT DEFAULT 'not_required'",
         "refund_amount": "REAL NOT NULL DEFAULT 0",
         "refund_reference": "TEXT",
@@ -290,6 +291,58 @@ def money(value: Any) -> float:
         return round(max(0.0, float(value or 0)), 2)
     except (TypeError, ValueError):
         return 0.0
+
+
+def booking_is_fully_paid(booking: Any) -> bool:
+    """Return True only when the complete booking amount is recorded as paid.
+
+    The check is deliberately independent of booking mode so Normal and
+    Full-Day jobs follow the same Start Job payment rule. Both paid statuses
+    and recorded amounts must agree; a zero/stale due field alone is not proof
+    that the advance or remaining balance was collected.
+    """
+    def value(name: str, default: Any = 0) -> Any:
+        try:
+            result = booking[name]
+        except (KeyError, IndexError, TypeError):
+            result = default
+        return default if result is None else result
+
+    total = money(
+        value("total_amount", value("amount", 0))
+        if value("total_amount", None) is not None
+        else value("amount", 0)
+    )
+    advance_amount = money(value("advance_amount", 0))
+    advance_paid = money(value("advance_paid_amount", 0))
+    balance_paid = money(value("balance_paid_amount", 0))
+    advance_status = str(
+        value("advance_payment_status", value("payment_status", "")) or ""
+    ).strip().upper()
+    balance_status = str(value("balance_payment_status", "") or "").strip().upper()
+    stored_due = money(value("balance_due_amount", 0))
+
+    # Treat a positive stored due as unpaid even if a payment status was
+    # changed incorrectly; customer balance handlers clear this field only
+    # after the full remaining amount has been recorded.
+    if stored_due > 0:
+        return False
+
+    if advance_amount > 0 or advance_paid > 0:
+        if advance_status not in PAID_STATES:
+            return False
+    if advance_paid + 0.004 < advance_amount:
+        return False
+
+    remaining_after_advance = money(max(0.0, total - advance_paid))
+    if remaining_after_advance > 0:
+        if (
+            balance_status not in PAID_STATES
+            or balance_paid + 0.004 < remaining_after_advance
+        ):
+            return False
+
+    return advance_paid + balance_paid + 0.004 >= total
 
 
 def get_commission_rates(conn) -> tuple[float, float]:

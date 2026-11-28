@@ -17,8 +17,11 @@ from zoneinfo import ZoneInfo
 from database import get_db
 from utils.push_notifications import process_push_outbox_once
 from utils.sivdhi_finance import (
+    PAID_STATES,
     ensure_finance_schema,
     find_partner_for_worker,
+    money,
+    settle_completed_booking,
 )
 from utils.email_sender import send_email
 
@@ -1240,6 +1243,195 @@ def _send_offer_pool_reminders(conn, booking, active_offers, now: datetime) -> N
                 )
 
 
+def _auto_complete_full_day_jobs(conn, now: datetime, limit: int = 200) -> int:
+    """Auto-complete arrived, started Full-Day jobs at 5:00 PM India time.
+
+    A completed job with an unpaid balance remains eligible for customer
+    balance payment, but wallet settlement is deferred until both payments
+    are recorded as paid.
+    """
+    now = now.replace(tzinfo=IST) if now.tzinfo is None else now.astimezone(IST)
+    limit = max(1, min(int(limit), 2000))
+    ensure_finance_schema(conn)
+    conn.commit()
+
+    rows = conn.execute(
+        """
+        SELECT id
+        FROM bookings
+        WHERE (
+            LOWER(REPLACE(COALESCE(booking_type,''), '_', '-')) IN ('full-day','fullday','full day')
+            OR LOWER(REPLACE(COALESCE(service_type,''), '_', '-')) IN ('full-day','fullday','full day')
+        )
+          AND LOWER(COALESCE(NULLIF(booking_status,''), NULLIF(status,''), 'pending'))
+              IN ('started','in_progress')
+          AND worker_arrived_at IS NOT NULL
+          AND COALESCE(worker_id, assigned_worker_id) IS NOT NULL
+          AND COALESCE(auto_completed_at, '') = ''
+          AND COALESCE(NULLIF(preferred_date,''), NULLIF(booking_date,'')) IS NOT NULL
+        ORDER BY COALESCE(preferred_date, booking_date) ASC, id ASC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+
+    completed_count = 0
+    for candidate in rows:
+        booking_db_id = int(candidate["id"])
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            booking = conn.execute(
+                "SELECT * FROM bookings WHERE id=? LIMIT 1",
+                (booking_db_id,),
+            ).fetchone()
+            if not booking:
+                conn.rollback()
+                continue
+
+            booking_modes = {
+                str(booking["booking_type"] or "").strip().lower().replace("_", "-"),
+                str(booking["service_type"] or "").strip().lower().replace("_", "-"),
+            }
+            if not booking_modes.intersection({"full-day", "fullday", "full day"}):
+                conn.rollback()
+                continue
+
+            status = str(
+                booking["booking_status"] or booking["status"] or "pending"
+            ).strip().lower()
+            worker_id = booking["worker_id"] or booking["assigned_worker_id"]
+            if (
+                status not in {"started", "in_progress"}
+                or not booking["worker_arrived_at"]
+                or not worker_id
+                or booking["auto_completed_at"]
+            ):
+                conn.rollback()
+                continue
+
+            raw_service_date = (
+                booking["preferred_date"] or booking["booking_date"] or ""
+            )
+            try:
+                service_date = date.fromisoformat(str(raw_service_date).strip()[:10])
+            except (TypeError, ValueError):
+                conn.rollback()
+                LOGGER.warning(
+                    "Full-Day auto-completion skipped for booking %s: invalid service date %r",
+                    booking["booking_id"],
+                    raw_service_date,
+                )
+                continue
+
+            completion_deadline = datetime.combine(
+                service_date, clock_time(17, 0), tzinfo=IST
+            )
+            if now < completion_deadline:
+                conn.rollback()
+                continue
+
+            updated = conn.execute(
+                """
+                UPDATE bookings
+                SET booking_status='completed',
+                    status='completed',
+                    auto_completed_at=?,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+                  AND COALESCE(auto_completed_at, '')=''
+                  AND LOWER(COALESCE(NULLIF(booking_status,''), NULLIF(status,''), 'pending'))
+                      IN ('started','in_progress')
+                """,
+                (now.isoformat(timespec="seconds"), booking_db_id),
+            )
+            if updated.rowcount != 1:
+                conn.rollback()
+                continue
+
+            total_amount = money(
+                booking["total_amount"]
+                if booking["total_amount"] is not None
+                else booking["amount"]
+            )
+            advance_amount = money(booking["advance_amount"])
+            advance_paid = money(booking["advance_paid_amount"])
+            balance_paid = money(booking["balance_paid_amount"])
+            saved_balance_due = money(booking["balance_due_amount"])
+            remaining_due = (
+                saved_balance_due
+                if saved_balance_due > 0
+                else money(max(0.0, total_amount - advance_paid - balance_paid))
+            )
+            advance_status = str(
+                booking["advance_payment_status"] or booking["payment_status"] or ""
+            ).upper()
+            balance_status = str(booking["balance_payment_status"] or "").upper()
+            all_payments_recorded = (
+                (advance_amount <= 0 or advance_status in PAID_STATES)
+                and (remaining_due <= 0 or balance_status in PAID_STATES)
+            )
+
+            if all_payments_recorded:
+                settled, settlement_message = settle_completed_booking(
+                    conn, booking_db_id
+                )
+                if not settled:
+                    LOGGER.error(
+                        "Full-Day job %s auto-completed but settlement is pending: %s",
+                        booking["booking_id"],
+                        settlement_message,
+                    )
+
+            booking_ref = str(booking["booking_id"] or booking_db_id)
+            _notify_assignment_event(
+                conn,
+                "customer",
+                booking["customer_id"],
+                "Full-Day Service Completed",
+                f"Your Full-Day booking {booking_ref} was automatically completed at 5:00 PM.",
+            )
+            _notify_assignment_event(
+                conn,
+                "worker",
+                worker_id,
+                "Full-Day Job Completed",
+                f"Full-Day booking {booking_ref} was automatically completed at 5:00 PM. No Complete Job action was needed.",
+            )
+            partner_id = (
+                booking["assigned_partner_id"]
+                if "assigned_partner_id" in booking.keys()
+                else None
+            ) or (
+                booking["partner_id"]
+                if "partner_id" in booking.keys()
+                else None
+            )
+            if not partner_id:
+                try:
+                    partner_id = find_partner_for_worker(conn, int(worker_id))
+                except (TypeError, ValueError):
+                    partner_id = None
+            if partner_id:
+                _notify_assignment_event(
+                    conn,
+                    "partner",
+                    partner_id,
+                    "Full-Day Job Completed",
+                    f"Full-Day booking {booking_ref} was automatically completed at 5:00 PM.",
+                )
+
+            conn.commit()
+            completed_count += 1
+        except Exception:
+            conn.rollback()
+            LOGGER.exception(
+                "Full-Day auto-completion failed for booking id=%s",
+                booking_db_id,
+            )
+
+    return completed_count
+
+
 def _process_offer_pool(conn, booking, now: datetime) -> str | None:
     """Continue opening batches until the global deadline or first acceptance."""
     _discover_live_worker_offers(conn, booking, now)
@@ -1517,6 +1709,9 @@ def process_unanswered_assignments_once(limit: int = 200) -> dict:
     try:
         ensure_assignment_monitor_schema(conn)
         conn.commit()
+        auto_completed_count = _auto_complete_full_day_jobs(
+            conn, now, limit=limit
+        )
 
         rows = conn.execute(
             """
@@ -1551,6 +1746,7 @@ def process_unanswered_assignments_once(limit: int = 200) -> dict:
 
     counts = {
         "checked": 0,
+        "auto_completed": auto_completed_count,
         "reminded": 0,
         "reassigned": 0,
         "pending": 0,
@@ -1633,7 +1829,8 @@ def _monitor_loop(app=None) -> None:
                 report = process_unanswered_assignments_once()
 
             if (
-                report.get("reminded")
+                report.get("auto_completed")
+                or report.get("reminded")
                 or report.get("reassigned")
                 or report.get("pending")
                 or report.get("errors")

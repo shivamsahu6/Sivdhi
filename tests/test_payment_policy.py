@@ -1,6 +1,6 @@
 import os
 
-from utils.sivdhi_finance import is_demo_mode
+from utils.sivdhi_finance import is_demo_mode, booking_is_fully_paid
 
 
 def test_demo_mode_allowed_in_development(monkeypatch):
@@ -90,7 +90,8 @@ def test_worker_cannot_start_service_before_remaining_balance_is_recorded():
     segment = source.split("def start_job(job_id):", 1)[1]
     segment = segment.split("# ============================================================\n# COMPLETE JOB", 1)[0]
     assert "if not current[\"worker_arrived_at\"]:" in segment
-    assert "customer must pay/record the remaining balance" in segment
+    assert "full booking amount recorded as paid" in segment
+    assert "booking_is_fully_paid(current)" in segment
 
 
 def test_customer_ui_reveals_balance_action_only_after_arrival():
@@ -106,6 +107,50 @@ def test_worker_ui_has_arrival_action_and_balance_wait_state():
     assert "runAction('arrived', this)" in source
     assert "Waiting for the customer to pay the remaining" in source
 
+
+
+def test_verified_cashfree_advance_auto_creates_booking_without_continue_button():
+    template = _source("templates/customer/payment.html")
+    customer_routes = _source("routes/customer.py")
+
+    assert 'id="cashfreeAutoConfirmForm"' in template
+    assert "cashfreeAutoConfirmForm.submit()" in template
+    assert "payment_action" in template
+    assert "Confirm booking" not in template
+    assert "payment_action != \"confirm_cashfree\"" in customer_routes
+
+
+def test_auto_completed_full_day_booking_can_collect_balance_and_settle_later():
+    customer_routes = _source("routes/customer.py")
+    balance_route = customer_routes.split("def pay_booking_balance(booking_ref):", 1)[1]
+    balance_route = balance_route.split('@customer_bp.route("/api/category-services")', 1)[0]
+    assert "auto_completed_full_day" in balance_route
+    assert "settle_completed_booking" in balance_route
+
+    cashfree_finalizer = customer_routes.split("def _finalize_cashfree_balance_payment(", 1)[1]
+    cashfree_finalizer = cashfree_finalizer.split('@customer_bp.route("/cashfree/return"', 1)[0]
+    assert "auto_completed_full_day" in cashfree_finalizer
+    assert "settle_completed_booking" in cashfree_finalizer
+
+    bookings_template = _source("templates/customer/bookings.html")
+    assert "booking['auto_completed_at']" in bookings_template
+
+
+def test_full_day_worker_and_partner_cannot_manually_complete_jobs():
+    worker_routes = _source("routes/worker.py")
+    worker_complete = worker_routes.split("def complete_job(job_id):", 1)[1]
+    worker_complete = worker_complete.split("# ============================================================\n# WORKER", 1)[0]
+    assert "Full-Day jobs are automatically completed at 5:00 PM." in worker_complete
+
+    partner_routes = _source("routes/partner.py")
+    partner_complete = partner_routes.split("def partner_complete_job(booking_id):", 1)[1]
+    partner_complete = partner_complete.split('@partner_bp.route("/partner/job/<int:booking_id>/reject"', 1)[0]
+    assert "Full-Day jobs are automatically completed at 5:00 PM." in partner_complete
+
+    worker_template = _source("templates/worker/job_details.html")
+    partner_template = _source("templates/partner/job_details.html")
+    assert "booking_mode == 'full-day'" in worker_template
+    assert 'job_mode == "full-day"' in partner_template
 
 def test_checkout_payment_button_is_for_advance_not_full_amount():
     source = _source("templates/customer/payment.html")
@@ -174,5 +219,67 @@ def test_partner_start_requires_arrival_and_paid_balance_not_booking_time():
     start = start.split('@partner_bp.route("/partner/job/<int:booking_id>/complete"', 1)[0]
     assert 'if not row["worker_arrived_at"]:' in start
     assert "_partner_booking_balance_due(row)" in start
-    assert "balance_payment_status" in start
+    assert "booking_is_fully_paid(row)" in start
     assert "scheduled_at" not in start
+
+
+def test_full_booking_payment_requires_advance_and_remaining_balance_for_all_modes():
+    for mode in ("normal", "full-day"):
+        booking = {
+            "booking_type": mode,
+            "total_amount": 1000.00,
+            "advance_amount": 50.00,
+            "advance_paid_amount": 50.00,
+            "advance_payment_status": "DEMO_PAID",
+            "balance_due_amount": 950.00,
+            "balance_paid_amount": 0.00,
+            "balance_payment_status": "DUE",
+        }
+        assert booking_is_fully_paid(booking) is False
+
+        booking["balance_paid_amount"] = 950.00
+        booking["balance_payment_status"] = "DEMO_PAID"
+        # A stale positive due field is still treated as unpaid.
+        assert booking_is_fully_paid(booking) is False
+        booking["balance_due_amount"] = 0.00
+        assert booking_is_fully_paid(booking) is True
+
+        # A zero balance field must not bypass a missing/unpaid advance.
+        booking["advance_payment_status"] = "PENDING"
+        assert booking_is_fully_paid(booking) is False
+
+        # Status alone is not sufficient if the full balance amount was not recorded.
+        booking["advance_payment_status"] = "DEMO_PAID"
+        booking["balance_paid_amount"] = 0.00
+        booking["balance_payment_status"] = "DEMO_PAID"
+        assert booking_is_fully_paid(booking) is False
+
+        # A paid status cannot hide a short-recorded advance amount either.
+        booking["balance_paid_amount"] = 950.00
+        booking["advance_paid_amount"] = 49.00
+        assert booking_is_fully_paid(booking) is False
+
+
+def test_worker_and_partner_start_endpoints_share_full_payment_guard():
+    worker = _source("routes/worker.py")
+    worker_start = worker.split("def start_job(job_id):", 1)[1]
+    worker_start = worker_start.split("# ============================================================\n# COMPLETE JOB", 1)[0]
+    assert "booking_is_fully_paid(current)" in worker_start
+
+    partner = _source("routes/partner.py")
+    partner_start = partner.split("def partner_start_job(booking_id):", 1)[1]
+    partner_start = partner_start.split('@partner_bp.route("/partner/job/<int:booking_id>/complete"', 1)[0]
+    assert "booking_is_fully_paid(row)" in partner_start
+
+
+def test_start_job_templates_show_button_only_after_full_payment():
+    worker_template = _source("templates/worker/job_details.html")
+    worker_actions = worker_template.split("{% elif status == 'accepted' and worker_arrived %}", 1)[1]
+    worker_actions = worker_actions.split("{% elif status in ['started','in_progress'] %}", 1)[0]
+    assert "{% if not payment_complete %}" in worker_actions
+    assert "Start Job" in worker_actions
+
+    partner_template = _source("templates/partner/job_details.html")
+    partner_actions = partner_template.split('{% elif current_status == "accepted" %}', 1)[1]
+    partner_actions = partner_actions.split('{% elif current_status in ["in_progress", "started"] %}', 1)[0]
+    assert "{% if payment_complete %}" in partner_actions

@@ -31,7 +31,7 @@ def test_partner_job_actions_follow_arrival_payment_and_settlement_guards():
     start = start.split('@partner_bp.route("/partner/job/<int:booking_id>/complete"', 1)[0]
     assert 'if not row["worker_arrived_at"]' in start
     assert "_partner_booking_balance_due(row)" in start
-    assert "balance_payment_status" in start
+    assert "booking_is_fully_paid(row)" in start
     assert "scheduled_at" not in start
 
     assert "arrive_available_at = scheduled_at - timedelta(hours=1)" in partner
