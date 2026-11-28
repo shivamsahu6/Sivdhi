@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: sivdhi-brand-icons-${{ github.ref }}
@@ -52,3 +53,8 @@ jobs:
           fi
           git commit -m "Generate correctly sized Sivdhi PWA and Android icons"
           git push origin HEAD:${GITHUB_REF_NAME}
+
+      - name: Build both APKs with the generated icons
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build-sivdhi-android-apks.yml --ref "${GITHUB_REF_NAME}" -f build_type=debug
