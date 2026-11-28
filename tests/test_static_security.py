@@ -235,7 +235,7 @@ def test_site_favicon_serves_existing_brand_jpeg_with_correct_mime_type():
 
     assert response.status_code == 200
     assert response.mimetype == "image/jpeg"
-    assert response.data.startswith(b"\\xff\\xd8\\xff")
+    assert response.data.startswith(b"\xff\xd8\xff")
     assert response.data == favicon_asset.read_bytes()
     assert response.headers.get("Cache-Control") == "public, max-age=86400"
 
