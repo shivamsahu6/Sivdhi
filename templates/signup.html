@@ -408,10 +408,14 @@ flash.remove();
         flex: 0 0 auto;
         margin: clamp(20px, 5vh, 44px) auto 0;
     }
+    body:has(.sivdhi-site-footer[data-role="worker"]):has(.bottom),
+    body:has(.sivdhi-site-footer[data-role="partner"]):has(.bottom) {
+        padding-bottom: 20px;
+    }
     .sivdhi-site-footer[data-role="worker"],
     .sivdhi-site-footer[data-role="partner"] {
         flex: 0 0 auto;
-        margin: auto auto 20px;
+        margin: auto auto 0;
     }
 </style>
 </body>
