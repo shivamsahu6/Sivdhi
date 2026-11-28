@@ -299,3 +299,60 @@ def test_fresh_android_authentication_issues_a_server_side_persistent_token(monk
             assert record["revoked_at"] is None
         finally:
             conn.close()
+
+def test_legacy_customer_worker_and_partner_sessions_do_not_block_first_login_post():
+    from flask import g, session
+
+    app = Flask(__name__)
+    app.secret_key = "test-only-secret-key-that-is-long-enough"
+    app.add_url_rule("/login", endpoint="auth.login", view_func=lambda: "login")
+    app.add_url_rule(
+        "/customer/login",
+        endpoint="customer.login",
+        view_func=lambda: "customer login",
+    )
+
+    cases = (
+        ("/login?role=worker", {"role": "worker", "user_id": "W-10001"}),
+        ("/login?role=partner", {"role": "partner", "user_id": "SP10001"}),
+        ("/customer/login", {"customer_id": 42}),
+    )
+
+    for path, stale_identity in cases:
+        with app.test_request_context(path, method="POST"):
+            session.update(stale_identity)
+            session["csrf_token"] = "csrf-token-from-the-rendered-login-form"
+
+            response = app_sessions.before_app_request()
+
+            # The original POST must reach the normal credential validator.
+            assert response is None
+            assert not any(
+                key in session for key in ("customer_id", "role", "user_id")
+            )
+            # CSRFProtect runs after this hook and still needs this token.
+            assert session.get("csrf_token") == "csrf-token-from-the-rendered-login-form"
+            # A successful login in this same request may now issue a fresh token.
+            assert g.sivdhi_app_authentication_request is True
+
+
+def test_stale_session_reset_keeps_login_csrf_token_but_does_not_keep_identity():
+    from flask import session
+
+    app = Flask(__name__)
+    app.secret_key = "test-only-secret-key-that-is-long-enough"
+    app.add_url_rule("/login", endpoint="auth.login", view_func=lambda: "login")
+
+    with app.test_request_context("/login?role=worker", method="POST"):
+        session.update({
+            "role": "worker",
+            "user_id": "W-10001",
+            "customer_name": "Stale identity",
+            "csrf_token": "csrf-token",
+        })
+
+        response = app_sessions.before_app_request()
+
+        assert response is None
+        assert session == {"csrf_token": "csrf-token"}
+
