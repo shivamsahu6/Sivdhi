@@ -685,7 +685,11 @@
 
                 {% elif status == 'accepted' and worker_arrived %}
 
-                    {% if not payment_complete %}
+                    {% if not worker_id_verified %}
+                    <div class="notice warning">
+                        Waiting for the customer to see your official Sivdhi Worker ID card and verify your name, photo and Worker ID in My Bookings. Service Start stays locked until verification is complete.
+                    </div>
+                    {% elif not payment_complete %}
 
                     {% if balance_due > 0 %}
                     <div class="notice warning">
