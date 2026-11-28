@@ -38,7 +38,16 @@
             gap: 14px;
         }
 
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+            min-width: 0;
+        }
+
         .header-copy {
+            flex: 1;
             min-width: 0;
         }
 
@@ -459,8 +468,9 @@
 
     <header class="header">
         <div class="header-top">
-            <img class="dashboard-logo" src="/static/sivdhi-logo.jpg" alt="Sivdhi logo">
-            <div class="header-copy">
+            <div class="header-brand">
+                <img class="dashboard-logo" src="/static/sivdhi-logo.jpg" alt="Sivdhi logo">
+                <div class="header-copy">
                 <h2>Welcome Worker 👋</h2>
                 <p>
                     {% if worker %}
@@ -475,6 +485,7 @@
                         Worker ID: {{ session.get('user_id', '') }}
                     {% endif %}
                 </p>
+                </div>
             </div>
 
             <a
