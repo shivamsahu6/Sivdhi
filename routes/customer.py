@@ -4870,7 +4870,7 @@ def bookings():
             item["worker_id_verified"] = False
             item["worker_id_verified_at"] = None
             assigned_worker_ref = item.get("worker_id") or item.get("assigned_worker_id")
-            if assigned_worker_ref not in (None, ""):
+            if assigned_worker_ref not in (None, "") and table_exists(db, "workers"):
                 worker_ref = str(assigned_worker_ref)
                 worker_record = db.execute("""
                     SELECT id, worker_id, fullname, profile_photo, skills, status
