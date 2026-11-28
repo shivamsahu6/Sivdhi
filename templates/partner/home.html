@@ -345,7 +345,20 @@
             .home-social-footer { grid-template-columns: 1fr; }
             .home-footer-connected { grid-column: auto; }
         }
-    </style>
+
+        .worker-id-policy-banner {
+            width: min(calc(100% - 40px), 1180px);
+            margin: 14px auto 0;
+            padding: 12px 15px;
+            border: 1px solid #c9b4f2;
+            border-radius: 13px;
+            background: #f5efff;
+            color: #45266e;
+            font-size: 12px;
+            line-height: 1.65;
+        }
+        .worker-id-policy-banner strong { color: #2f174f; }
+\n    </style>
 </head>
 
 <body>
@@ -383,6 +396,8 @@
         </div>
 
     </div>
+
+    <div class="worker-id-policy-banner"><strong>🪪 Worker ID Card Rule:</strong> Every Worker must show their official Sivdhi ID card to the customer on arrival. Please remind assigned Workers. Customer verification is mandatory before service can start.</div>
 
     {% if is_internal_partner %}
     <div class="wallet">
