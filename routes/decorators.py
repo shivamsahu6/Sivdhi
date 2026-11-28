@@ -137,47 +137,47 @@ def partner_required(view_function):
                 (str(user_id),),
             )
             partner = cur.fetchone()
+
+            if not _is_active_account(partner):
+                session.clear()
+                return redirect(url_for("auth.login", role="partner"))
+
+            session["is_internal_partner"] = bool(partner["is_internal"] or 0)
+
+            # Repair missing referral-team rows for older and newly registered
+            # workers without stealing workers already attributed to another Partner.
+            referral_code = str(partner["referral_code"] or "").strip()
+            if referral_code:
+                table_names = {
+                    row[0] for row in conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ).fetchall()
+                }
+                worker_columns = {
+                    row[1] for row in conn.execute("PRAGMA table_info(workers)").fetchall()
+                } if "workers" in table_names else set()
+                if (
+                    "partner_workers" in table_names
+                    and {"worker_id", "referred_by", "is_deleted", "id"}.issubset(worker_columns)
+                ):
+                    linked = conn.execute("""
+                        INSERT INTO partner_workers(partner_id, worker_id)
+                        SELECT ?, w.worker_id
+                        FROM workers w
+                        WHERE UPPER(TRIM(COALESCE(w.referred_by,'')))=UPPER(?)
+                          AND w.worker_id IS NOT NULL
+                          AND COALESCE(w.is_deleted,0)=0
+                          AND NOT EXISTS (
+                              SELECT 1 FROM partner_workers pw
+                              WHERE CAST(pw.worker_id AS TEXT) IN (
+                                  CAST(w.worker_id AS TEXT), CAST(w.id AS TEXT)
+                              )
+                          )
+                    """, (str(user_id), referral_code))
+                    if linked.rowcount:
+                        conn.commit()
         finally:
             conn.close()
-
-        if not _is_active_account(partner):
-            session.clear()
-            return redirect(url_for("auth.login", role="partner"))
-
-        session["is_internal_partner"] = bool(partner["is_internal"] or 0)
-
-        # Repair missing referral-team rows for older and newly registered
-        # workers without stealing workers already attributed to another Partner.
-        referral_code = str(partner["referral_code"] or "").strip()
-        if referral_code:
-            table_names = {
-                row[0] for row in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                ).fetchall()
-            }
-            worker_columns = {
-                row[1] for row in conn.execute("PRAGMA table_info(workers)").fetchall()
-            } if "workers" in table_names else set()
-            if (
-                "partner_workers" in table_names
-                and {"worker_id", "referred_by", "is_deleted", "id"}.issubset(worker_columns)
-            ):
-                linked = conn.execute("""
-                    INSERT INTO partner_workers(partner_id, worker_id)
-                    SELECT ?, w.worker_id
-                    FROM workers w
-                    WHERE UPPER(TRIM(COALESCE(w.referred_by,'')))=UPPER(?)
-                      AND w.worker_id IS NOT NULL
-                      AND COALESCE(w.is_deleted,0)=0
-                      AND NOT EXISTS (
-                          SELECT 1 FROM partner_workers pw
-                          WHERE CAST(pw.worker_id AS TEXT) IN (
-                              CAST(w.worker_id AS TEXT), CAST(w.id AS TEXT)
-                          )
-                      )
-                """, (str(user_id), referral_code))
-                if linked.rowcount:
-                    conn.commit()
 
         return view_function(*args, **kwargs)
 
