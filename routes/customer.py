@@ -37,6 +37,10 @@ from utils.pending_changes import issue_pending_change, refresh_pending_change, 
 
 from database import get_db
 from utils.upload_cleanup import delete_replaced_profile_photo
+from utils.worker_identity import (
+    ensure_worker_id_verification_schema,
+    is_worker_id_verified,
+)
 from utils.login_security import is_login_allowed, record_login_failure, clear_login_failures
 from utils.booking_schedule import (
     india_now as _india_now,
@@ -4742,6 +4746,7 @@ def bookings():
     try:
         ensure_customer_schema(db)
         ensure_finance_schema(db)
+        ensure_worker_id_verification_schema(db)
 
         customer_row = get_customer(db)
 
@@ -4861,6 +4866,30 @@ def bookings():
             item["balance_paid_amount"] = money(item.get("balance_paid_amount"))
             item["balance_payment_status"] = item.get("balance_payment_status") or "DUE"
             item["worker_arrived_at"] = item.get("worker_arrived_at") or None
+            item["worker_id_card"] = None
+            item["worker_id_verified"] = False
+            item["worker_id_verified_at"] = None
+            assigned_worker_ref = item.get("worker_id") or item.get("assigned_worker_id")
+            if assigned_worker_ref not in (None, "") and table_exists(db, "workers"):
+                worker_ref = str(assigned_worker_ref)
+                worker_record = db.execute("""
+                    SELECT id, worker_id, fullname, profile_photo, skills, status
+                    FROM workers
+                    WHERE CAST(id AS TEXT)=? OR CAST(worker_id AS TEXT)=?
+                    ORDER BY CASE WHEN CAST(id AS TEXT)=? THEN 0 ELSE 1 END
+                    LIMIT 1
+                """, (worker_ref, worker_ref, worker_ref)).fetchone()
+                if worker_record:
+                    item["worker_id_card"] = row_dict(worker_record)
+                    verification = db.execute("""
+                        SELECT verified_at
+                        FROM booking_worker_id_verifications
+                        WHERE booking_id=? AND customer_id=? AND worker_id=?
+                        LIMIT 1
+                    """, (safe_int(item.get("id"), 0), customer_row["id"], worker_record["id"])).fetchone()
+                    if verification:
+                        item["worker_id_verified"] = True
+                        item["worker_id_verified_at"] = verification["verified_at"]
             current_status = str(item.get("booking_status") or item.get("status") or "pending").lower()
             # Customer sees only the four approved lifecycle labels; never internal retries/rejections.
             if current_status in {"completed", "complete"}:
@@ -4906,6 +4935,111 @@ def bookings():
             cashfree_environment=os.getenv("CASHFREE_ENV", "sandbox").strip().lower(),
         )
 
+    finally:
+        db.close()
+
+
+@customer_bp.route("/booking/<int:booking_db_id>/verify-worker-id", methods=["POST"])
+@customer_login_required
+def verify_booking_worker_id(booking_db_id):
+    """Record the customer's confirmation after checking the worker's physical ID."""
+    db = get_db()
+    try:
+        ensure_customer_schema(db)
+        ensure_worker_id_verification_schema(db)
+        customer_row = get_customer(db)
+        if not customer_row:
+            flash("Please login again.", "warning")
+            return redirect(url_for("customer.login"))
+
+        db.execute("BEGIN IMMEDIATE")
+        booking = db.execute("""
+            SELECT id, booking_id, customer_id, worker_id, assigned_worker_id,
+                   worker_arrived_at, booking_status, status
+            FROM bookings
+            WHERE id=? AND customer_id=?
+            LIMIT 1
+        """, (booking_db_id, customer_row["id"])).fetchone()
+        if not booking:
+            db.rollback()
+            flash("Booking not found in your account.", "warning")
+            return redirect(url_for("customer.bookings"))
+
+        if not booking["worker_arrived_at"]:
+            db.rollback()
+            flash("You can verify the Worker ID after the worker has arrived and shown the physical card.", "warning")
+            return redirect(url_for("customer.bookings") + f"#booking-{booking_db_id}")
+
+        status = str(booking["booking_status"] or booking["status"] or "").strip().lower()
+        if status in {"cancelled", "canceled", "failed", "refunded"}:
+            db.rollback()
+            flash("This booking is no longer active.", "warning")
+            return redirect(url_for("customer.bookings"))
+
+        assigned_ref = booking["worker_id"] or booking["assigned_worker_id"]
+        if not assigned_ref:
+            db.rollback()
+            flash("No worker is assigned to this booking.", "warning")
+            return redirect(url_for("customer.bookings"))
+
+        worker_ref = str(assigned_ref)
+        worker = db.execute("""
+            SELECT id, worker_id, fullname
+            FROM workers
+            WHERE CAST(id AS TEXT)=? OR CAST(worker_id AS TEXT)=?
+            ORDER BY CASE WHEN CAST(id AS TEXT)=? THEN 0 ELSE 1 END
+            LIMIT 1
+        """, (worker_ref, worker_ref, worker_ref)).fetchone()
+        if not worker:
+            db.rollback()
+            flash("Worker details could not be verified. Please contact Sivdhi Support.", "danger")
+            return redirect(url_for("customer.bookings"))
+
+        already_verified = is_worker_id_verified(
+            db, booking["id"], customer_row["id"], worker["id"]
+        )
+        db.execute("""
+            INSERT INTO booking_worker_id_verifications
+                (booking_id, customer_id, worker_id, verified_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(booking_id) DO UPDATE SET
+                customer_id=excluded.customer_id,
+                worker_id=excluded.worker_id,
+                verified_at=CURRENT_TIMESTAMP
+        """, (booking["id"], customer_row["id"], worker["id"]))
+
+        if not already_verified:
+            db.execute("""
+                INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
+                VALUES('worker',?,'Worker ID Verified',?,0,CURRENT_TIMESTAMP)
+            """, (str(worker["id"]), f"The customer confirmed your Sivdhi ID card for booking {booking['booking_id']}. You may proceed once the full booking payment is confirmed."))
+            partner_id = None
+            fresh_booking = db.execute(
+                "SELECT partner_id, assigned_partner_id FROM bookings WHERE id=? LIMIT 1",
+                (booking["id"],),
+            ).fetchone()
+            if fresh_booking:
+                partner_id = fresh_booking["assigned_partner_id"] or fresh_booking["partner_id"]
+            if not partner_id:
+                partner_id = find_partner_for_worker(db, int(worker["id"]))
+            if partner_id:
+                db.execute("""
+                    INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
+                    VALUES('partner',?,'Worker ID Verified',?,0,CURRENT_TIMESTAMP)
+                """, (str(partner_id), f"The customer verified {worker['fullname']}'s Sivdhi Worker ID for booking {booking['booking_id']}."))
+            db.execute("""
+                INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
+                VALUES('customer',?,'Worker ID Verified',?,0,CURRENT_TIMESTAMP)
+            """, (str(customer_row["id"]), f"You verified the Sivdhi Worker ID for booking {booking['booking_id']}. Service start is still subject to full payment confirmation."))
+
+        db.commit()
+        flash("Worker ID verified. The service can start after the full booking payment is confirmed.", "success")
+        return redirect(url_for("customer.bookings") + f"#booking-{booking_db_id}")
+    except Exception:
+        db.rollback()
+        current_app.logger.exception("Customer Worker ID verification failed")
+        flash("Worker ID verification could not be saved. Please try again.", "danger")
+        return redirect(url_for("customer.bookings") + f"#booking-{booking_db_id}")
     finally:
         db.close()
 

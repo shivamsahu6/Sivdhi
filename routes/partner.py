@@ -11,6 +11,7 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db
 from utils.upload_cleanup import delete_replaced_profile_photo
+from utils.worker_identity import ensure_worker_id_verification_schema, is_worker_id_verified
 from werkzeug.utils import secure_filename
 from utils.email_sender import send_otp
 from utils.otp_security import reserve_otp_request
@@ -465,6 +466,7 @@ def job_details(job_ref):
     conn = get_db()
     try:
         ensure_finance_schema(conn)
+        ensure_worker_id_verification_schema(conn)
         conn.commit()
         scope = _partner_booking_scope_sql()
         job = conn.execute(f"""
@@ -480,7 +482,13 @@ def job_details(job_ref):
                 COALESCE(c.fullname,'Customer') AS customer_name,
                 '' AS customer_mobile,
                 b.address AS customer_address,
-                w.fullname AS assigned_worker_name
+                w.fullname AS assigned_worker_name,
+                w.worker_id AS assigned_worker_public_id,
+                w.profile_photo AS assigned_worker_photo,
+                w.skills AS assigned_worker_skills,
+                (SELECT v.verified_at FROM booking_worker_id_verifications v
+                 WHERE v.booking_id=b.id AND v.customer_id=b.customer_id
+                   AND v.worker_id=w.id LIMIT 1) AS worker_id_verified_at
             FROM bookings b
             LEFT JOIN customers c ON c.id=b.customer_id
             LEFT JOIN workers w ON w.id=COALESCE(b.worker_id,b.assigned_worker_id)
@@ -670,10 +678,20 @@ def partner_arrive_job(booking_id):
             conn.rollback()
             flash("Arrive will be available one hour before the customer's booked time.", "warning")
             return redirect(f"/partner/job/{booking_id}")
+        newly_arrived = not bool(row["worker_arrived_at"])
         conn.execute("UPDATE bookings SET worker_arrived_at=COALESCE(worker_arrived_at,CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE id=?", (booking_id,))
-        _partner_internal_notice(conn, worker["id"], partner_id, "Arrival Recorded", f"Arrival recorded for booking {row['booking_id']}.")
+        if newly_arrived:
+            _partner_internal_notice(
+                conn, worker["id"], partner_id, "Show Sivdhi Worker ID",
+                f"Arrival recorded for booking {row['booking_id']}. Worker must show the official Sivdhi ID card to the customer. The customer must verify it in My Bookings before the job starts."
+            )
+            if row["customer_id"]:
+                conn.execute("""
+                    INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at)
+                    VALUES('customer',?,'Verify Your Worker ID Card',?,0,CURRENT_TIMESTAMP)
+                """, (str(row["customer_id"]), f"Your Worker has arrived for booking {row['booking_id']}. Please compare the person's face with the Worker photo and ID shown in My Bookings, ask to see the physical Sivdhi ID card, and confirm verification before service starts."))
         conn.commit()
-        flash("Arrival recorded. The customer can now pay any remaining balance from My Bookings.", "success")
+        flash("Arrival recorded. Ask the customer to verify the Worker ID card in My Bookings before starting the service.", "success")
     except Exception as error:
         conn.rollback()
         print("PARTNER ARRIVE ERROR:", error)
@@ -704,6 +722,10 @@ def partner_start_job(booking_id):
         if not row["worker_arrived_at"]:
             conn.rollback()
             flash("Record worker arrival before starting the job.", "warning")
+            return redirect(f"/partner/job/{booking_id}")
+        if not is_worker_id_verified(conn, row["id"], row["customer_id"], worker["id"]):
+            conn.rollback()
+            flash("The customer must see the physical Sivdhi Worker ID card and verify it in My Bookings before the job can start.", "warning")
             return redirect(f"/partner/job/{booking_id}")
         due = _partner_booking_balance_due(row)
         if not booking_is_fully_paid(row):
