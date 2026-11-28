@@ -377,13 +377,17 @@
 
     </div>
 
+    {% if is_internal_partner %}
     <div class="wallet">
-
-        <h3>Wallet Balance</h3>
-
-        <h2>₹ {{ wallet }}</h2>
-
+        <h3>Sivdhi Direct · Company Account</h3>
+        <p>Workers and jobs are managed here. Partner commission is retained by Sivdhi and is not credited to a withdrawable wallet.</p>
     </div>
+    {% else %}
+    <div class="wallet">
+        <h3>Wallet Balance</h3>
+        <h2>₹ {{ wallet }}</h2>
+    </div>
+    {% endif %}
 
     <div class="grid">
 
