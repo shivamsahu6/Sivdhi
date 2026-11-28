@@ -511,7 +511,9 @@
 
         .category-photo {
             width: 100%;
-            height: 105px;
+            height: auto;
+            aspect-ratio: 4 / 3;
+            max-height: 105px;
             display: block;
             flex-shrink: 0;
             margin-bottom: 11px;
@@ -552,7 +554,7 @@
         .catalog-photo {
             background-image: url("/static/catalog/catalog-defaults.webp");
             background-repeat: no-repeat;
-            background-size: 300% 400%;
+            background-size: 300% auto;
         }
 
         .catalog-photo--ac-category { background-position: 0 0; }
@@ -721,7 +723,7 @@
             .section-heading p { font-size: 10px; }
             .category-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
             .category-card { min-height: 164px; padding: 10px; border-radius: 15px; }
-            .category-photo { height: 82px; margin-bottom: 8px; border-radius: 11px; }
+            .category-photo { max-height: 82px; margin-bottom: 8px; border-radius: 11px; }
             .category-icon { width: 36px; height: 36px; border-radius: 11px; font-size: 19px; }
             .category-name { font-size: 10px; }
             .category-caption { margin-top: 5px; font-size: 8px; }
@@ -735,7 +737,7 @@
             .brand-caption { display: none; }
             .category-grid { gap: 6px; }
             .category-card { min-height: 150px; padding: 8px; }
-            .category-photo { height: 72px; margin-bottom: 7px; }
+            .category-photo { max-height: 72px; margin-bottom: 7px; }
             .category-name { font-size: 9px; }
             .category-caption { font-size: 8px; }
         }
