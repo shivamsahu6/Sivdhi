@@ -13,13 +13,13 @@
   "icons": [
     {
       "src": "/static/pwa/workpartner/icon-192.jpg",
-      "sizes": "any",
+      "sizes": "1254x1254",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
       "src": "/static/pwa/workpartner/icon-512.jpg",
-      "sizes": "any",
+      "sizes": "1254x1254",
       "type": "image/jpeg",
       "purpose": "any"
     }
