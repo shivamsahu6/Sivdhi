@@ -120,8 +120,62 @@
     @media(prefers-reduced-motion:reduce) {
         .sivdhi-footer-socials a { transition: none; }
     }
+
+    /* Worker and Partner pages use the blue/navy dashboard palette. */
+    body:has(.sivdhi-site-footer[data-role="worker"]),
+    body:has(.sivdhi-site-footer[data-role="partner"]) {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    body:has(.sivdhi-site-footer[data-role="worker"]) .bottom,
+    body:has(.sivdhi-site-footer[data-role="partner"]) .bottom {
+        z-index: 1000;
+    }
+    body:has(.sivdhi-site-footer[data-role="worker"]):has(.bottom),
+    body:has(.sivdhi-site-footer[data-role="partner"]):has(.bottom) {
+        padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    }
+    .sivdhi-site-footer[data-role="worker"],
+    .sivdhi-site-footer[data-role="partner"] {
+        flex: 0 0 auto;
+        margin: auto auto 24px;
+        border-color: rgba(96,165,250,.28);
+        background:
+            radial-gradient(ellipse at 50% -30%, rgba(37,99,235,.26), transparent 65%),
+            linear-gradient(145deg, rgba(15,35,67,.99), rgba(15,23,42,.99));
+        box-shadow: 0 18px 48px rgba(15,23,42,.20), inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    .sivdhi-site-footer[data-role="worker"]::before,
+    .sivdhi-site-footer[data-role="partner"]::before {
+        background: linear-gradient(90deg,#93c5fd,#2563eb,#0f172a);
+        box-shadow: 0 0 18px rgba(37,99,235,.5);
+    }
+    .sivdhi-site-footer[data-role="worker"] .sivdhi-footer-column > a,
+    .sivdhi-site-footer[data-role="partner"] .sivdhi-footer-column > a {
+        color: #bfdbfe;
+    }
+    .sivdhi-site-footer[data-role="worker"] .sivdhi-footer-column > a:hover,
+    .sivdhi-site-footer[data-role="partner"] .sivdhi-footer-column > a:hover {
+        color: #eff6ff;
+    }
+    .sivdhi-site-footer[data-role="worker"] .sivdhi-footer-caption,
+    .sivdhi-site-footer[data-role="partner"] .sivdhi-footer-caption {
+        color: #b7c9df;
+    }
+    .sivdhi-site-footer[data-role="worker"] .sivdhi-footer-socials a,
+    .sivdhi-site-footer[data-role="partner"] .sivdhi-footer-socials a {
+        border-color: rgba(147,197,253,.28);
+    }
+    .sivdhi-site-footer[data-role="worker"] .sivdhi-footer-socials a:hover,
+    .sivdhi-site-footer[data-role="partner"] .sivdhi-footer-socials a:hover {
+        border-color: rgba(147,197,253,.72);
+        background: linear-gradient(145deg,rgba(37,99,235,.32),rgba(96,165,250,.14));
+        box-shadow: 0 10px 24px rgba(37,99,235,.24);
+    }
+
 </style>
-<footer class="sivdhi-site-footer" aria-label="Sivdhi website footer">
+<footer class="sivdhi-site-footer" data-role="{{ sivdhi_footer_role|default('customer') }}" aria-label="Sivdhi website footer">
     <section class="sivdhi-footer-column" aria-label="Company links">
         <h2 class="sivdhi-footer-title">Company</h2>
         {% if sivdhi_footer_role|default('customer') == 'worker' %}

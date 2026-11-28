@@ -159,3 +159,20 @@ def test_shared_footer_uses_role_specific_review_and_contact_pages():
     assert "url_for('partner.rate_app')" in partner_section
     assert "url_for('partner.help')" in partner_section
     assert footer.count("url_for('customer.reviews')") == 1
+
+def test_worker_partner_footer_uses_site_palette_and_reaches_page_bottom():
+    from pathlib import Path
+
+    footer = (
+        Path(__file__).resolve().parents[1] / "templates/_sivdhi_footer.html"
+    ).read_text(encoding="utf-8")
+
+    assert 'data-role="{{ sivdhi_footer_role|default(\'customer\') }}"' in footer
+    assert 'body:has(.sivdhi-site-footer[data-role="worker"])' in footer
+    assert 'body:has(.sivdhi-site-footer[data-role="partner"])' in footer
+    assert "min-height: 100vh;" in footer
+    assert "flex-direction: column;" in footer
+    assert "margin: auto auto 24px;" in footer
+    assert "rgba(37,99,235,.26)" in footer
+    assert "rgba(15,23,42,.99)" in footer
+    assert "padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));" in footer
