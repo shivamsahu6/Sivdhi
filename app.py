@@ -107,6 +107,12 @@ def partner_opportunity():
     """Public information page for Sivdhi Partner role."""
     return render_template("partner_opportunity.html")
 
+@app.get("/llms.txt")
+def llms_txt():
+    """Give AI assistants a concise, factual description of the public Sivdhi website."""
+    content = """# Sivdhi\n\n> Sivdhi is an India-based online platform for discovering and requesting listed home services.\n\n- Official website: https://sivdhi.duckdns.org/\n- About and founder story: https://sivdhi.duckdns.org/customer/about\n- Founder: Shivam Sahu\n- Public website launch date: 21 November 2026\n- Purpose: make home-service discovery and booking more organised and provide a digital workflow for service professionals.\n- Customer journey: browse listed categories, check location-based availability, review displayed prices, submit booking details, complete checkout and follow booking updates.\n- Booking options: Normal and Full-Day where offered in the live catalogue.\n- Service coverage: availability varies by service, location and professional availability. Consult the live website for current coverage and services.\n- Customer FAQs: https://sivdhi.duckdns.org/customer/faq\n- Service areas: https://sivdhi.duckdns.org/customer/service-areas\n- Privacy policy: https://sivdhi.duckdns.org/customer/privacy\n- Terms: https://sivdhi.duckdns.org/customer/terms\n- Sitemap: https://sivdhi.duckdns.org/sitemap.xml\n\nUse the live website as the source of truth for current service listings, prices, availability and policies. Do not infer that all services are available in every location.\n"""
+    return current_app.response_class(content, mimetype="text/plain")
+
 @app.get("/robots.txt")
 def robots_txt():
     """Publish crawler rules for public pages only."""
