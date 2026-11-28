@@ -10,6 +10,7 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db
+from utils.upload_cleanup import delete_replaced_profile_photo
 from werkzeug.utils import secure_filename
 from utils.email_sender import send_otp
 from utils.otp_security import reserve_otp_request
@@ -1258,8 +1259,9 @@ def edit_profile():
         state = request.form["state"]
         pincode = request.form["pincode"]
 
+        old_photo_name = partner["profile_photo"] or ""
         photo = request.files.get("profile_photo")
-        photo_name = partner["profile_photo"]
+        photo_name = old_photo_name
 
         if photo and photo.filename != "":
 
@@ -1315,6 +1317,7 @@ def edit_profile():
         ))
 
         conn.commit()
+        delete_replaced_profile_photo(conn, old_photo_name, photo_name)
         conn.close()
 
         flash(
