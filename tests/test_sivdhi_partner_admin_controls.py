@@ -101,3 +101,11 @@ def test_sivdhi_direct_internal_wallet_controls_are_not_rendered():
     assert "is_internal_partner" in wallet
     assert "Partner commission from its workers is retained by Sivdhi" in wallet
     assert "{% if not is_internal_partner %}" in profile
+
+
+
+def test_sivdhi_direct_company_identity_is_read_only():
+    partner = source("routes/partner.py")
+    profile = source("templates/partner/profile.html")
+    assert "The Sivdhi Direct company identity is managed by Sivdhi Admin." in partner
+    assert "{% if not is_internal_partner %}" in profile
