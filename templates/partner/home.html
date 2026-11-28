@@ -33,13 +33,20 @@
 
         .header-top {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: space-between;
             gap: 14px;
         }
 
         .header-copy {
+            flex: 1 1 auto;
             min-width: 0;
+            text-align: left;
+        }
+
+        .header-copy h2,
+        .header-copy p {
+            text-align: left;
         }
 
         .dashboard-logo {
