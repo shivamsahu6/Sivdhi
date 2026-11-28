@@ -239,3 +239,104 @@ def test_explicit_suspended_partner_mapping_is_not_reassigned_to_direct():
         ).fetchone()[0] == 0
     finally:
         db.close()
+
+
+
+def test_partner_required_keeps_database_open_while_syncing_direct_referrals(
+    tmp_path, monkeypatch
+):
+    from flask import Flask, session
+    import routes.decorators as route_decorators
+
+    database_path = tmp_path / "direct-partner-decorator.sqlite3"
+    conn = sqlite3.connect(database_path)
+    conn.row_factory = sqlite3.Row
+    conn.executescript("""
+        CREATE TABLE partners (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            partner_id TEXT UNIQUE NOT NULL,
+            referral_code TEXT UNIQUE,
+            fullname TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            mobile TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            company_name TEXT,
+            wallet REAL DEFAULT 0,
+            status TEXT DEFAULT 'Active',
+            is_deleted INTEGER DEFAULT 0
+        );
+        CREATE TABLE workers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            worker_id TEXT UNIQUE NOT NULL,
+            referred_by TEXT DEFAULT 'SV00000',
+            is_deleted INTEGER DEFAULT 0,
+            wallet REAL DEFAULT 0
+        );
+        CREATE TABLE partner_workers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            partner_id TEXT,
+            worker_id TEXT,
+            joined_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE admin_settings (
+            setting_key TEXT PRIMARY KEY,
+            setting_value TEXT
+        );
+        CREATE TABLE wallet_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_type TEXT,
+            user_id TEXT,
+            amount REAL,
+            transaction_type TEXT,
+            description TEXT
+        );
+        CREATE TABLE withdraw_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            partner_id TEXT,
+            amount REAL
+        );
+    """)
+    assert ensure_sivdhi_direct_partner(conn) is True
+    conn.execute(
+        "INSERT INTO workers(worker_id,referred_by) VALUES('W-DECORATOR','SV00000')"
+    )
+    # Force the request decorator to repair a missing legacy mapping.
+    conn.execute(
+        "DELETE FROM partner_workers WHERE worker_id='W-DECORATOR'"
+    )
+    conn.commit()
+    conn.close()
+
+    def db_factory():
+        db = sqlite3.connect(database_path)
+        db.row_factory = sqlite3.Row
+        return db
+
+    monkeypatch.setattr(route_decorators, "get_db", db_factory)
+
+    app = Flask(__name__)
+    app.secret_key = "direct-partner-decorator-test-secret"
+    app.config["TESTING"] = True
+
+    @app.get("/partner/probe")
+    @route_decorators.partner_required
+    def partner_probe():
+        return "partner-ok"
+
+    client = app.test_client()
+    with client.session_transaction() as test_session:
+        test_session["role"] = "partner"
+        test_session["user_id"] = "SP00000"
+
+    response = client.get("/partner/probe")
+    assert response.status_code == 200
+    assert response.get_data(as_text=True) == "partner-ok"
+
+    verify = sqlite3.connect(database_path)
+    try:
+        mapping = verify.execute(
+            "SELECT partner_id FROM partner_workers WHERE worker_id='W-DECORATOR'"
+        ).fetchone()
+        assert mapping == ("SP00000",)
+    finally:
+        verify.close()
