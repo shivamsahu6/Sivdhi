@@ -697,6 +697,16 @@ def suspend_partner(id):
     conn = get_db()
 
     try:
+        partner = conn.execute(
+            "SELECT partner_id, is_internal FROM partners WHERE id=? LIMIT 1",
+            (id,),
+        ).fetchone()
+        if not partner:
+            flash("Partner not found.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/partners")
+        if bool(partner["is_internal"] or 0):
+            flash("Sivdhi Direct is a protected internal account and cannot be suspended.", "warning")
+            return redirect(f"{ADMIN_PANEL_BASE}/admin/partner/{id}")
         conn.execute(
             "UPDATE partners SET status = 'suspended' WHERE id = ?",
             (id,),
@@ -735,6 +745,16 @@ def delete_partner(partner_id):
     conn = get_db()
 
     try:
+        partner = conn.execute(
+            "SELECT id, is_internal FROM partners WHERE partner_id=? LIMIT 1",
+            (partner_id,),
+        ).fetchone()
+        if not partner:
+            flash("Partner not found.", "danger")
+            return redirect(ADMIN_PANEL_BASE + "/admin/partners")
+        if bool(partner["is_internal"] or 0):
+            flash("Sivdhi Direct is a protected internal account and cannot be deleted.", "warning")
+            return redirect(f"{ADMIN_PANEL_BASE}/admin/partner/{partner['id']}")
         conn.execute("""
             UPDATE partners
             SET is_deleted = 1
@@ -1020,7 +1040,14 @@ def permanent_delete_partner(partner_id):
     conn = get_db()
 
     try:
-        conn.execute("""
+        partner = conn.execute(
+            "SELECT is_internal FROM partners WHERE id=? LIMIT 1",
+            (partner_id,),
+        ).fetchone()
+        if partner and bool(partner["is_internal"] or 0):
+            flash("Sivdhi Direct is a protected internal account and cannot be permanently deleted.", "warning")
+            return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
+        cur = conn.execute("""
             DELETE FROM partners
             WHERE id = ? AND is_deleted = 1
         """, (partner_id,))
@@ -1028,7 +1055,7 @@ def permanent_delete_partner(partner_id):
     finally:
         conn.close()
 
-    flash("Partner permanently deleted.", "success")
+    flash("Partner permanently deleted." if cur.rowcount else "Deleted partner not found.", "success" if cur.rowcount else "danger")
     return redirect(ADMIN_PANEL_BASE + "/admin/deleted-accounts")
 
 
