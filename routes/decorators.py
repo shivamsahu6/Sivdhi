@@ -114,11 +114,22 @@ def partner_required(view_function):
         conn = get_db()
         try:
             cur = conn.cursor()
+            partner_columns = {
+                row[1] for row in cur.execute("PRAGMA table_info(partners)").fetchall()
+            }
+            internal_expr = (
+                "COALESCE(is_internal,0)"
+                if "is_internal" in partner_columns else "0"
+            )
+            referral_expr = (
+                "referral_code"
+                if "referral_code" in partner_columns else "NULL"
+            )
             cur.execute(
-                """
+                f"""
                 SELECT is_deleted, status,
-                       COALESCE(is_internal,0) AS is_internal,
-                       referral_code
+                       {internal_expr} AS is_internal,
+                       {referral_expr} AS referral_code
                 FROM partners
                 WHERE partner_id=?
                 LIMIT 1
@@ -139,22 +150,34 @@ def partner_required(view_function):
         # workers without stealing workers already attributed to another Partner.
         referral_code = str(partner["referral_code"] or "").strip()
         if referral_code:
-            linked = conn.execute("""
-                INSERT INTO partner_workers(partner_id, worker_id)
-                SELECT ?, w.worker_id
-                FROM workers w
-                WHERE UPPER(TRIM(COALESCE(w.referred_by,'')))=UPPER(?)
-                  AND w.worker_id IS NOT NULL
-                  AND COALESCE(w.is_deleted,0)=0
-                  AND NOT EXISTS (
-                      SELECT 1 FROM partner_workers pw
-                      WHERE CAST(pw.worker_id AS TEXT) IN (
-                          CAST(w.worker_id AS TEXT), CAST(w.id AS TEXT)
+            table_names = {
+                row[0] for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+            worker_columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(workers)").fetchall()
+            } if "workers" in table_names else set()
+            if (
+                "partner_workers" in table_names
+                and {"worker_id", "referred_by", "is_deleted", "id"}.issubset(worker_columns)
+            ):
+                linked = conn.execute("""
+                    INSERT INTO partner_workers(partner_id, worker_id)
+                    SELECT ?, w.worker_id
+                    FROM workers w
+                    WHERE UPPER(TRIM(COALESCE(w.referred_by,'')))=UPPER(?)
+                      AND w.worker_id IS NOT NULL
+                      AND COALESCE(w.is_deleted,0)=0
+                      AND NOT EXISTS (
+                          SELECT 1 FROM partner_workers pw
+                          WHERE CAST(pw.worker_id AS TEXT) IN (
+                              CAST(w.worker_id AS TEXT), CAST(w.id AS TEXT)
+                          )
                       )
-                  )
-            """, (str(user_id), referral_code))
-            if linked.rowcount:
-                conn.commit()
+                """, (str(user_id), referral_code))
+                if linked.rowcount:
+                    conn.commit()
 
         return view_function(*args, **kwargs)
 
