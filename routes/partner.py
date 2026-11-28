@@ -23,6 +23,7 @@ from utils.booking_schedule import india_now
 import os
 import random
 import re
+from urllib.parse import urlencode
 
 from datetime import (
     datetime,
@@ -966,6 +967,15 @@ def mark_partner_notification_read(notification_id):
 
 # ======================================
 # Profile
+def build_partner_worker_referral_link(referral_code):
+    """Build the canonical Worker signup URL for this Partner's referral code."""
+    code = str(referral_code or "").strip().upper()
+    if not code:
+        return ""
+    query = urlencode({"role": "worker", "referral_code": code})
+    return "https://sivdhi.duckdns.org/signup?" + query
+
+
 # ======================================
 
 @partner_bp.route("/partner/profile")
@@ -985,9 +995,13 @@ def profile():
 
     conn.close()
 
+    referral_link = build_partner_worker_referral_link(
+        partner["referral_code"] if partner else ""
+    )
     return render_template(
         "partner/profile.html",
         partner=partner,
+        referral_link=referral_link,
         is_internal_partner=bool(session.get("is_internal_partner"))
     )
 
