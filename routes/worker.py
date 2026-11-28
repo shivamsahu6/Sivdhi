@@ -7,7 +7,8 @@ from flask import (
     url_for,
     flash,
     jsonify,
-    current_app
+    current_app,
+    Response,
 )
 
 from werkzeug.utils import secure_filename
@@ -28,6 +29,12 @@ from utils.otp_security import reserve_otp_request
 from utils.pending_changes import issue_pending_change, refresh_pending_change, verify_pending_change, delete_pending_change
 from database import get_db
 from utils.upload_cleanup import delete_replaced_profile_photo
+from utils.worker_identity import (
+    build_worker_id_card_svg,
+    worker_id_card_filename,
+    ensure_worker_id_verification_schema,
+    is_worker_id_verified,
+)
 from utils.sivdhi_finance import (
     ensure_finance_schema, is_demo_mode, add_finance_ledger_entry,
     settle_completed_booking, money as finance_money, booking_is_fully_paid,
@@ -1592,9 +1599,19 @@ def start_job(job_id):
         if not current:
             return jsonify({"success": False, "message": "Booking not found."}), 404
 
+        ensure_worker_id_verification_schema(conn)
+        if not current["worker_arrived_at"]:
+            return jsonify({"success": False, "message": "Mark arrival before starting the service."}), 400
+        if not is_worker_id_verified(
+            conn, current["id"], current["customer_id"], get_current_worker_db_id()
+        ):
+            return jsonify({
+                "success": False,
+                "message": "The customer must see your physical Sivdhi Worker ID card and verify it in My Bookings before the service can start.",
+                "code": "WORKER_ID_VERIFICATION_REQUIRED",
+            }), 409
+
         if current:
-            if not current["worker_arrived_at"]:
-                return jsonify({"success": False, "message": "Mark arrival before starting the service."}), 400
             if not booking_is_fully_paid(current):
                 return jsonify({
                     "success": False,
@@ -2033,6 +2050,40 @@ def worker_notification_center():
         unread_count=unread_count,
     )
 
+
+
+def _current_worker_id_card_response(download=False):
+    worker = get_current_worker()
+    if not worker:
+        return redirect(url_for("auth.login", role="worker"))
+
+    try:
+        svg = build_worker_id_card_svg(worker)
+    except (KeyError, TypeError, ValueError):
+        current_app.logger.exception("Could not build Worker ID card")
+        flash("Worker ID card could not be created. Please update your profile photo/details and try again.", "warning")
+        return redirect(url_for("worker.profile"))
+
+    response = Response(svg, mimetype="image/svg+xml")
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    disposition = "attachment" if download else "inline"
+    response.headers["Content-Disposition"] = (
+        f'{disposition}; filename="{worker_id_card_filename(worker)}"'
+    )
+    return response
+
+
+@worker_bp.route("/worker/id-card.svg", methods=["GET"])
+@worker_required
+def worker_id_card_preview():
+    return _current_worker_id_card_response(download=False)
+
+
+@worker_bp.route("/worker/id-card/download", methods=["GET"])
+@worker_required
+def download_worker_id_card():
+    return _current_worker_id_card_response(download=True)
 
 
 @worker_bp.route(
