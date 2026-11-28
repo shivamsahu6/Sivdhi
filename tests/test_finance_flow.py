@@ -42,7 +42,9 @@ class FinanceSettlementTests(unittest.TestCase):
                 partner_id TEXT UNIQUE,
                 fullname TEXT,
                 wallet REAL DEFAULT 0,
-                is_deleted INTEGER DEFAULT 0
+                is_deleted INTEGER DEFAULT 0,
+                is_internal INTEGER NOT NULL DEFAULT 0,
+                referral_code TEXT
             );
             CREATE TABLE partner_workers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +66,8 @@ class FinanceSettlementTests(unittest.TestCase):
             );
         """)
         self.db.execute("INSERT INTO workers(id,worker_id,fullname,wallet) VALUES(1,'W-001','Worker One',0)")
-        self.db.execute("INSERT INTO partners(id,partner_id,fullname,wallet) VALUES(1,'P-001','Partner One',0)")
+        self.db.execute("INSERT INTO partners(id,partner_id,fullname,wallet,is_internal) VALUES(1,'P-001','Partner One',0,0)")
+        self.db.execute("INSERT INTO partners(id,partner_id,fullname,wallet,is_internal,referral_code) VALUES(2,'SP00000','Sivdhi Direct',0,1,'SV00000')")
         self.db.execute("INSERT INTO partner_workers(partner_id,worker_id) VALUES('P-001','W-001')")
         self.db.execute("INSERT INTO admin_settings VALUES('partner_commission_percent','10')")
         self.db.execute("INSERT INTO admin_settings VALUES('platform_commission_percent','10')")
@@ -102,6 +105,41 @@ class FinanceSettlementTests(unittest.TestCase):
         self.assertTrue(ok, message)
         count_after = self.db.execute("SELECT COUNT(*) FROM wallet_transactions").fetchone()[0]
         self.assertEqual(count_before, count_after)
+
+    def test_internal_sivdhi_direct_partner_share_is_retained_by_company(self):
+        booking_id = self.add_booking('SIV-TEST-DIRECT', partner_id='SP00000')
+        ok, message = settle_completed_booking(self.db, booking_id)
+        self.assertTrue(ok, message)
+
+        self.assertAlmostEqual(
+            self.db.execute("SELECT wallet FROM workers WHERE id=1").fetchone()[0],
+            400,
+        )
+        self.assertAlmostEqual(
+            self.db.execute("SELECT wallet FROM partners WHERE partner_id='SP00000'").fetchone()[0],
+            0,
+        )
+        booking = self.db.execute(
+            "SELECT partner_commission_percent, platform_commission_percent, "
+            "partner_commission_amount, platform_commission_amount "
+            "FROM bookings WHERE id=?",
+            (booking_id,),
+        ).fetchone()
+        self.assertAlmostEqual(booking[0], 0)
+        self.assertAlmostEqual(booking[1], 20)
+        self.assertAlmostEqual(booking[2], 0)
+        self.assertAlmostEqual(booking[3], 100)
+
+        direct_transactions = self.db.execute(
+            "SELECT COUNT(*) FROM wallet_transactions "
+            "WHERE user_type='partner' AND user_id='SP00000'"
+        ).fetchone()[0]
+        self.assertEqual(direct_transactions, 0)
+        platform = self.db.execute(
+            "SELECT SUM(amount) FROM wallet_transactions "
+            "WHERE user_type='platform' AND transaction_type='platform_commission'"
+        ).fetchone()[0]
+        self.assertAlmostEqual(platform, 100)
 
     def test_no_partner_means_no_partner_commission(self):
         booking_id = self.add_booking('SIV-TEST-2', partner_id='')
