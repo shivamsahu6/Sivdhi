@@ -1231,6 +1231,9 @@ def wallet():
 @partner_bp.route("/partner/edit-profile", methods=["GET", "POST"])
 @partner_required
 def edit_profile():
+    if session.get("is_internal_partner"):
+        flash("The Sivdhi Direct company identity is managed by Sivdhi Admin.", "info")
+        return redirect("/partner/profile")
 
     conn = get_db()
     cur = conn.cursor()
