@@ -330,6 +330,14 @@ class AppAwareSecureCookieSessionInterface(SecureCookieSessionInterface):
 
 def before_app_request():
     """Validate persistent non-admin sessions before protected routes run."""
+    # A valid session may already exist when a user signs into a different
+    # role/account in the same browser. The successful login handler clears
+    # that old identity before establishing the new one. Mark login endpoints
+    # up front so after_app_request can issue a fresh server-side token for
+    # that same credential POST instead of redirecting the user back to login.
+    if _is_login_request():
+        g.sivdhi_app_authentication_request = True
+
     identity = _identity_from_session()
 
     if not identity:
