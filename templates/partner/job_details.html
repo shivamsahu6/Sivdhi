@@ -173,7 +173,22 @@
                 max-width: 58%;
             }
         }
-    </style>
+    
+        .partner-worker-id {
+            margin-top: 14px;
+            padding: 14px;
+            border: 1px solid #ded0f7;
+            border-radius: 15px;
+            background: linear-gradient(145deg,#fff,#f8f4ff);
+        }
+        .partner-worker-id-title { color: #3b2164; font-size: 13px; font-weight: 850; }
+        .partner-worker-id-person { display:flex; align-items:center; gap:11px; margin-top:11px; }
+        .partner-worker-id-photo { width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;overflow:hidden;border-radius:13px;background:#eee5ff;color:#6d28d9;font-size:28px; }
+        .partner-worker-id-photo img { width:100%;height:100%;object-fit:cover; }
+        .partner-worker-id-name { color:#20142e;font-size:13px;font-weight:800;overflow-wrap:anywhere; }
+        .partner-worker-id-code { margin-top:4px;color:#6d28d9;font-size:10px;font-weight:800; }
+        .partner-worker-id-note { margin-top:11px;padding:10px;border-radius:10px;background:#fff3da;color:#8a4c08;font-size:11px;line-height:1.6; }
+\n</style>
 </head>
 
 <body>
@@ -279,6 +294,29 @@
             </div>
             {% endif %}
         </section>
+
+        {% if job["assigned_worker_public_id"] %}
+        <section class="partner-worker-id" aria-label="Assigned Worker ID details">
+            <div class="partner-worker-id-title">🪪 Assigned Worker's Sivdhi ID</div>
+            <div class="partner-worker-id-person">
+                <div class="partner-worker-id-photo">
+                    {% if job["assigned_worker_photo"] %}
+                    <img src="{{ url_for('static', filename='uploads/' + job['assigned_worker_photo']) }}" alt="Worker photo">
+                    {% else %}👷{% endif %}
+                </div>
+                <div>
+                    <div class="partner-worker-id-name">{{ job["assigned_worker_name"] or "Assigned Worker" }}</div>
+                    <div class="partner-worker-id-code">Worker ID: {{ job["assigned_worker_public_id"] }}</div>
+                    <div class="partner-worker-id-code" style="font-weight:600;">{{ job["assigned_worker_skills"] or "Home Service Professional" }}</div>
+                </div>
+            </div>
+            {% if job["worker_id_verified_at"] %}
+            <div class="partner-worker-id-note" style="background:#e8fff3;color:#12633b;">✓ Customer verified this Worker ID.</div>
+            {% else %}
+            <div class="partner-worker-id-note">Partner responsibility: remind the Worker to physically show this ID card to the customer at arrival. The customer must verify the ID in My Bookings before the job can start.</div>
+            {% endif %}
+        </section>
+        {% endif %}
 
         {% if current_status in ["pending", "assigned"] %}
         <section class="card">
