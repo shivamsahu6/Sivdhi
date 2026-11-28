@@ -1,6 +1,9 @@
 import os
+import secrets
 import sqlite3
 from pathlib import Path
+
+from werkzeug.security import generate_password_hash
 from config import Config
 
 
@@ -72,6 +75,265 @@ def add_column_if_not_exists(cursor, table, column, column_type):
             f"ALTER TABLE {table} "
             f"ADD COLUMN {column} {column_type}"
         )
+
+
+SIVDHI_DIRECT_PARTNER_ID = "SP00000"
+SIVDHI_DIRECT_REFERRAL_CODE = "SV00000"
+SIVDHI_DIRECT_EMAIL = "shivamsahu.co@gmail.com"
+SIVDHI_DIRECT_MOBILE = "8954015683"
+
+
+def ensure_sivdhi_direct_partner(conn):
+    """Idempotently provision the company-owned Partner account and its referral mapping.
+
+    The account receives an unusable random initial password. The owner sets their
+    own password through the existing Partner email-OTP recovery flow.
+    """
+    cur = conn.cursor()
+    if not table_exists(cur, "partners"):
+        return False
+
+    add_column_if_not_exists(
+        cur, "partners", "is_internal", "INTEGER NOT NULL DEFAULT 0"
+    )
+
+    direct = cur.execute(
+        "SELECT * FROM partners WHERE partner_id=? LIMIT 1",
+        (SIVDHI_DIRECT_PARTNER_ID,),
+    ).fetchone()
+
+    expected_identity = (
+        SIVDHI_DIRECT_EMAIL.lower(),
+        SIVDHI_DIRECT_MOBILE,
+        SIVDHI_DIRECT_REFERRAL_CODE,
+        "Sivdhi Direct",
+    )
+
+    if direct:
+        actual_identity = (
+            str(direct["email"] or "").strip().lower(),
+            str(direct["mobile"] or "").strip(),
+            str(direct["referral_code"] or "").strip().upper(),
+            str(direct["fullname"] or "").strip(),
+        )
+        if actual_identity != expected_identity:
+            print(
+                "SIVDHI_DIRECT_BOOTSTRAP_SKIPPED: reserved Partner ID "
+                "SP00000 already belongs to a different identity."
+            )
+            return False
+        cur.execute(
+            "UPDATE partners SET is_internal=1, company_name='Sivdhi', "
+            "status='Active', is_deleted=0 WHERE partner_id=?",
+            (SIVDHI_DIRECT_PARTNER_ID,),
+        )
+    else:
+        conflicts = [
+            cur.execute(
+                "SELECT partner_id FROM partners WHERE UPPER(TRIM(COALESCE(referral_code,'')))=? LIMIT 1",
+                (SIVDHI_DIRECT_REFERRAL_CODE,),
+            ).fetchone(),
+            cur.execute(
+                "SELECT partner_id FROM partners WHERE LOWER(TRIM(email))=? LIMIT 1",
+                (SIVDHI_DIRECT_EMAIL.lower(),),
+            ).fetchone(),
+            cur.execute(
+                "SELECT partner_id FROM partners WHERE mobile=? LIMIT 1",
+                (SIVDHI_DIRECT_MOBILE,),
+            ).fetchone(),
+        ]
+        if any(conflicts):
+            print(
+                "SIVDHI_DIRECT_BOOTSTRAP_SKIPPED: email, mobile, or referral "
+                "code is already assigned to another Partner."
+            )
+            return False
+
+        one_time_random_password = secrets.token_urlsafe(48)
+        password_hash = generate_password_hash(one_time_random_password)
+        cur.execute(
+            """
+            INSERT INTO partners (
+                partner_id, referral_code, fullname, email, mobile,
+                password, company_name, wallet, status, is_deleted, is_internal
+            ) VALUES (?, ?, ?, ?, ?, ?, 'Sivdhi', 0, 'Active', 0, 1)
+            """,
+            (
+                SIVDHI_DIRECT_PARTNER_ID,
+                SIVDHI_DIRECT_REFERRAL_CODE,
+                "Sivdhi Direct",
+                SIVDHI_DIRECT_EMAIL,
+                SIVDHI_DIRECT_MOBILE,
+                password_hash,
+            ),
+        )
+
+    # Keep the existing signup default reserved for Sivdhi Direct without
+    # overwriting a different administrator-configured referral default.
+    if table_exists(cur, "admin_settings"):
+        cur.execute(
+            """
+            INSERT OR IGNORE INTO admin_settings(setting_key, setting_value)
+            VALUES('default_referral_code', ?)
+            """,
+            (SIVDHI_DIRECT_REFERRAL_CODE,),
+        )
+        cur.execute(
+            """
+            UPDATE admin_settings
+            SET setting_value=?
+            WHERE setting_key='default_referral_code'
+              AND UPPER(TRIM(COALESCE(setting_value,'')))='WM00000'
+            """,
+            (SIVDHI_DIRECT_REFERRAL_CODE,),
+        )
+
+    # Move only the legacy reserved fallback. Explicit referrals to another
+    # Partner remain untouched.
+    if table_exists(cur, "workers"):
+        cur.execute(
+            """
+            UPDATE workers
+            SET referred_by=?
+            WHERE UPPER(TRIM(COALESCE(referred_by,'')))='WM00000'
+            """,
+            (SIVDHI_DIRECT_REFERRAL_CODE,),
+        )
+
+    if table_exists(cur, "partner_workers") and table_exists(cur, "workers"):
+        cur.execute(
+            """
+            INSERT INTO partner_workers(partner_id, worker_id)
+            SELECT ?, w.worker_id
+            FROM workers w
+            WHERE UPPER(TRIM(COALESCE(w.referred_by,'')))=?
+              AND w.worker_id IS NOT NULL
+              AND COALESCE(w.is_deleted,0)=0
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM partner_workers pw
+                  WHERE CAST(pw.worker_id AS TEXT) IN (
+                      CAST(w.worker_id AS TEXT), CAST(w.id AS TEXT)
+                  )
+              )
+            """,
+            (SIVDHI_DIRECT_PARTNER_ID, SIVDHI_DIRECT_REFERRAL_CODE),
+        )
+
+        # The auth signup flow is retained as a CPython 3.14 bytecode module.
+        # These triggers make the default referral mapping work without
+        # modifying or replacing that compatibility-critical auth module.
+        cur.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_sivdhi_direct_worker_insert
+            AFTER INSERT ON workers
+            WHEN UPPER(TRIM(COALESCE(NEW.referred_by,'')))='SV00000'
+                 AND NEW.worker_id IS NOT NULL
+            BEGIN
+                INSERT INTO partner_workers(partner_id, worker_id)
+                SELECT 'SP00000', NEW.worker_id
+                WHERE EXISTS (
+                    SELECT 1 FROM partners
+                    WHERE partner_id='SP00000' AND COALESCE(is_internal,0)=1
+                      AND COALESCE(is_deleted,0)=0
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM partner_workers pw
+                    WHERE CAST(pw.worker_id AS TEXT) IN (
+                        CAST(NEW.worker_id AS TEXT), CAST(NEW.id AS TEXT)
+                    )
+                );
+            END
+            """
+        )
+        cur.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_sivdhi_direct_worker_referral_update
+            AFTER UPDATE OF referred_by, worker_id ON workers
+            WHEN UPPER(TRIM(COALESCE(NEW.referred_by,'')))='SV00000'
+                 AND NEW.worker_id IS NOT NULL
+            BEGIN
+                INSERT INTO partner_workers(partner_id, worker_id)
+                SELECT 'SP00000', NEW.worker_id
+                WHERE EXISTS (
+                    SELECT 1 FROM partners
+                    WHERE partner_id='SP00000' AND COALESCE(is_internal,0)=1
+                      AND COALESCE(is_deleted,0)=0
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM partner_workers pw
+                    WHERE CAST(pw.worker_id AS TEXT) IN (
+                        CAST(NEW.worker_id AS TEXT), CAST(NEW.id AS TEXT)
+                    )
+                );
+            END
+            """
+        )
+
+    # The company-owned Partner must never accumulate withdrawable funds.
+    if table_exists(cur, "partners"):
+        cur.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_sivdhi_direct_wallet_zero
+            AFTER UPDATE OF wallet ON partners
+            WHEN NEW.partner_id='SP00000'
+                 AND COALESCE(NEW.is_internal,0)=1
+                 AND COALESCE(NEW.wallet,0)<>0
+            BEGIN
+                UPDATE partners SET wallet=0 WHERE id=NEW.id;
+            END
+            """
+        )
+    if table_exists(cur, "wallet_transactions"):
+        cur.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_sivdhi_direct_wallet_ledger_guard
+            BEFORE INSERT ON wallet_transactions
+            WHEN NEW.user_type='partner'
+                 AND CAST(NEW.user_id AS TEXT)='SP00000'
+            BEGIN
+                SELECT RAISE(IGNORE);
+            END
+            """
+        )
+    if table_exists(cur, "withdraw_requests"):
+        cur.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_sivdhi_direct_withdrawal_guard
+            BEFORE INSERT ON withdraw_requests
+            WHEN CAST(NEW.partner_id AS TEXT)='SP00000'
+            BEGIN
+                SELECT RAISE(IGNORE);
+            END
+            """
+        )
+    cur.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_sivdhi_direct_protect_account
+        BEFORE UPDATE OF status, is_deleted ON partners
+        WHEN OLD.partner_id='SP00000'
+             AND COALESCE(OLD.is_internal,0)=1
+             AND (
+                 COALESCE(NEW.is_deleted,0)<>0
+                 OR LOWER(COALESCE(NEW.status,'active'))='suspended'
+             )
+        BEGIN
+            SELECT RAISE(ABORT, 'Sivdhi Direct is a protected internal account');
+        END
+        """
+    )
+    cur.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_sivdhi_direct_protect_delete
+        BEFORE DELETE ON partners
+        WHEN OLD.partner_id='SP00000' AND COALESCE(OLD.is_internal,0)=1
+        BEGIN
+            SELECT RAISE(ABORT, 'Sivdhi Direct is a protected internal account');
+        END
+        """
+    )
+    print("SIVDHI_DIRECT_BOOTSTRAP_OK: SP00000 / SV00000")
+    return True
 
 
 # ==========================================================
@@ -262,7 +524,9 @@ def create_tables():
 
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                is_deleted INTEGER DEFAULT 0
+                is_deleted INTEGER DEFAULT 0,
+
+                is_internal INTEGER NOT NULL DEFAULT 0
             )
         """)
 
@@ -757,7 +1021,8 @@ def create_tables():
             ("withdraw_notification", "INTEGER DEFAULT 1"),
             ("promo_notification", "INTEGER DEFAULT 0"),
 
-            ("is_deleted", "INTEGER DEFAULT 0")
+            ("is_deleted", "INTEGER DEFAULT 0"),
+            ("is_internal", "INTEGER NOT NULL DEFAULT 0")
         ]
 
         for column, column_type in partner_columns:
@@ -1288,24 +1553,9 @@ def create_tables():
         ensure_finance_schema(conn)
 
         # ==================================================
-        # BRAND MIGRATION: RESERVED SIGNUP REFERRAL CODE
+        # COMPANY-OWNED DIRECT PARTNER
         # ==================================================
-        # This is a reserved fallback code, not a real partner referral code.
-        # Keep existing attribution while changing only the old fallback value.
-        try:
-            if table_exists(cur, "admin_settings"):
-                cur.execute("""
-                    UPDATE admin_settings SET setting_value='SV00000'
-                    WHERE setting_key='default_referral_code'
-                      AND UPPER(TRIM(setting_value))='WM00000'
-                """)
-            if table_exists(cur, "workers"):
-                cur.execute("""
-                    UPDATE workers SET referred_by='SV00000'
-                    WHERE UPPER(TRIM(COALESCE(referred_by,'')))='WM00000'
-                """)
-        except sqlite3.Error as brand_migration_error:
-            print(f"Reserved referral-code migration warning: {brand_migration_error}")
+        ensure_sivdhi_direct_partner(conn)
 
         # ==================================================
         # SAVE DATABASE

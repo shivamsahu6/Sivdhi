@@ -201,13 +201,17 @@ button.logout-button{display:block;background:transparent;border:0;padding:14px;
 
 <div class="menu-list" id="menu">
 
+{% if not is_internal_partner %}
 <a href="/partner/edit-profile">
 ✏ Edit Profile
 </a>
+{% endif %}
 
+{% if not is_internal_partner %}
 <a href="/partner/bank">
 🏦 Bank Details
 </a>
+{% endif %}
 
 <a href="/partner/help">
 ❓ Help & Support
@@ -267,17 +271,13 @@ button.logout-button{display:block;background:transparent;border:0;padding:14px;
 </div>
 
 <div class="row">
-
-<div class="label">
-Wallet Balance
-</div>
-
-<div class="wallet">
-₹ {{ partner["wallet"] }}
-</div>
-
-
-
+{% if is_internal_partner %}
+    <div class="label">Account Type</div>
+    <div class="value">Sivdhi Internal Partner</div>
+{% else %}
+    <div class="label">Wallet Balance</div>
+    <div class="wallet">₹ {{ partner["wallet"] }}</div>
+{% endif %}
 </div>
 
 <div class="row">

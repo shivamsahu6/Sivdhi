@@ -71,3 +71,41 @@ def test_unassigned_booking_refund_is_queued_or_left_for_admin_review():
     assert "Admin review" in segment
     assert "add_finance_ledger_entry(" not in segment
     assert '"Booking Cancelled"' in segment
+
+
+
+def test_sivdhi_direct_is_protected_internal_partner_without_withdrawal():
+    database = source("database.py")
+    decorators = source("routes/decorators.py")
+    partner = source("routes/partner.py")
+    finance = source("utils/sivdhi_finance.py")
+    admin = source("routes/admin.py")
+    assert 'SIVDHI_DIRECT_PARTNER_ID = "SP00000"' in database
+    assert 'SIVDHI_DIRECT_REFERRAL_CODE = "SV00000"' in database
+    assert 'SIVDHI_DIRECT_EMAIL = "shivamsahu.co@gmail.com"' in database
+    assert 'SIVDHI_DIRECT_MOBILE = "8954015683"' in database
+    assert 'session["is_internal_partner"] = bool(partner["is_internal"] or 0)' in decorators
+    assert "Withdrawals are disabled for the Sivdhi Direct company account." in partner
+    assert "Bank details cannot be added to the Sivdhi Direct company account." in partner
+    assert 'if partner_id == "SP00000":' in finance
+    assert "protected internal account and cannot be suspended" in admin
+    assert "protected internal account and cannot be deleted" in admin
+
+
+def test_sivdhi_direct_internal_wallet_controls_are_not_rendered():
+    home = source("templates/partner/home.html")
+    wallet = source("templates/partner/wallet.html")
+    profile = source("templates/partner/profile.html")
+    assert "is_internal_partner" in home
+    assert "Partner commission is retained by Sivdhi" in home
+    assert "is_internal_partner" in wallet
+    assert "Partner commission from its workers is retained by Sivdhi" in wallet
+    assert "{% if not is_internal_partner %}" in profile
+
+
+
+def test_sivdhi_direct_company_identity_is_read_only():
+    partner = source("routes/partner.py")
+    profile = source("templates/partner/profile.html")
+    assert "The Sivdhi Direct company identity is managed by Sivdhi Admin." in partner
+    assert "{% if not is_internal_partner %}" in profile

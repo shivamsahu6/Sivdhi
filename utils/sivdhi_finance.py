@@ -364,25 +364,68 @@ def get_commission_rates(conn) -> tuple[float, float]:
 
 
 def find_partner_for_worker(conn, worker_db_id: int) -> str | None:
-    """Find an assigned worker's partner without exposing that relationship to customers."""
+    """Find a worker's explicit team first; only use referral attribution if unlinked."""
     try:
         worker = conn.execute(
-            "SELECT id, worker_id FROM workers WHERE id=? LIMIT 1", (worker_db_id,)
+            "SELECT id, worker_id, referred_by FROM workers WHERE id=? LIMIT 1",
+            (worker_db_id,),
         ).fetchone()
         if not worker:
             return None
-        rows = conn.execute("""
-            SELECT p.partner_id
-            FROM partner_workers pw
-            JOIN partners p ON CAST(p.partner_id AS TEXT)=CAST(pw.partner_id AS TEXT)
-            WHERE CAST(pw.worker_id AS TEXT) IN (?, ?)
-              AND COALESCE(p.is_deleted,0)=0
-            ORDER BY pw.id ASC LIMIT 1
-        """, (str(worker["worker_id"]), str(worker["id"]))).fetchone()
-        return str(rows[0]) if rows and rows[0] else None
+
+        worker_keys = (str(worker["worker_id"]), str(worker["id"]))
+        mapping = conn.execute("""
+            SELECT partner_id
+            FROM partner_workers
+            WHERE CAST(worker_id AS TEXT) IN (?, ?)
+            ORDER BY id ASC LIMIT 1
+        """, worker_keys).fetchone()
+        if mapping:
+            # An explicit mapping is authoritative even if that Partner is
+            # now suspended/deleted. Never silently transfer their worker to
+            # Sivdhi Direct just because the former Partner is inactive.
+            owner = conn.execute("""
+                SELECT partner_id
+                FROM partners
+                WHERE CAST(partner_id AS TEXT)=CAST(? AS TEXT)
+                  AND COALESCE(is_deleted,0)=0
+                  AND LOWER(COALESCE(status,'active')) <> 'suspended'
+                LIMIT 1
+            """, (str(mapping["partner_id"]),)).fetchone()
+            return str(owner["partner_id"]) if owner and owner["partner_id"] else None
+
+        referral_code = str(worker["referred_by"] or "").strip()
+        if not referral_code:
+            return None
+        partner = conn.execute("""
+            SELECT partner_id
+            FROM partners
+            WHERE UPPER(TRIM(COALESCE(referral_code,'')))=UPPER(?)
+              AND COALESCE(is_deleted,0)=0
+              AND LOWER(COALESCE(status,'active')) <> 'suspended'
+            LIMIT 1
+        """, (referral_code,)).fetchone()
+        if not partner or not partner["partner_id"]:
+            return None
+
+        # Repair missing mapping for an older signup; never overwrite any
+        # existing Partner attribution.
+        conn.execute("""
+            INSERT INTO partner_workers(partner_id, worker_id)
+            SELECT ?, ?
+            WHERE NOT EXISTS (
+                SELECT 1 FROM partner_workers
+                WHERE CAST(worker_id AS TEXT) IN (?, ?)
+            )
+        """, (
+            str(partner["partner_id"]),
+            str(worker["worker_id"]),
+            worker_keys[0],
+            worker_keys[1],
+        ))
+        return str(partner["partner_id"])
     except Exception:
         return None
-
 
 def add_finance_ledger_entry(conn, booking_id: str, entry_type: str,
                              amount: float, status: str,
@@ -444,7 +487,8 @@ def settle_completed_booking(conn, booking_db_id: int) -> tuple[bool, str]:
     partner = None
     if partner_id:
         partner = conn.execute("""
-            SELECT partner_id, wallet FROM partners
+            SELECT partner_id, wallet, COALESCE(is_internal,0) AS is_internal
+            FROM partners
             WHERE CAST(partner_id AS TEXT)=CAST(? AS TEXT)
               AND COALESCE(is_deleted,0)=0 LIMIT 1
         """, (partner_id,)).fetchone()
@@ -467,7 +511,22 @@ def settle_completed_booking(conn, booking_db_id: int) -> tuple[bool, str]:
         snapshot_partner = snapshot_platform = 0.0
     partner_rate = snapshot_partner if has_snapshot else current_partner_rate
     platform_rate = snapshot_platform if has_snapshot else current_platform_rate
-    if partner:
+    is_internal_partner = bool(partner["is_internal"]) if partner else False
+    if partner_id == "SP00000":
+        # Fail closed for the reserved Direct account even if an older database
+        # row has not yet received the additive is_internal migration.
+        is_internal_partner = True
+
+    if partner and is_internal_partner:
+        # Sivdhi Direct manages the worker but receives no partner payout.
+        # Retain the partner share and platform share as company income.
+        company_rate = round(partner_rate + platform_rate, 2)
+        partner_rate = 0.0
+        partner_amount = 0.0
+        platform_rate = company_rate
+        platform_amount = money(total * platform_rate / 100)
+        worker_amount = money(max(0, total - platform_amount))
+    elif partner:
         partner_amount = money(total * partner_rate / 100)
         platform_amount = money(total * platform_rate / 100)
         worker_amount = money(max(0, total - partner_amount - platform_amount))
