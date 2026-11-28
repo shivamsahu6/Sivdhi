@@ -10,6 +10,8 @@
     <meta name="robots" content="noindex, follow">
     <link rel="canonical" href="https://sivdhi.duckdns.org/customer/signup">
     <link rel="manifest" href="/static/pwa/customer/manifest.json">
+    <link rel="icon" type="image/jpeg" href="/static/sivdhi-logo.jpg">
+    <link rel="apple-touch-icon" href="/static/sivdhi-logo.jpg">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Sivdhi">
@@ -17,12 +19,12 @@
     <meta property="og:title" content="Sivdhi Customer Registration | Create Account">
     <meta property="og:description" content="Create your free Sivdhi customer account to explore home services, check local availability and place service booking requests.">
     <meta property="og:url" content="https://sivdhi.duckdns.org/customer/signup">
-    <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
+    <meta property="og:image" content="https://sivdhi.duckdns.org/static/sivdhi-logo.jpg">
     <meta property="og:image:alt" content="Sivdhi app icon">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Sivdhi Customer Registration | Create Account">
     <meta name="twitter:description" content="Create your free Sivdhi customer account to explore home services, check local availability and place service booking requests.">
-    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
+    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/sivdhi-logo.jpg">
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -134,13 +136,17 @@
             width: 42px;
             height: 42px;
             flex-shrink: 0;
-            display: grid;
-            place-items: center;
+            overflow: hidden;
             border-radius: 13px;
-            background: linear-gradient(135deg,var(--pink),var(--purple),var(--blue));
             box-shadow: 0 0 24px rgba(164,57,255,.23);
-            font-size: 23px;
-            font-weight: 800;
+        }
+
+        .brand-icon img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+            border-radius: inherit;
         }
 
         .brand-name {
@@ -687,7 +693,7 @@
     <div class="glow purple"></div>
 
     <a class="brand" href="{{ url_for('customer.login') }}">
-        <div class="brand-icon">S</div>
+        <div class="brand-icon"><img src="/static/sivdhi-logo.jpg" alt="Sivdhi logo"></div>
         <div>
             <div class="brand-name">sivdhi<span>.</span></div>
             <span class="brand-subtitle">HOME SERVICES, SIMPLIFIED</span>
