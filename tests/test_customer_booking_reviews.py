@@ -140,12 +140,15 @@ def test_shared_footer_uses_role_specific_review_and_contact_pages():
         Path(__file__).resolve().parents[1] / "templates/_sivdhi_footer.html"
     ).read_text(encoding="utf-8")
 
-    worker_section = footer.split(
+    role_links = footer.split(
+        '<section class="sivdhi-footer-column" aria-label="Role links">', 1
+    )[1]
+    worker_section = role_links.split(
         "{% if sivdhi_footer_role|default('customer') == 'worker' %}", 1
     )[1].split(
         "{% elif sivdhi_footer_role|default('customer') == 'partner' %}", 1
     )[0]
-    partner_section = footer.split(
+    partner_section = role_links.split(
         "{% elif sivdhi_footer_role|default('customer') == 'partner' %}", 1
     )[1].split(
         "{% else %}", 1
