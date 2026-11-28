@@ -236,7 +236,14 @@ def _is_login_request() -> bool:
 
 def _clear_invalid_session_response(role: str):
     """Clear a stale session; never block a fresh login submission behind it."""
+    # CSRFProtect runs after this hook. Keep only its existing session token
+    # so the submitted login form can still be validated on this same POST.
+    csrf_session_key = current_app.config.get("WTF_CSRF_FIELD_NAME", "csrf_token")
+    csrf_token = session.get(csrf_session_key)
     session.clear()
+    if csrf_token:
+        session[csrf_session_key] = csrf_token
+
     if _is_login_request():
         # Let this same GET/POST reach the normal login handler. When the
         # submitted credentials authenticate, after_app_request can issue a
