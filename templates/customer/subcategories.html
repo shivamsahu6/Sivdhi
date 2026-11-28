@@ -805,6 +805,99 @@
     .subcategory-photo { width: min(100%, 70px); }
 }
 
+
+/* Photo-first subcategory cards, matching the customer home catalog. */
+.subcategory-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 16px;
+}
+.subcategory-card {
+    position: relative;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    align-items: stretch;
+    border: 1px solid #e8e5ed;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 5px 18px rgba(10, 7, 18, .12);
+    color: #17131d;
+}
+.subcategory-card:hover {
+    transform: translateY(-3px);
+    border-color: #c8a4ed;
+    box-shadow: 0 9px 24px rgba(10, 7, 18, .18);
+}
+.subcategory-photo {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1.12 / 1;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 15px 15px 0 0;
+    background-color: #f1eef5;
+}
+.subcategory-photo img { width: 100%; height: 100%; object-fit: cover; }
+.subcategory-photo-placeholder {
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #f5effb, #eee8f7);
+}
+.subcategory-photo-placeholder .subcategory-icon {
+    width: 52px;
+    height: 52px;
+    color: #6d28d9;
+    border-color: #e5d7f5;
+    background: #fff;
+}
+.subcategory-content {
+    width: 100%;
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 7px 7px 9px;
+    background: #fff;
+    text-align: center;
+}
+.subcategory-name {
+    margin: 0;
+    color: #17131d;
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 750;
+    text-align: center;
+}
+.subcategory-description { display: none; }
+.subcategory-price {
+    align-self: center;
+    margin-top: 5px;
+    padding: 3px 7px;
+    border: 0;
+    border-radius: 7px;
+    background: #f2eafa;
+    color: #59268e;
+    font-size: 10px;
+    font-weight: 800;
+}
+.open-label, .card-arrow { display: none; }
+@media (max-width: 760px) {
+    .subcategory-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .subcategory-card { min-height: 0; padding: 0; }
+    .subcategory-photo { width: 100%; aspect-ratio: 1.05 / 1; margin: 0; border-radius: 13px 13px 0 0; }
+    .subcategory-content { min-height: 54px; padding: 6px 5px 8px; }
+    .subcategory-name { font-size: 11px; }
+    .subcategory-price { margin-top: 4px; font-size: 9px; }
+}
+@media (max-width: 350px) {
+    .subcategory-grid { gap: 7px; }
+    .subcategory-name { font-size: 10px; }
+}
+
 </style>
     <link rel="icon" type="image/jpeg" href="/static/sivdhi-logo.jpg">
     <link rel="apple-touch-icon" href="/static/sivdhi-logo.jpg">
