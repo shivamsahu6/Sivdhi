@@ -1459,6 +1459,8 @@ def catalog_photo_class(name, kind="subcategory"):
     normalized = re.sub(r"[^a-z0-9]+", " ", str(name or "").lower()).strip()
 
     if kind == "category":
+        if "cleaner" in normalized or "cleaning" in normalized or "housekeeping" in normalized:
+            return "home-cleaner"
         if "appliance" in normalized:
             return "appliance-category"
         if re.search(r"\bac\b", normalized) or "air conditioner" in normalized:

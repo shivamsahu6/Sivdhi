@@ -68,6 +68,10 @@ class CatalogPhotoMappingTests(unittest.TestCase):
             catalog_photo_class("Appliance Repair Service", "category"),
             "appliance-category",
         )
+        self.assertEqual(
+            catalog_photo_class("Home Cleaner", "category"),
+            "home-cleaner",
+        )
         cases = {
             "Microwave Oven": "microwave",
             "Chimney": "chimney",
