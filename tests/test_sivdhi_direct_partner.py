@@ -207,3 +207,35 @@ def test_direct_partner_bootstrap_does_not_take_over_an_existing_referral_owner(
         ).fetchone()[0] == "SV00000"
     finally:
         db.close()
+
+
+
+def test_explicit_suspended_partner_mapping_is_not_reassigned_to_direct():
+    db = make_db()
+    try:
+        db.execute("""
+            INSERT INTO partners(
+                partner_id,referral_code,fullname,email,mobile,password,status
+            ) VALUES(
+                'SP-OLD','OLD-CODE','Old Partner',
+                'old@example.com','9999999999','hash','suspended'
+            )
+        """)
+        db.execute(
+            "INSERT INTO workers(worker_id,referred_by) VALUES('W-OWNED','SV00000')"
+        )
+        db.execute(
+            "INSERT INTO partner_workers(partner_id,worker_id) VALUES('SP-OLD','W-OWNED')"
+        )
+        assert ensure_sivdhi_direct_partner(db) is True
+
+        worker = db.execute(
+            "SELECT id FROM workers WHERE worker_id='W-OWNED'"
+        ).fetchone()
+        assert find_partner_for_worker(db, worker["id"]) is None
+        assert db.execute(
+            "SELECT COUNT(*) FROM partner_workers "
+            "WHERE partner_id='SP00000' AND worker_id='W-OWNED'"
+        ).fetchone()[0] == 0
+    finally:
+        db.close()
