@@ -610,7 +610,13 @@
                 text-align: left;
             }
         }
-    </style>
+    
+        .brand-logo img, .brand-icon img, .brand-mark img, .app-logo img, .logo img, .mark img {
+            width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit;
+        }
+</style>
+    <link rel="icon" type="image/jpeg" href="/static/sivdhi-logo.jpg">
+    <link rel="apple-touch-icon" href="/static/sivdhi-logo.jpg">
 </head>
 
 <body>
@@ -620,7 +626,7 @@
 
 <aside class="sidebar" id="sidebar">
     <div class="brand">
-        <div class="brand-logo">S</div>
+        <div class="brand-logo"><img src="/static/sivdhi-logo.jpg" alt="Sivdhi logo"></div>
         <div class="brand-text">
             <strong>Sivdhi</strong>
             <span>ADMINISTRATION</span>

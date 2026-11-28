@@ -32,7 +32,7 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Sivdhi">
     <meta property="og:locale" content="en_IN">
-    <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
+    <meta property="og:image" content="https://sivdhi.duckdns.org/static/sivdhi-logo.jpg">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="{% if area and service_category %}{{ service_category.display_name }} Services in {{ area.city }}, {{ area.state }} | Sivdhi{% elif area %}Home Services in {{ area.city }}, {{ area.state }} | Sivdhi{% else %}Sivdhi Service Areas | Home Services by City{% endif %}">
     <meta name="twitter:description" content="{% if area and service_category %}Browse listed {{ service_category.display_name|lower }} options in {{ area.city }}, {{ area.state }} and check availability before booking.{% elif area %}Browse currently listed home-service categories in {{ area.city }}, {{ area.state }}.{% else %}Explore cities where Sivdhi currently lists home-service categories.{% endif %}">
@@ -56,6 +56,8 @@
         .back{display:inline-flex;margin-top:22px;color:#d8baff;font-size:12px;font-weight:750}
         @media(prefers-reduced-motion:reduce){.item{transition:none}.item:hover{transform:none}}
     </style>
+    <link rel="icon" type="image/jpeg" href="/static/sivdhi-logo.jpg">
+    <link rel="apple-touch-icon" href="/static/sivdhi-logo.jpg">
 </head>
 <body>
     <header class="top">

@@ -621,7 +621,13 @@
                 transition-duration: .01ms !important;
             }
         }
-    </style>
+    
+        .brand-icon img, .brand-mark img, .app-logo img, .logo img, .mark img {
+            width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit;
+        }
+</style>
+    <link rel="icon" type="image/jpeg" href="/static/sivdhi-logo.jpg">
+    <link rel="apple-touch-icon" href="/static/sivdhi-logo.jpg">
 </head>
 
 <body>
@@ -692,7 +698,7 @@
             <a href="{{ url_for('customer.home') }}"
                class="brand"
                aria-label="Sivdhi home">
-                <span class="brand-icon" aria-hidden="true">S</span>
+                <span class="brand-icon" aria-hidden="true"><img src="/static/sivdhi-logo.jpg" alt="Sivdhi logo"></span>
 
                 <span>
                     <span class="brand-name">Siv<span>dh</span>i</span>
