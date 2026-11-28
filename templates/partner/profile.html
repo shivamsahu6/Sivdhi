@@ -201,9 +201,11 @@ button.logout-button{display:block;background:transparent;border:0;padding:14px;
 
 <div class="menu-list" id="menu">
 
+{% if not is_internal_partner %}
 <a href="/partner/edit-profile">
 ✏ Edit Profile
 </a>
+{% endif %}
 
 {% if not is_internal_partner %}
 <a href="/partner/bank">
