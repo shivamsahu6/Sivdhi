@@ -352,16 +352,18 @@
                 <div class="notice">Arrival recorded. Remaining balance: ₹{{ '%.2f'|format(balance_due) }}.</div>
                 {% if not job["worker_id_verified_at"] %}
                 <div class="notice" style="margin-top:12px;background:#fff3da;color:#8a4c08;">Waiting for the customer to check the physical Sivdhi Worker ID card and verify it in My Bookings. Start Job is locked until then.</div>
-                {% elif payment_complete %}
-                <form method="post" action="/partner/job/{{ job['id'] }}/start" onsubmit="return lockAction(this);" style="margin-top:12px;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn accept" type="submit">Start Job</button>
-                </form>
-                {% elif not payment_complete %}
-                    {% if balance_due > 0 %}
-                    <div class="notice" style="margin-top:12px;">Waiting for the customer to pay the remaining ₹{{ '%.2f'|format(balance_due) }}. Start Job will unlock only after the full booking payment is confirmed.</div>
-                    {% else %}
-                    <div class="notice" style="margin-top:12px;">Waiting for confirmation that the complete booking amount, including the advance, has been paid.</div>
+                {% else %}
+                    {% if payment_complete %}
+                    <form method="post" action="/partner/job/{{ job['id'] }}/start" onsubmit="return lockAction(this);" style="margin-top:12px;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn accept" type="submit">Start Job</button>
+                    </form>
+                    {% elif not payment_complete %}
+                        {% if balance_due > 0 %}
+                        <div class="notice" style="margin-top:12px;">Waiting for the customer to pay the remaining ₹{{ '%.2f'|format(balance_due) }}. Start Job will unlock only after the full booking payment is confirmed.</div>
+                        {% else %}
+                        <div class="notice" style="margin-top:12px;">Waiting for confirmation that the complete booking amount, including the advance, has been paid.</div>
+                        {% endif %}
                     {% endif %}
                 {% endif %}
             {% endif %}
