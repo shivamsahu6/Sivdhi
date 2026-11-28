@@ -4,8 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#09070f">
-    <title>About Sivdhi | Discover and Book Home Services</title>
-    <meta name="description" content="Learn how Sivdhi helps customers browse home-service categories, compare displayed prices, check local availability and request bookings online.">
+    <title>About Sivdhi | Founded by Shivam Sahu | Home Services Platform</title>
+    <meta name="description" content="Discover Sivdhi, an Indian home-services booking platform founded by Shivam Sahu. Learn why it was created, how it works, its launch date and customer services.">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Sivdhi">
+    <meta property="og:title" content="About Sivdhi | Our Story, Founder and Mission">
+    <meta property="og:description" content="Learn about Sivdhi, founded by Shivam Sahu and launched on 21 November 2026 to make home-service discovery and booking simpler.">
+    <meta property="og:url" content="https://sivdhi.duckdns.org/customer/about">
+    <meta name="twitter:card" content="summary">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://sivdhi.duckdns.org/#organization",
+          "name": "Sivdhi",
+          "url": "https://sivdhi.duckdns.org/",
+          "founder": {"@id": "https://sivdhi.duckdns.org/#founder"},
+          "foundingDate": "2026-11-21",
+          "description": "Sivdhi is an Indian online platform for discovering and booking listed home services, subject to local service availability.",
+          "sameAs": [
+            "https://www.instagram.com/sivdhiapp/",
+            "https://www.threads.net/@sivdhiapp/"
+          ]
+        },
+        {
+          "@type": "Person",
+          "@id": "https://sivdhi.duckdns.org/#founder",
+          "name": "Shivam Sahu",
+          "jobTitle": "Founder",
+          "worksFor": {"@id": "https://sivdhi.duckdns.org/#organization"}
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://sivdhi.duckdns.org/#website",
+          "url": "https://sivdhi.duckdns.org/",
+          "name": "Sivdhi",
+          "publisher": {"@id": "https://sivdhi.duckdns.org/#organization"},
+          "inLanguage": ["en-IN", "hi-IN"]
+        }
+      ]
+    }
+    </script>
     <meta name="robots" content="index, follow, max-image-preview:large">
     <link rel="canonical" href="https://sivdhi.duckdns.org/customer/about">
     <style>
@@ -37,42 +78,47 @@
         <aside class="side-nav" aria-label="On this page">
             <h2>On this page</h2>
             <a href="#who-we-are">Who We Are</a>
-            <a href="#services">सेवाएँ</a>
-            <a href="#account">Account Creation</a>
-            <a href="#data">डेटा इस्तेमाल करने की सहमति</a>
-            <a href="#booking">बुकिंग</a>
-            <a href="#responsibilities">आपकी जिम्मेदारियाँ</a>
-            <a href="#support">शिकायत निवारण</a>
+            <a href="#founder">Founder</a>
+            <a href="#mission">Our Mission</a>
+            <a href="#launch">Launch &amp; Journey</a>
+            <a href="#services">Services</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#trust">Trust &amp; Safety</a>
+            <a href="#support">Support
         </aside>
         <div class="content">
             <section class="page-heading" id="who-we-are">
-                <div class="eyebrow">About Us</div>
-                <h1>About Sivdhi</h1>
-                <p>Sivdhi Customer is a service platform where customers can explore listed home services, review prices and manage their booking journey in one place.</p>
+                <div class="eyebrow">Our Story · India</div>
+                <h1>What is Sivdhi?</h1>
+                <p>Sivdhi is an India-based online home-services discovery and booking platform. It helps customers explore listed services, check availability for their location, review displayed prices and request a service booking through one website.</p>
+            </section>
+            <section class="info-section" id="founder">
+                <h2>Who founded Sivdhi?</h2>
+                <p>Sivdhi was founded by <strong>Shivam Sahu</strong>, who envisioned a simpler digital way for people to discover and request everyday home services. The platform brings the customer booking journey and service-professional workflow together online.</p>
+            </section>
+            <section class="info-section" id="mission">
+                <h2>Why was Sivdhi created?</h2>
+                <p>Finding a suitable person for a household repair or service can take time and involve uncertainty. Sivdhi was created with the aim of making service discovery and booking more organised: customers can view listed options, check local availability, see the price shown before proceeding and follow booking updates in one place. The platform also provides a digital workflow for service professionals to receive and manage eligible job requests.</p>
+            </section>
+            <section class="info-section" id="launch">
+                <h2>When did Sivdhi launch?</h2>
+                <p>Sivdhi’s public website launch date is <strong>21 November 2026</strong>. The platform continues to evolve as its service catalogue, booking experience and professional workflows are improved.</p>
             </section>
             <section class="info-section" id="services">
-                <h2>सेवाएँ</h2>
-                <p>Browse active service categories and their subcategories from the Customer Homepage. Service prices shown on the platform are taken from the configured catalogue. Availability depends on the selected service type and the service area checked for your location.</p>
+                <h2>What services does Sivdhi offer?</h2>
+                <p>Sivdhi lists home-service categories and subcategories, including household repair and maintenance options where available. The live catalogue on the website is the source of current services and prices. Service availability depends on the selected service, location and available professionals; Sivdhi does not claim that every service is available in every city.</p>
             </section>
-            <section class="info-section" id="account">
-                <h2>Account Creation</h2>
-                <p>You can explore the public service catalogue without signing in. An account is required when you choose a subcategory and continue towards booking. Keep the information you submit for your account accurate and current.</p>
+            <section class="info-section" id="how-it-works">
+                <h2>How does Sivdhi work?</h2>
+                <p>Customers visit the <a href="{{ url_for('customer.home') }}">Sivdhi website</a>, choose Normal or Full-Day service where offered, select a listed category and service, provide the requested location and booking details, review the amount and complete the payment steps shown at checkout. The platform then processes the booking and worker-matching workflow. Customers can follow available updates in their account under Bookings.</p>
             </section>
-            <section class="info-section" id="data">
-                <h2>डेटा इस्तेमाल करने की सहमति</h2>
-                <p>Information submitted while using the customer website is handled according to the <a href="{{ url_for('customer.privacy') }}">Privacy Policy</a>. Please review that policy before submitting account, location or booking information.</p>
-            </section>
-            <section class="info-section" id="booking">
-                <h2>बुकिंग</h2>
-                <p>Choose the Normal or Full-Day service type, open a category, select a subcategory and follow the booking steps shown on the website. Before a booking proceeds, Sivdhi checks whether the selected service is available in the chosen area.</p>
-            </section>
-            <section class="info-section" id="responsibilities">
-                <h2>आपकी जिम्मेदारियाँ</h2>
-                <p>Provide correct account and booking details, choose the intended service and service address, review the displayed price and booking information, and keep your sign-in credentials and OTP private.</p>
+            <section class="info-section" id="trust">
+                <h2>Payments, privacy and service information</h2>
+                <p>Customers should review the final booking details and payment status on the website. Payment confirmation is handled through the configured payment flow; never share an OTP, UPI PIN, card PIN or password with anyone. Account and booking information is handled under the <a href="{{ url_for('customer.privacy') }}">Privacy Policy</a>. Platform availability, service scope and displayed prices can vary by location and catalogue updates.</p>
             </section>
             <section class="info-section" id="support">
-                <h2>शिकायत निवारण</h2>
-                <p>For common questions, visit <a href="{{ url_for('customer.help') }}">Help</a> or <a href="{{ url_for('customer.faq') }}">FAQs</a>. To create or track a customer support request, use the existing <a href="{{ url_for('customer.support') }}">Contact Us</a> facility after signing in.</p>
+                <h2>Help, FAQs and customer support</h2>
+                <p>For common questions, visit <a href="{{ url_for('customer.faq') }}">Sivdhi FAQs</a> or <a href="{{ url_for('customer.help') }}">Help</a>. Customers can use the <a href="{{ url_for('customer.support') }}">Contact Us</a> support facility after signing in. Review the <a href="{{ url_for('customer.terms') }}">Terms &amp; Conditions</a> and <a href="{{ url_for('customer.privacy') }}">Privacy Policy</a> before booking.</p>
             </section>
             <nav class="footer-links" aria-label="Legal links">
                 <a href="{{ url_for('customer.terms') }}">Terms &amp; Conditions</a>
