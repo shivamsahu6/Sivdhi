@@ -27,6 +27,7 @@ from utils.email_sender import send_otp
 from utils.otp_security import reserve_otp_request
 from utils.pending_changes import issue_pending_change, refresh_pending_change, verify_pending_change, delete_pending_change
 from database import get_db
+from utils.upload_cleanup import delete_replaced_profile_photo
 from utils.sivdhi_finance import (
     ensure_finance_schema, is_demo_mode, add_finance_ledger_entry,
     settle_completed_booking, money as finance_money, booking_is_fully_paid,
@@ -2294,9 +2295,8 @@ def edit_profile():
             "profile_photo"
         )
 
-        photo_name = worker[
-            "profile_photo"
-        ]
+        old_photo_name = worker["profile_photo"] or ""
+        photo_name = old_photo_name
 
         if (
             photo
@@ -2431,6 +2431,7 @@ def edit_profile():
             )
 
             conn.commit()
+            delete_replaced_profile_photo(conn, old_photo_name, photo_name)
 
         except Exception as error:
 
