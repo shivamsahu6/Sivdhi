@@ -930,24 +930,6 @@ def create_tables():
 
 
         # ==================================================
-        # CUSTOMER WORKER ID VERIFICATION
-        # ==================================================
-
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS booking_worker_id_verifications (
-                booking_id INTEGER PRIMARY KEY,
-                customer_id INTEGER NOT NULL,
-                worker_id INTEGER NOT NULL,
-                verified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_worker_id_verification_owner
-            ON booking_worker_id_verifications(customer_id, booking_id)
-        """)
-
-
-        # ==================================================
         # REVIEWS
         # ==================================================
 

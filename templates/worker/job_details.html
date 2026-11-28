@@ -678,39 +678,31 @@
                     {% endif %}
 
                 <p class="muted">
-                    This records arrival only. Start Job becomes available
-                    after arrival is recorded and the customer pays any
-                    remaining balance.
+                    This records arrival only. Show your official Sivdhi Worker ID Card to the customer and let them match your photo and Worker ID. Start Job becomes available after arrival and full payment confirmation.
                 </p>
 
                 {% elif status == 'accepted' and worker_arrived %}
 
-                    {% if not worker_id_verified %}
+                    {% if not payment_complete %}
+
+                    {% if balance_due > 0 %}
                     <div class="notice warning">
-                        Waiting for the customer to see your official Sivdhi Worker ID card and verify your name, photo and Worker ID in My Bookings. Service Start stays locked until verification is complete.
+                        Waiting for the customer to pay the remaining
+                        ₹{{ "%.2f"|format(balance_due) }} from My Bookings.
+                        Start Job will become available only after the full
+                        booking payment is confirmed.
                     </div>
                     {% else %}
-                        {% if not payment_complete %}
+                    <div class="notice warning">
+                        Waiting for confirmation that the complete booking
+                        amount, including the advance, has been paid.
+                    </div>
+                    {% endif %}
 
-                        {% if balance_due > 0 %}
-                        <div class="notice warning">
-                            Waiting for the customer to pay the remaining
-                            ₹{{ "%.2f"|format(balance_due) }} from My Bookings.
-                            Start Job will become available only after the full
-                            booking payment is confirmed.
-                        </div>
-                        {% else %}
-                        <div class="notice warning">
-                            Waiting for confirmation that the complete booking
-                            amount, including the advance, has been paid.
-                        </div>
-                        {% endif %}
-
-                        {% else %}
-                        <button class="action start" type="button" onclick="runAction('start', this)">
-                            ▶ Start Job
-                        </button>
-                        {% endif %}
+                    {% else %}
+                    <button class="action start" type="button" onclick="runAction('start', this)">
+                        ▶ Start Job
+                    </button>
                     {% endif %}
 
                 {% elif status in ['started','in_progress'] %}

@@ -1,36 +1,8 @@
-import sqlite3
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from utils import worker_identity
-
-
-def test_worker_id_verification_table_is_additive_idempotent_and_scoped():
-    conn = sqlite3.connect(":memory:")
-    try:
-        worker_identity.ensure_worker_id_verification_schema(conn)
-        worker_identity.ensure_worker_id_verification_schema(conn)
-        columns = {
-            row[1]
-            for row in conn.execute(
-                "PRAGMA table_info(booking_worker_id_verifications)"
-            ).fetchall()
-        }
-        assert {"booking_id", "customer_id", "worker_id", "verified_at"}.issubset(columns)
-
-        conn.execute(
-            """
-            INSERT INTO booking_worker_id_verifications
-                (booking_id, customer_id, worker_id)
-            VALUES (91, 12, 7)
-            """
-        )
-        assert worker_identity.is_worker_id_verified(conn, 91, 12, 7) is True
-        assert worker_identity.is_worker_id_verified(conn, 91, 12, 8) is False
-        assert worker_identity.is_worker_id_verified(conn, 91, 13, 7) is False
-        assert worker_identity.is_worker_id_verified(conn, 92, 12, 7) is False
-    finally:
-        conn.close()
 
 
 def test_worker_id_card_svg_contains_worker_identity_and_escapes_untrusted_fields():
@@ -51,26 +23,32 @@ def test_worker_id_card_svg_contains_worker_identity_and_escapes_untrusted_field
 
 
 def test_worker_id_card_embeds_only_managed_profile_image_and_uses_safe_filename():
-    with patch.object(worker_identity, "WORKER_UPLOAD_DIR", Path("/tmp/sivdhi-worker-id-test")):
-        root = Path("/tmp/sivdhi-worker-id-test")
-        root.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="sivdhi-worker-id-") as temp_dir:
+        root = Path(temp_dir)
         image_path = root / "worker-card-test.jpg"
         image_path.write_bytes(b"\xff\xd8\xfftest")
-        try:
-            with patch.object(worker_identity, "WORKER_UPLOAD_DIR", root):
-                card = worker_identity.build_worker_id_card_svg({
-                    "fullname": "Ravi Kumar",
-                    "worker_id": "SW10021",
-                    "skills": "Plumbing",
-                    "profile_photo": "worker-card-test.jpg",
-                })
-            assert "data:image/jpeg;base64," in card
-            assert worker_identity.worker_id_card_filename({
-                "worker_id": "SW/10021 ?"
-            }) == "Sivdhi-Worker-ID-SW10021.svg"
-        finally:
-            image_path.unlink(missing_ok=True)
-            root.rmdir()
+
+        with patch.object(worker_identity, "WORKER_UPLOAD_DIR", root):
+            card = worker_identity.build_worker_id_card_svg({
+                "fullname": "Ravi Kumar",
+                "worker_id": "SW10021",
+                "skills": "Plumbing",
+                "profile_photo": "worker-card-test.jpg",
+            })
+
+        assert "data:image/jpeg;base64," in card
+        assert worker_identity.worker_id_card_filename({
+            "worker_id": "SW/10021 ?"
+        }) == "Sivdhi-Worker-ID-SW10021.svg"
+
+        # A path traversal attempt must never embed a file outside the upload directory.
+        with patch.object(worker_identity, "WORKER_UPLOAD_DIR", root):
+            unsafe = worker_identity.build_worker_id_card_svg({
+                "fullname": "Ravi Kumar",
+                "worker_id": "SW10021",
+                "profile_photo": "../secret.jpg",
+            })
+        assert "data:image/" not in unsafe
 
 
 def test_worker_profile_has_card_preview_and_download_action():
@@ -80,27 +58,31 @@ def test_worker_profile_has_card_preview_and_download_action():
 
     assert "worker.worker_id_card_preview" in template
     assert "worker.download_worker_id_card" in template
-    assert "Mandatory: Customer must see and verify your Sivdhi ID card" in template
+    assert "Download Worker ID Card" in template
+    assert "show it to every customer when you arrive" in template
     assert '"/worker/id-card.svg"' in route
     assert '"/worker/id-card/download"' in route
     assert 'disposition = "attachment" if download else "inline"' in route
 
 
-def test_customer_can_see_assigned_worker_card_and_verify_after_arrival():
+def test_customer_can_view_assigned_worker_id_card_without_confirming_it():
     root = Path(__file__).resolve().parents[1]
     template = (root / "templates" / "customer" / "bookings.html").read_text(encoding="utf-8")
     route = (root / "routes" / "customer.py").read_text(encoding="utf-8")
 
     assert "Your Assigned Sivdhi Worker" in template
     assert "Worker ID:" in template
-    assert "I Checked the ID Card - Verify Worker" in template
-    assert "booking['worker_arrived_at']" in template
-    assert "booking['worker_id_verified']" in template
-    assert '"/booking/<int:booking_db_id>/verify-worker-id"' in route
-    assert "booking_worker_id_verifications" in route
+    assert "View Official Worker ID Card" in template
+    assert "booking['worker_id_card_url']" in template
+    assert '"/booking/<int:booking_db_id>/worker-id-card.svg"' in route
+    assert "WHERE id=? AND customer_id=?" in route
+    assert "build_worker_id_card_svg(worker)" in route
+    assert "verify_booking_worker_id" not in route
+    assert "I Checked the ID Card" not in template
+    assert "worker_id_verified" not in template
 
 
-def test_worker_and_partner_cannot_start_without_the_matching_customer_id_verification():
+def test_worker_and_partner_start_routes_keep_only_existing_arrival_and_payment_gates():
     root = Path(__file__).resolve().parents[1]
     worker = (root / "routes" / "worker.py").read_text(encoding="utf-8")
     partner = (root / "routes" / "partner.py").read_text(encoding="utf-8")
@@ -114,13 +96,17 @@ def test_worker_and_partner_cannot_start_without_the_matching_customer_id_verifi
         '@partner_bp.route("/partner/job/<int:booking_id>/complete"', 1
     )[0]
 
-    assert "is_worker_id_verified(" in worker_start
-    assert "is_worker_id_verified(" in partner_start
-    assert "worker_id_verified" in worker_template
-    assert 'job["worker_id_verified_at"]' in partner_template
+    assert 'if not current["worker_arrived_at"]' in worker_start
+    assert "booking_is_fully_paid(current)" in worker_start
+    assert "is_worker_id_verified" not in worker_start
+    assert "if not row[\"worker_arrived_at\"]" in partner_start
+    assert "booking_is_fully_paid(row)" in partner_start
+    assert "is_worker_id_verified" not in partner_start
+    assert "worker_id_verified" not in worker_template
+    assert "worker_id_verified_at" not in partner_template
 
 
-def test_worker_partner_customer_are_all_informed_about_required_id_presentation():
+def test_worker_partner_and_customer_are_informed_that_worker_should_show_id_card():
     root = Path(__file__).resolve().parents[1]
     worker_profile = (root / "templates" / "worker" / "profile.html").read_text(encoding="utf-8")
     worker_job = (root / "templates" / "worker" / "job_details.html").read_text(encoding="utf-8")
@@ -130,20 +116,12 @@ def test_worker_partner_customer_are_all_informed_about_required_id_presentation
     worker_route = (root / "routes" / "worker.py").read_text(encoding="utf-8")
     partner_route = (root / "routes" / "partner.py").read_text(encoding="utf-8")
 
-    assert "show it to every customer" in worker_profile
-    assert "Show your Sivdhi Worker ID card to the customer" in worker_job
+    assert "show it to every customer when you arrive" in worker_profile
+    assert "Show your official Sivdhi Worker ID Card to the customer" in worker_job
     assert "Worker ID Card Rule" in partner_home
-    assert "Partner responsibility" in partner_job
-    assert "Worker identity safety" in customer_bookings
-    assert "Verify Your Worker ID Card" in worker_route
-    assert "Verify Your Worker ID Card" in partner_route
-
-
-def test_full_day_auto_completion_only_processes_jobs_that_have_started():
-    root = Path(__file__).resolve().parents[1]
-    monitor = (root / "utils" / "assignment_monitor.py").read_text(encoding="utf-8")
-    start = monitor.split("def _auto_complete_full_day_jobs", 1)[1].split(
-        "def _process_offer_pool", 1
-    )[0]
-    assert "IN ('started','in_progress')" in start
-    assert "AND worker_arrived_at IS NOT NULL" in start
+    assert "Customer can view the same card in My Bookings" in partner_job
+    assert "ask the assigned Worker to show their official Sivdhi ID card" in customer_bookings
+    assert "Show Your Sivdhi ID Card" in worker_route
+    assert "Show Sivdhi Worker ID" in partner_route
+    assert "Verify Your Worker ID Card" not in worker_route
+    assert "Verify Your Worker ID Card" not in partner_route

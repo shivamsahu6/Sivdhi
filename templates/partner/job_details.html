@@ -311,11 +311,7 @@
                     <div class="partner-worker-id-code" style="font-weight:600;">{{ job["assigned_worker_skills"] or "Home Service Professional" }}</div>
                 </div>
             </div>
-            {% if job["worker_id_verified_at"] %}
-            <div class="partner-worker-id-note" style="background:#e8fff3;color:#12633b;">✓ Customer verified this Worker ID.</div>
-            {% else %}
-            <div class="partner-worker-id-note">Partner responsibility: remind the Worker to physically show this ID card to the customer at arrival. The customer must verify the ID in My Bookings before the job can start.</div>
-            {% endif %}
+            <div class="partner-worker-id-note">Partner responsibility: remind the Worker to physically show this official ID card to the customer at arrival. Customer can view the same card in My Bookings.</div>
         </section>
         {% endif %}
 
@@ -350,20 +346,16 @@
                 {% endif %}
             {% else %}
                 <div class="notice">Arrival recorded. Remaining balance: ₹{{ '%.2f'|format(balance_due) }}.</div>
-                {% if not job["worker_id_verified_at"] %}
-                <div class="notice" style="margin-top:12px;background:#fff3da;color:#8a4c08;">Waiting for the customer to check the physical Sivdhi Worker ID card and verify it in My Bookings. Start Job is locked until then.</div>
-                {% else %}
-                    {% if payment_complete %}
-                    <form method="post" action="/partner/job/{{ job['id'] }}/start" onsubmit="return lockAction(this);" style="margin-top:12px;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="btn accept" type="submit">Start Job</button>
-                    </form>
-                    {% elif not payment_complete %}
-                        {% if balance_due > 0 %}
-                        <div class="notice" style="margin-top:12px;">Waiting for the customer to pay the remaining ₹{{ '%.2f'|format(balance_due) }}. Start Job will unlock only after the full booking payment is confirmed.</div>
-                        {% else %}
-                        <div class="notice" style="margin-top:12px;">Waiting for confirmation that the complete booking amount, including the advance, has been paid.</div>
-                        {% endif %}
+                {% if payment_complete %}
+                <form method="post" action="/partner/job/{{ job['id'] }}/start" onsubmit="return lockAction(this);" style="margin-top:12px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn accept" type="submit">Start Job</button>
+                </form>
+                {% elif not payment_complete %}
+                    {% if balance_due > 0 %}
+                    <div class="notice" style="margin-top:12px;">Waiting for the customer to pay the remaining ₹{{ '%.2f'|format(balance_due) }}. Start Job will unlock only after the full booking payment is confirmed.</div>
+                    {% else %}
+                    <div class="notice" style="margin-top:12px;">Waiting for confirmation that the complete booking amount, including the advance, has been paid.</div>
                     {% endif %}
                 {% endif %}
             {% endif %}
