@@ -492,7 +492,11 @@ def test_worker_partner_signup_footer_is_below_form_and_has_reviews_contact_link
     assert signup_template.index("{% include '_sivdhi_footer.html' %}") > signup_template.index("</div>\n<script>")
 
     client = app.test_client()
-    for role, heading in (("worker", "For Worker"), ("partner", "For Partner")):
+    expected_links = (
+        ("worker", "For Worker", "/worker/rate-app", "/worker/help"),
+        ("partner", "For Partner", "/partner/rate-app", "/partner/help"),
+    )
+    for role, heading, reviews_url, contact_url in expected_links:
         response = client.get(f"/signup?role={role}")
         assert response.status_code == 200
         page = response.get_data(as_text=True)
@@ -503,8 +507,8 @@ def test_worker_partner_signup_footer_is_below_form_and_has_reviews_contact_link
         role_end = footer.index("</section>", role_start)
         role_column = footer[role_start:role_end]
         assert heading in role_column
-        assert 'href="/customer/reviews"' in role_column
-        assert 'href="/customer/support"' in role_column
+        assert f'href="{reviews_url}"' in role_column
+        assert f'href="{contact_url}"' in role_column
 
 
 def test_worker_and_partner_forgot_password_forms_and_partner_login_are_role_wired():
