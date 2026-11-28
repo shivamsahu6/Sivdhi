@@ -349,7 +349,9 @@
                 {% endif %}
             {% else %}
                 <div class="notice">Arrival recorded. Remaining balance: ₹{{ '%.2f'|format(balance_due) }}.</div>
-                {% if payment_complete %}
+                {% if not job["worker_id_verified_at"] %}
+                <div class="notice" style="margin-top:12px;background:#fff3da;color:#8a4c08;">Waiting for the customer to check the physical Sivdhi Worker ID card and verify it in My Bookings. Start Job is locked until then.</div>
+                {% elif payment_complete %}
                 <form method="post" action="/partner/job/{{ job['id'] }}/start" onsubmit="return lockAction(this);" style="margin-top:12px;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn accept" type="submit">Start Job</button>
