@@ -15,6 +15,9 @@ on:
     paths:
       - 'android-apk/**'
       - '.github/workflows/build-sivdhi-android-apks.yml'
+      - '.github/workflows/prepare-brand-icons.yml'
+      - 'static/pwa/**'
+      - 'scripts/prepare_brand_icons.py'
       - 'CREATE_SIVDHI_RELEASE_KEY.ps1'
       - 'ANDROID_RELEASE_OFFLINE_GUIDE.md'
 
