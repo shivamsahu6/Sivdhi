@@ -578,7 +578,7 @@
         .catalog-photo {
             background-image: url("/static/catalog/catalog-defaults.webp");
             background-repeat: no-repeat;
-            background-size: 300% 400%;
+            background-size: 300% auto;
         }
 
         .catalog-photo--ac-category { background-position: 0 0; }
@@ -602,8 +602,14 @@
             border-radius: inherit;
         }
 
+        .hero-icon {
+            width: 90px;
+            height: auto;
+            aspect-ratio: 4 / 3;
+        }
+
         .hero-icon .catalog-photo {
-            background-size: 300% 400%;
+            background-size: 300% auto;
         }
 
         .subcategory-card {
@@ -615,7 +621,9 @@
 
         .subcategory-photo {
             width: 100%;
-            height: 122px;
+            height: auto;
+            aspect-ratio: 4 / 3;
+            max-height: 122px;
             display: block;
             overflow: hidden;
             border-radius: 17px 17px 0 0;
@@ -677,7 +685,7 @@
             }
 
             .subcategory-photo {
-                height: 94px;
+                max-height: 94px;
             }
 
             .card-arrow {
