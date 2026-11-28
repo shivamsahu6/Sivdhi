@@ -19,6 +19,7 @@ from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 
 from database import get_db
+from utils.upload_cleanup import delete_replaced_catalog_photo
 from routes.decorators import admin_required
 from utils.sivdhi_finance import ensure_finance_schema, money as finance_money, add_finance_ledger_entry
 from utils.assignment_monitor import ensure_assignment_monitor_schema
@@ -2901,12 +2902,13 @@ def admin_edit_service(service_id):
                 "subcategory",
                 f"edit_service_id={service_id}",
             )
+        old_image_path = service["image_path"] or ""
         image_path = (
             uploaded_image_path
             or (
                 ""
                 if request.form.get("remove_image") == "1"
-                else (service["image_path"] or "")
+                else old_image_path
             )
         )
 
@@ -2949,6 +2951,7 @@ def admin_edit_service(service_id):
             WHERE LOWER(name)=LOWER(?)
         """, (category,))
         conn.commit()
+        delete_replaced_catalog_photo(conn, old_image_path, image_path)
         flash("Subcategory details saved.", "success")
 
     except sqlite3.IntegrityError:
@@ -3792,12 +3795,13 @@ def admin_edit_category(category_id):
             flash(str(error), "danger")
             return _catalog_redirect("category")
 
+        old_image_path = old["image_path"] or ""
         image_path = (
             uploaded_image_path
             or (
                 ""
                 if request.form.get("remove_image") == "1"
-                else (old["image_path"] or "")
+                else old_image_path
             )
         )
         old_name = old["name"]
@@ -3841,6 +3845,7 @@ def admin_edit_category(category_id):
             """, (name, old_name))
 
         conn.commit()
+        delete_replaced_catalog_photo(conn, old_image_path, image_path)
         flash(
             "Category settings saved. Its subcategories remain linked.",
             "success",
