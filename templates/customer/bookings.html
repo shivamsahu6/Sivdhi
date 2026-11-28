@@ -477,6 +477,22 @@
         .worker-id-name { color: #fff; font-size: 13px; font-weight: 850; overflow-wrap: anywhere; }
         .worker-id-number { margin-top: 5px; color: #dfc5ff; font-size: 10px; font-weight: 800; }
         .worker-id-skills { margin-top: 5px; color: #b9a8c9; font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; }
+        
+        .worker-id-view {
+            width: 100%;
+            min-height: 43px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 12px;
+            border: 1px solid #a879fa;
+            border-radius: 11px;
+            background: rgba(164,77,255,.12);
+            color: #e7caff;
+            font-size: 11px;
+            font-weight: 850;
+            text-decoration: none;
+        }
         .worker-id-verify {
             width: 100%;
             min-height: 43px;
@@ -558,7 +574,7 @@
                 <h1>My Bookings</h1>
                 <p>View your service bookings, payment status and remaining balance.</p>
             </section>
-            <div class="id-card-global-reminder"><strong>🪪 Worker identity safety:</strong> At every visit, ask the assigned Worker to show their official Sivdhi ID card. Match the photo, name and Worker ID before confirming the identity.</div>
+            <div class="id-card-global-reminder"><strong>🪪 Worker identity safety:</strong> At every visit, ask the assigned Worker to show their official Sivdhi ID card. Match the photo, name and Worker ID before the service begins.</div>
 
             {% if bookings %}
             <section class="booking-list">
@@ -641,18 +657,8 @@
                                 <div class="worker-id-skills">{{ booking['worker_id_card']['skills'] or 'Home Service Professional' }}</div>
                             </div>
                         </div>
-                        {% if booking['worker_id_verified'] %}
-                        <div class="worker-id-state">✓ ID VERIFIED BY YOU{% if booking['worker_id_verified_at'] %} · {{ booking['worker_id_verified_at'] }}{% endif %}<br>Service start is now allowed only after full payment is confirmed.</div>
-                        {% elif booking['worker_arrived_at'] and status_key not in ['cancelled', 'canceled', 'refunded', 'failed', 'booking started', 'booking completed'] %}
-                        <div class="worker-id-state pending">Worker arrival is recorded. Check the physical ID card against the photo and details above, then confirm below.</div>
-                        <form method="post" action="{{ url_for('customer.verify_booking_worker_id', booking_db_id=booking['id']) }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="worker-id-verify" type="submit">✓ I Checked the ID Card - Verify Worker</button>
-                        </form>
-                        {% elif not booking['worker_arrived_at'] %}
-                        <div class="worker-id-state pending">ID verification is required when the Worker arrives. Do not confirm before checking the physical card.</div>
-                        {% endif %}
-                        <div class="worker-id-policy">Never share your OTP, password or payment PIN with the Worker. Sivdhi ID verification is required before the service can start.</div>
+                        <a class="worker-id-view" href="{{ booking['worker_id_card_url'] }}" target="_blank" rel="noopener noreferrer">👁 View Official Worker ID Card</a>
+                        <div class="worker-id-policy">When the Worker arrives, ask them to show this official Sivdhi ID Card. Match the photo, name and Worker ID. Never share your OTP, password or payment PIN.</div>
                     </section>
                     {% endif %}
 
