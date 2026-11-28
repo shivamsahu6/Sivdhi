@@ -931,10 +931,15 @@ def job_details(
     # Opening the job details page counts as the worker having seen the
     # assignment. The monitor still requires an accept/reject response before
     # its timeout, so simply viewing a booking does not stop escalation.
+    worker_id_verified = False
     seen_conn = get_db()
     try:
         ensure_finance_schema(seen_conn)
+        ensure_worker_id_verification_schema(seen_conn)
         current_worker_id = get_current_worker_db_id()
+        worker_id_verified = is_worker_id_verified(
+            seen_conn, job["id"], job["customer_id"], current_worker_id
+        )
         if current_worker_id:
             seen_conn.execute("""
                 UPDATE bookings
@@ -981,6 +986,7 @@ def job_details(
         can_arrive=can_arrive,
         arrive_available_at=arrive_available_at,
         payment_complete=booking_is_fully_paid(job),
+        worker_id_verified=worker_id_verified,
     )
 
 
@@ -1553,7 +1559,7 @@ def worker_arrived(job_id):
             )
             conn.execute(
                 "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('customer',?,'Verify Your Worker ID Card',?,0,CURRENT_TIMESTAMP)",
-                (str(customer_id), f"Your Worker has arrived for booking {booking_ref}. Check the person's face against the Worker photo and ID in My Bookings, ask to see the physical Sivdhi ID card, and verify it before service starts."),
+                (str(customer_id), message),
             )
             partner_id = row["assigned_partner_id"] or row["partner_id"]
             if not partner_id:
