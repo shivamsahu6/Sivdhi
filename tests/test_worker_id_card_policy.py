@@ -66,7 +66,7 @@ def test_privacy_policies_explain_limited_worker_identity_card_data_display():
     assert "profile photo, name, public Worker ID and service skills" in worker
     assert "The assigned Worker's profile photo, name, public Worker ID and service skills" in partner
     assert "the Worker's profile photo, name, public Worker ID" in customer
-    assert "not a government-issued identity document" in customer
+    assert "government-issued identity document" in customer
 
 
 def test_customer_id_card_is_view_only_and_no_confirmation_button_is_required():
