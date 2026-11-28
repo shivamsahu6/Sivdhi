@@ -441,7 +441,7 @@
 
     <section class="worker-id-section" aria-labelledby="workerIdCardTitle">
         <h3 id="workerIdCardTitle">🪪 Your Sivdhi Worker ID Card</h3>
-        <p>Keep this card ready on your phone. Download it and show the physical/on-screen card to every customer when you arrive.</p>
+        <p>Keep this card ready on your phone. Download it and show it to every customer when you arrive. The card can be displayed on your phone or printed.</p>
         <img class="worker-id-preview" src="{{ url_for('worker.worker_id_card_preview') }}" alt="Sivdhi Worker ID card for {{ worker['fullname'] }}">
         <a class="worker-id-download" href="{{ url_for('worker.download_worker_id_card') }}">⬇ Download Worker ID Card</a>
         <p class="worker-id-rule">Mandatory: Customer must see and verify your Sivdhi ID card before the service can start.</p>
