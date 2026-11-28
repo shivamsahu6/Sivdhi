@@ -245,52 +245,32 @@ font-weight:bold;
 
 </div>
 
+{% if is_internal_partner %}
+<div class="empty">
+    Sivdhi Direct is an internal company account. Partner commission from its workers is retained by Sivdhi and is not available for partner withdrawal.
+</div>
+{% else %}
 <div class="withdraw">
-
-<button type="button" onclick="location.href='/partner/withdraw'">
-
-💸 Withdraw Money
-
-</button>
-
+    <button type="button" onclick="location.href='/partner/withdraw'">
+        💸 Withdraw Money
+    </button>
 </div>
 
-<div class="title">
-
-Withdraw History
-
-</div>
+<div class="title">Withdraw History</div>
 
 {% for item in withdraws %}
-
 <div class="history">
-
-<b>₹ {{ '%.2f'|format((item['amount'] or 0)|float) }}</b>
-
-<br><br>
-
-{{ item['created_at'] or 'Date unavailable' }}
-
-<br>
-
-{% set status = (item['status'] or 'Pending')|string|title %}
-<span class="status {{ status }}">
-
-{{ status }}
-
-</span>
-
+    <b>₹ {{ '%.2f'|format((item['amount'] or 0)|float) }}</b>
+    <br><br>
+    {{ item['created_at'] or 'Date unavailable' }}
+    <br>
+    {% set status = (item['status'] or 'Pending')|string|title %}
+    <span class="status {{ status }}">{{ status }}</span>
 </div>
-
 {% else %}
-
-<div class="empty">
-
-No Withdraw History
-
-</div>
-
+<div class="empty">No Withdraw History</div>
 {% endfor %}
+{% endif %}
 
 <div class="bottom">
 
