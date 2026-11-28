@@ -244,7 +244,8 @@ def partner_home():
             total_jobs=total_jobs,
             pending_jobs=pending_jobs,
             total_notifications=total_notifications,
-            wallet=wallet
+            wallet=wallet,
+            is_internal_partner=bool(session.get("is_internal_partner"))
         )
     finally:
         conn.close()
@@ -985,7 +986,8 @@ def profile():
 
     return render_template(
         "partner/profile.html",
-        partner=partner
+        partner=partner,
+        is_internal_partner=bool(session.get("is_internal_partner"))
     )
 
 
@@ -1007,6 +1009,14 @@ def withdraw():
     """,(session["user_id"],))
 
     partner = cur.fetchone()
+
+    if partner and bool(partner["is_internal"] or 0):
+        conn.close()
+        flash(
+            "Withdrawals are disabled for the Sivdhi Direct company account.",
+            "warning"
+        )
+        return redirect("/partner/wallet")
 
     if (
         not partner["bank_name"] or
@@ -1210,7 +1220,8 @@ def wallet():
     return render_template(
         "partner/wallet.html",
         partner=partner,
-        withdraws=withdraws
+        withdraws=withdraws,
+        is_internal_partner=bool(session.get("is_internal_partner"))
     )
 
 # ======================================
@@ -1338,6 +1349,9 @@ def settings():
 @partner_bp.route("/partner/bank", methods=["GET"])
 @partner_required
 def bank():
+    if session.get("is_internal_partner"):
+        flash("Bank details are not used by the Sivdhi Direct company account.", "info")
+        return redirect("/partner/profile")
     user_id = session.get("user_id")
     if not user_id:
         return redirect("/login?role=partner")
@@ -1361,6 +1375,9 @@ def bank():
 @partner_bp.route("/partner/change-bank", methods=["POST"])
 @partner_required
 def change_bank():
+    if session.get("is_internal_partner"):
+        flash("Bank details cannot be added to the Sivdhi Direct company account.", "warning")
+        return redirect("/partner/profile")
 
     conn = get_db()
     cur = conn.cursor()
@@ -1455,6 +1472,10 @@ def change_bank():
 @partner_bp.route("/partner/verify-bank-otp", methods=["GET","POST"])
 @partner_required
 def verify_bank_otp():
+    if session.get("is_internal_partner"):
+        session.pop("pending_partner_bank_token", None)
+        flash("Bank details are disabled for the Sivdhi Direct company account.", "warning")
+        return redirect("/partner/profile")
     user_id = session.get("user_id")
     token = session.get("pending_partner_bank_token")
     if not token or not user_id:
@@ -1509,6 +1530,10 @@ def verify_bank_otp():
 @partner_bp.route("/partner/resend-bank-otp", methods=["POST"])
 @partner_required
 def resend_bank_otp():
+    if session.get("is_internal_partner"):
+        session.pop("pending_partner_bank_token", None)
+        flash("Bank details are disabled for the Sivdhi Direct company account.", "warning")
+        return redirect("/partner/profile")
     user_id = session.get("user_id")
     token = session.get("pending_partner_bank_token")
     if not user_id or not token:
