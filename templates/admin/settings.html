@@ -614,6 +614,17 @@
         .brand-logo img, .brand-icon img, .brand-mark img, .app-logo img, .logo img, .mark img {
             width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit;
         }
+        .catalog-image-preview {
+            display: block;
+            width: min(100%, 220px);
+            aspect-ratio: 16 / 10;
+            object-fit: cover;
+            margin: 8px 0;
+            border: 1px solid rgba(196,181,253,.28);
+            border-radius: 12px;
+            background: #f7f3fb;
+        }
+
 </style>
     <link rel="icon" type="image/jpeg" href="/static/sivdhi-logo.jpg">
     <link rel="apple-touch-icon" href="/static/sivdhi-logo.jpg">
@@ -770,7 +781,7 @@
                     Prices aur booking modes har subcategory par set hote hain.
                 </p>
 
-                <form id="categoryAddForm" method="post" action="{{ admin_base_path }}/admin/categories/add">
+                <form id="categoryAddForm" method="post" enctype="multipart/form-data" action="{{ admin_base_path }}/admin/categories/add">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="price" value="0">
                     <input type="hidden" name="commission" value="0">
@@ -786,10 +797,12 @@
                                    required placeholder="e.g. Electrician">
                         </div>
 
+                        <input type="hidden" name="icon" value="✦">
                         <div class="field">
-                            <label for="category_icon">Icon / emoji</label>
-                            <input id="category_icon" name="icon"
-                                   maxlength="20" value="✦">
+                            <label for="category_image">Category photo</label>
+                            <input id="category_image" name="category_image" type="file"
+                                   accept="image/jpeg,image/png,image/webp">
+                            <small class="muted">JPG, PNG or WebP · maximum 3 MB</small>
                         </div>
 
                         <div class="field wide">
@@ -816,8 +829,12 @@
                     <article class="item">
                         <div class="item-head">
                             <div>
+                                {% if c['image_path'] %}
+                                    <img class="catalog-image-preview" src="{{ c['image_path'] }}"
+                                         alt="{{ c['name'] }} category photo" loading="lazy">
+                                {% endif %}
                                 <div class="item-title">
-                                    {{ c['icon'] or '✦' }} {{ c['name'] }}
+                                    {{ c['name'] }}
                                 </div>
 
                                 <span class="badge">
@@ -841,7 +858,7 @@
                         <details>
                             <summary>Edit category / enable modes</summary>
 
-                            <form method="post"
+                            <form method="post" enctype="multipart/form-data"
                                   action="{{ admin_base_path }}/admin/categories/{{ c['id'] }}/edit"
                                   class="grid categoryEditForm">
 
@@ -857,10 +874,18 @@
                                            maxlength="80" required>
                                 </div>
 
+                                <input type="hidden" name="icon" value="{{ c['icon'] or '✦' }}">
                                 <div class="field">
-                                    <label>Icon</label>
-                                    <input name="icon" value="{{ c['icon'] or '✦' }}"
-                                           maxlength="20">
+                                    <label>Replace category photo</label>
+                                    <input name="category_image" type="file"
+                                           accept="image/jpeg,image/png,image/webp">
+                                    <small class="muted">JPG, PNG or WebP · maximum 3 MB</small>
+                                    {% if c['image_path'] %}
+                                        <img class="catalog-image-preview" src="{{ c['image_path'] }}"
+                                             alt="{{ c['name'] }} current photo" loading="lazy">
+                                        <label><input type="checkbox" name="remove_image" value="1">
+                                            Remove current photo</label>
+                                    {% endif %}
                                 </div>
 
                                 <div class="field">
@@ -920,7 +945,7 @@
                     Commission percentages isi service ke future bookings par apply honge.
                 </p>
 
-                <form id="subcategoryAddForm" method="post" action="{{ admin_base_path }}/admin/services/add">
+                <form id="subcategoryAddForm" method="post" enctype="multipart/form-data" action="{{ admin_base_path }}/admin/services/add">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="commission" value="0">
                     <input type="hidden" name="visit_fee" value="0">
@@ -943,9 +968,12 @@
                                    required placeholder="e.g. AC Repair">
                         </div>
 
+                        <input type="hidden" name="icon" value="✦">
                         <div class="field">
-                            <label for="service_icon">Icon / emoji</label>
-                            <input id="service_icon" name="icon" maxlength="20" value="✦">
+                            <label for="service_image">Subcategory photo</label>
+                            <input id="service_image" name="service_image" type="file"
+                                   accept="image/jpeg,image/png,image/webp">
+                            <small class="muted">JPG, PNG or WebP · maximum 3 MB</small>
                         </div>
 
                         <div class="field">
@@ -1007,6 +1035,10 @@
                     <article class="item">
                         <div class="item-head">
                             <div>
+                                {% if s['image_path'] %}
+                                    <img class="catalog-image-preview" src="{{ s['image_path'] }}"
+                                         alt="{{ s['name'] }} subcategory photo" loading="lazy">
+                                {% endif %}
                                 <div class="item-title">{{ s['name'] }}</div>
                                 <span class="badge">{{ s['category_name'] or s['category'] }}</span>
                                 <span class="badge {% if not s['active'] %}off{% endif %}">
@@ -1027,7 +1059,7 @@
                         <details>
                             <summary>Edit subcategory</summary>
 
-                            <form method="post"
+                            <form method="post" enctype="multipart/form-data"
                                   action="{{ admin_base_path }}/admin/services/{{ s['id'] }}/edit"
                                   class="grid subcategoryEditForm">
 
@@ -1053,9 +1085,18 @@
                                     </select>
                                 </div>
 
+                                <input type="hidden" name="icon" value="{{ s['icon'] or '✦' }}">
                                 <div class="field">
-                                    <label>Icon</label>
-                                    <input name="icon" value="{{ s['icon'] or '✦' }}" maxlength="20">
+                                    <label>Replace subcategory photo</label>
+                                    <input name="service_image" type="file"
+                                           accept="image/jpeg,image/png,image/webp">
+                                    <small class="muted">JPG, PNG or WebP · maximum 3 MB</small>
+                                    {% if s['image_path'] %}
+                                        <img class="catalog-image-preview" src="{{ s['image_path'] }}"
+                                             alt="{{ s['name'] }} current photo" loading="lazy">
+                                        <label><input type="checkbox" name="remove_image" value="1">
+                                            Remove current photo</label>
+                                    {% endif %}
                                 </div>
 
                                 <div class="field">

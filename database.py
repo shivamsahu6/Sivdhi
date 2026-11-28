@@ -1546,6 +1546,17 @@ def create_tables():
 
 
         # ==================================================
+        # CUSTOMER CATALOG IMAGE METADATA
+        # ==================================================
+        # Additive only: category/service icons remain available as fallbacks.
+        add_column_if_not_exists(
+            cur, "service_categories", "image_path", "TEXT DEFAULT ''"
+        )
+        add_column_if_not_exists(
+            cur, "services", "image_path", "TEXT DEFAULT ''"
+        )
+
+        # ==================================================
         # SIVDHI PAYMENT / COMMISSION MIGRATIONS
         # ==================================================
         # Additive only: preserve existing booking and wallet data.
