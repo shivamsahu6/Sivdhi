@@ -224,3 +224,37 @@ def test_admin_search_query_is_bounded():
     source = (ROOT / "routes/admin.py").read_text(encoding="utf-8")
     assert 'request.args.get("q", "") or "").strip()[:100]' in source
 
+def test_site_favicon_serves_existing_brand_jpeg_with_correct_mime_type():
+    from app import app
+
+    favicon_asset = ROOT / "static" / "pwa" / "customer" / "icon-512.jpg"
+    assert favicon_asset.is_file()
+
+    with app.test_client() as client:
+        response = client.get("/favicon.ico")
+
+    assert response.status_code == 200
+    assert response.mimetype == "image/jpeg"
+    assert response.data.startswith(b"\xff\xd8\xff")
+    assert response.data == favicon_asset.read_bytes()
+    assert response.headers.get("Cache-Control") == "public, max-age=86400"
+
+
+def test_site_favicon_injection_uses_jpeg_mime_and_new_cache_buster():
+    from app import add_security_headers, app
+
+    source = (
+        '<html><head><link rel="icon" type="image/png" href="/old-favicon.png">'
+        '</head><body>Page</body></html>'
+    )
+    with app.test_request_context("/customer/home"):
+        response = app.response_class(source, mimetype="text/html")
+        updated = add_security_headers(response)
+        html = updated.get_data(as_text=True)
+
+    assert html.count('rel="icon"') == 1
+    assert 'type="image/jpeg"' in html
+    assert 'sizes="512x512"' in html
+    assert 'href="/favicon.ico?v=20261128-1"' in html
+    assert "/old-favicon.png" not in html
+

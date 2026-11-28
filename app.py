@@ -76,7 +76,9 @@ csrf = CSRFProtect(app)
 @app.get("/favicon.ico")
 def favicon():
     """Serve the existing Sivdhi logo as the site-wide browser favicon."""
-    return current_app.send_static_file("pwa/customer/icon-512.png")
+    response = current_app.send_static_file("pwa/customer/icon-512.jpg")
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
 
 
 @app.get("/health")
@@ -515,8 +517,8 @@ def add_security_headers(response):
         )
 
         favicon_link = (
-            b'<link rel="icon" type="image/png" sizes="512x512" '
-            b'href="/favicon.ico?v=20261121-2">'
+            b'<link rel="icon" type="image/jpeg" sizes="512x512" '
+            b'href="/favicon.ico?v=20261128-1">'
         )
         html, inserted = re.subn(
             rb"(<head\b[^>]*>)",
