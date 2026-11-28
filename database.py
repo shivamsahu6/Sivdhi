@@ -123,8 +123,8 @@ def ensure_sivdhi_direct_partner(conn):
             )
             return False
         cur.execute(
-            "UPDATE partners SET is_internal=1, company_name='Sivdhi' "
-            "WHERE partner_id=?",
+            "UPDATE partners SET is_internal=1, company_name='Sivdhi', "
+            "status='Active', is_deleted=0 WHERE partner_id=?",
             (SIVDHI_DIRECT_PARTNER_ID,),
         )
     else:
