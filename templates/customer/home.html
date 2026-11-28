@@ -509,18 +509,65 @@
             border-color: rgba(208,129,255,.48);
         }
 
+        .category-photo {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 4 / 3;
+            max-height: 68px;
+            display: block;
+            flex-shrink: 0;
+            margin-bottom: 11px;
+            overflow: hidden;
+            border: 1px solid rgba(190,130,255,.20);
+            border-radius: 13px;
+            background-color: rgba(164,77,255,.12);
+            background-position: center;
+            background-size: cover;
+        }
+
+        .category-photo img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .category-photo-placeholder {
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg,rgba(255,67,140,.13),rgba(164,77,255,.16));
+        }
+
         .category-icon {
             width: 45px;
             height: 45px;
             display: grid;
             place-items: center;
             flex-shrink: 0;
-            margin-bottom: 13px;
+            margin: 0;
             border: 1px solid rgba(190,130,255,.17);
             border-radius: 14px;
             background: linear-gradient(135deg,rgba(255,67,140,.13),rgba(164,77,255,.16));
             font-size: 23px;
         }
+
+        .catalog-photo {
+            background-image: url("/static/catalog/catalog-defaults.webp");
+            background-repeat: no-repeat;
+            background-size: 300% auto;
+        }
+
+        .catalog-photo--ac-category { background-position: 0 0; }
+        .catalog-photo--appliance-category { background-position: 50% 0; }
+        .catalog-photo--microwave { background-position: 100% 0; }
+        .catalog-photo--chimney { background-position: 0 33.333%; }
+        .catalog-photo--washing-machine { background-position: 50% 33.333%; }
+        .catalog-photo--refrigerator { background-position: 100% 33.333%; }
+        .catalog-photo--3bhk { background-position: 0 66.666%; }
+        .catalog-photo--2bhk { background-position: 50% 66.666%; }
+        .catalog-photo--1bhk { background-position: 100% 66.666%; }
+        .catalog-photo--window-ac { background-position: 0 100%; }
+        .catalog-photo--split-ac { background-position: 50% 100%; }
 
         .category-name {
             width: 100%;
@@ -676,7 +723,8 @@
             .section-heading p { font-size: 10px; }
             .category-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
             .category-card { min-height: 121px; padding: 10px; border-radius: 15px; }
-            .category-icon { width: 36px; height: 36px; margin-bottom: 9px; border-radius: 11px; font-size: 19px; }
+            .category-photo { max-height: 52px; margin-bottom: 7px; border-radius: 10px; }
+            .category-icon { width: 36px; height: 36px; border-radius: 11px; font-size: 19px; }
             .category-name { font-size: 10px; }
             .category-caption { margin-top: 5px; font-size: 8px; }
             .category-arrow { top: 10px; right: 10px; font-size: 14px; }
@@ -689,6 +737,7 @@
             .brand-caption { display: none; }
             .category-grid { gap: 6px; }
             .category-card { min-height: 112px; padding: 8px; }
+            .category-photo { max-height: 48px; margin-bottom: 6px; }
             .category-name { font-size: 9px; }
             .category-caption { font-size: 8px; }
         }
@@ -1011,9 +1060,19 @@
                         >
                             <span class="category-arrow" aria-hidden="true">↗</span>
 
-                            <span class="category-icon" aria-hidden="true">
-                                {{ category['display_icon']|default(category['icon']|default('✦')) }}
-                            </span>
+                            {% if category.get('image_path') %}
+                                <span class="category-photo">
+                                    <img src="{{ category['image_path'] }}" alt="{{ category['display_name']|default(category['name']) }}"
+                                         loading="lazy" decoding="async">
+                                </span>
+                            {% elif category.get('display_image_class') %}
+                                <span class="category-photo catalog-photo catalog-photo--{{ category['display_image_class'] }}"
+                                      role="img" aria-label="{{ category['display_name']|default(category['name']) }}"></span>
+                            {% else %}
+                                <span class="category-photo category-photo-placeholder" aria-hidden="true">
+                                    <span class="category-icon">{{ category['display_icon']|default(category['icon']|default('✦')) }}</span>
+                                </span>
+                            {% endif %}
 
                             <span class="category-name">
                                 {{ category['display_name']|default(category['name']) }}
@@ -1194,11 +1253,28 @@
                 arrow.className = "category-arrow";
                 arrow.textContent = "↗";
 
-                const icon = document.createElement("span");
-                icon.className = "category-icon";
-                icon.textContent = safeText(
-                    category.display_icon || category.icon || "✦"
-                );
+                const media = document.createElement("span");
+                media.className = "category-photo";
+                const uploadedImage = safeText(category.image_path || "");
+                const imageClass = safeText(category.display_image_class || "");
+                if (uploadedImage) {
+                    const image = document.createElement("img");
+                    image.src = uploadedImage;
+                    image.alt = safeText(category.display_name || category.name || "Service");
+                    image.loading = "lazy";
+                    image.decoding = "async";
+                    media.appendChild(image);
+                } else if (imageClass) {
+                    media.classList.add("catalog-photo", "catalog-photo--" + imageClass);
+                } else {
+                    media.classList.add("category-photo-placeholder");
+                    const fallbackIcon = document.createElement("span");
+                    fallbackIcon.className = "category-icon";
+                    fallbackIcon.textContent = safeText(
+                        category.display_icon || category.icon || "✦"
+                    );
+                    media.appendChild(fallbackIcon);
+                }
 
                 const name = document.createElement("span");
                 name.className = "category-name";
@@ -1219,7 +1295,7 @@
                             ? "Not available in your area"
                             : "Select location to check";
 
-                card.append(arrow, icon, name, caption, availability);
+                card.append(arrow, media, name, caption, availability);
                 categoryGrid.appendChild(card);
             });
 

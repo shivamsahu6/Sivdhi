@@ -575,6 +575,158 @@
         .brand-icon img, .brand-mark img, .app-logo img, .logo img, .mark img {
             width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit;
         }
+        .catalog-photo {
+            background-image: url("/static/catalog/catalog-defaults.webp");
+            background-repeat: no-repeat;
+            background-size: 300% auto;
+        }
+
+        .catalog-photo--ac-category { background-position: 0 0; }
+        .catalog-photo--appliance-category { background-position: 50% 0; }
+        .catalog-photo--microwave { background-position: 100% 0; }
+        .catalog-photo--chimney { background-position: 0 33.333%; }
+        .catalog-photo--washing-machine { background-position: 50% 33.333%; }
+        .catalog-photo--refrigerator { background-position: 100% 33.333%; }
+        .catalog-photo--3bhk { background-position: 0 66.666%; }
+        .catalog-photo--2bhk { background-position: 50% 66.666%; }
+        .catalog-photo--1bhk { background-position: 100% 66.666%; }
+        .catalog-photo--window-ac { background-position: 0 100%; }
+        .catalog-photo--split-ac { background-position: 50% 100%; }
+
+        .hero-icon img,
+        .hero-icon .hero-photo {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+            border-radius: inherit;
+        }
+
+        .hero-icon {
+            width: 90px;
+            height: auto;
+            aspect-ratio: 4 / 3;
+        }
+
+        .hero-icon .catalog-photo {
+            background-size: 300% auto;
+        }
+
+        .subcategory-card {
+            padding: 0;
+            min-height: 155px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .subcategory-photo {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 4 / 3;
+            max-height: 66px;
+            display: block;
+            overflow: hidden;
+            border-radius: 17px 17px 0 0;
+            background-color: rgba(164,77,255,.12);
+            background-position: center;
+            background-size: cover;
+        }
+
+        .subcategory-photo img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+        }
+
+        .subcategory-photo-placeholder {
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, rgba(255,67,140,.13), rgba(164,77,255,.16));
+        }
+
+        .subcategory-photo-placeholder .subcategory-icon {
+            margin: 0;
+        }
+
+        .card-arrow {
+            position: absolute;
+            top: 97px;
+            right: 12px;
+            width: 30px;
+            height: 30px;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(190,130,255,.28);
+            border-radius: 50%;
+            background: rgba(16,13,23,.82);
+            color: #e1c1ff;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .subcategory-content {
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 7px 10px 9px;
+        }
+
+        .subcategory-name {
+            margin-top: 0;
+        }
+
+        @media (max-width: 760px) {
+            .subcategory-card {
+                min-height: 145px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .subcategory-card {
+                min-height: 133px;
+                padding: 0;
+            }
+
+            .subcategory-photo {
+                max-height: 52px;
+            }
+
+            .card-arrow {
+                top: 37px;
+                right: 9px;
+                width: 26px;
+                height: 26px;
+                font-size: 17px;
+            }
+
+            .subcategory-content {
+                min-height: 0;
+                padding: 6px 8px 8px;
+            }
+
+            .subcategory-name {
+                margin-top: 0;
+                font-size: 11px;
+            }
+
+            .subcategory-description {
+                display: none;
+            }
+
+            .subcategory-price {
+                margin-top: 4px;
+                padding: 3px 6px;
+                font-size: 9px;
+            }
+
+            .open-label {
+                display: none;
+            }
+        }
+
 </style>
     <link rel="icon" type="image/jpeg" href="/static/sivdhi-logo.jpg">
     <link rel="apple-touch-icon" href="/static/sivdhi-logo.jpg">
@@ -612,7 +764,14 @@
         <main>
             <section class="hero">
                 <div class="hero-icon" aria-hidden="true">
-                    {{ category_icon }}
+                    {% if category.get('image_path') %}
+                        <img src="{{ category['image_path'] }}" alt="{{ category_name }}"
+                             class="hero-photo" loading="lazy" decoding="async">
+                    {% elif category.get('display_image_class') %}
+                        <span class="hero-photo catalog-photo catalog-photo--{{ category['display_image_class'] }}"></span>
+                    {% else %}
+                        {{ category_icon }}
+                    {% endif %}
                 </div>
 
                 <div class="hero-content">
@@ -646,14 +805,25 @@
                     {% for item in subcategories %}
                     <a class="subcategory-card"
                         href="{{ url_for('customer.service', service_id=item['id'], mode=booking_mode|default('normal')) }}">
-                        <span class="card-top">
-                            <span class="subcategory-icon" aria-hidden="true">
-                                {{ item['display_icon']|default(item['icon']|default('✦')) }}
+                        {% if item.get('image_path') %}
+                            <span class="subcategory-photo">
+                                <img src="{{ item['image_path'] }}"
+                                     alt="{{ item['display_name']|default(item['name']|default('Service')) }}"
+                                     loading="lazy" decoding="async">
                             </span>
+                        {% elif item.get('display_image_class') %}
+                            <span class="subcategory-photo catalog-photo catalog-photo--{{ item['display_image_class'] }}"
+                                  role="img" aria-label="{{ item['display_name']|default(item['name']|default('Service')) }}"></span>
+                        {% else %}
+                            <span class="subcategory-photo subcategory-photo-placeholder" aria-hidden="true">
+                                <span class="subcategory-icon">
+                                    {{ item['display_icon']|default(item['icon']|default('✦')) }}
+                                </span>
+                            </span>
+                        {% endif %}
 
-                            <span class="card-arrow" aria-hidden="true">↗</span>
-                        </span>
-
+                        <span class="card-arrow" aria-hidden="true">↗</span>
+                        <span class="subcategory-content">
                         <span class="subcategory-name">
                             {{ item['display_name']|default(item['name']|default('Service')) }}
                         </span>
@@ -675,6 +845,7 @@
                         </span>
                         <span class="open-label">
                             Select subcategory →
+                        </span>
                         </span>
                     </a>
                     {% endfor %}

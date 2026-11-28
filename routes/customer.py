@@ -417,6 +417,7 @@ def ensure_customer_schema(db):
                 included_work TEXT DEFAULT '',
                 excluded_work TEXT DEFAULT '',
                 icon TEXT DEFAULT '✦',
+                image_path TEXT DEFAULT '',
                 active INTEGER DEFAULT 1
             )
         """)
@@ -444,6 +445,7 @@ def ensure_customer_schema(db):
             service_cols.add(column)
 
     for column, definition in (
+        ("image_path", "TEXT DEFAULT ''"),
         ("full_day_price", "REAL DEFAULT 0"),
         ("partner_commission_percent", "REAL NOT NULL DEFAULT 10"),
         ("platform_commission_percent", "REAL NOT NULL DEFAULT 10"),
@@ -461,6 +463,7 @@ def ensure_customer_schema(db):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE COLLATE NOCASE,
                 icon TEXT DEFAULT '✦',
+                image_path TEXT DEFAULT '',
                 description TEXT DEFAULT '',
                 is_active INTEGER NOT NULL DEFAULT 1,
                 normal_enabled INTEGER NOT NULL DEFAULT 1,
@@ -475,6 +478,7 @@ def ensure_customer_schema(db):
 
     for column, definition in (
         ("icon", "TEXT DEFAULT '✦'"),
+        ("image_path", "TEXT DEFAULT ''"),
         ("description", "TEXT DEFAULT ''"),
         ("is_active", "INTEGER NOT NULL DEFAULT 1"),
         ("normal_enabled", "INTEGER NOT NULL DEFAULT 1"),
@@ -1450,6 +1454,38 @@ def _has_worker_covering_category(
     return False
 
 
+def catalog_photo_class(name, kind="subcategory"):
+    """Return a curated default photo tile for known catalog names."""
+    normalized = re.sub(r"[^a-z0-9]+", " ", str(name or "").lower()).strip()
+
+    if kind == "category":
+        if "appliance" in normalized:
+            return "appliance-category"
+        if re.search(r"\bac\b", normalized) or "air conditioner" in normalized:
+            return "ac-category"
+        return ""
+
+    if "microwave" in normalized:
+        return "microwave"
+    if "chimney" in normalized:
+        return "chimney"
+    if "washing machine" in normalized or "washer" in normalized:
+        return "washing-machine"
+    if "refrigerator" in normalized or "fridge" in normalized:
+        return "refrigerator"
+    if re.search(r"\b3\s*bhk\b", normalized):
+        return "3bhk"
+    if re.search(r"\b2\s*bhk\b", normalized):
+        return "2bhk"
+    if re.search(r"\b1\s*bhk\b", normalized):
+        return "1bhk"
+    if "window ac" in normalized:
+        return "window-ac"
+    if "split ac" in normalized:
+        return "split-ac"
+    return ""
+
+
 def customer_service_rows(db, category_name):
     """
     Return customer-visible subcategories for a category.
@@ -1553,6 +1589,8 @@ def customer_service_rows(db, category_name):
             ),
             "icon": display_icon,
             "display_icon": display_icon,
+            "image_path": item.get("image_path") or "",
+            "display_image_class": catalog_photo_class(display_name),
         })
 
     return result
@@ -1630,6 +1668,7 @@ def list_customer_categories(
         item.update({
             "display_name": item.get("name") or "Service",
             "display_icon": item.get("icon") or "✦",
+            "display_image_class": catalog_photo_class(item.get("name"), "category"),
             "subcategories": subcategories,
             "service_count": len(subcategories),
             "available_in_area": True,
@@ -1704,6 +1743,7 @@ def list_customer_catalogue(db, latitude=None, longitude=None, mode="normal"):
         item.update({
             "display_name": category_name,
             "display_icon": item.get("icon") or "✦",
+            "display_image_class": catalog_photo_class(category_name, "category"),
             "subcategories": subcategories,
             "service_count": len(subcategories),
             "display_full_day_price": money(item.get("full_day_price")),

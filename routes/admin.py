@@ -2,6 +2,8 @@ import sqlite3
 import os
 import re
 import time
+from pathlib import Path
+from uuid import uuid4
 
 from flask import (
     Blueprint,
@@ -14,6 +16,7 @@ from flask import (
 )
 
 from werkzeug.security import check_password_hash
+from werkzeug.utils import secure_filename
 
 from database import get_db
 from routes.decorators import admin_required
@@ -55,6 +58,63 @@ ADMIN_IDLE_TIMEOUT_SECONDS = 30 * 60
 ADMIN_ABSOLUTE_TIMEOUT_SECONDS = 8 * 60 * 60
 
 admin_bp = Blueprint("admin", __name__, url_prefix=ADMIN_PANEL_BASE)
+
+CATALOG_UPLOAD_DIR = (
+    Path(__file__).resolve().parent.parent / "static" / "uploads" / "catalog"
+)
+CATALOG_IMAGE_MAX_BYTES = 3 * 1024 * 1024
+
+
+def _save_catalog_image_upload(upload):
+    """Save a bounded, signature-checked catalog image under a random filename."""
+    if upload is None or not str(getattr(upload, "filename", "") or "").strip():
+        return None
+
+    safe_name = secure_filename(upload.filename)
+    extension = Path(safe_name).suffix.lower()
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    if extension not in allowed_extensions:
+        raise ValueError("Use a JPG, PNG, or WebP image for this catalog item.")
+
+    stream = upload.stream
+    try:
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(0)
+    except (AttributeError, OSError):
+        raise ValueError("The uploaded image could not be read.")
+
+    if size <= 0:
+        raise ValueError("The selected image is empty.")
+    if size > CATALOG_IMAGE_MAX_BYTES:
+        raise ValueError("Catalog images must be 3 MB or smaller.")
+
+    header = stream.read(12)
+    stream.seek(0)
+    valid_signature = (
+        (extension in {".jpg", ".jpeg"} and header.startswith(b"\xff\xd8\xff"))
+        or (extension == ".png" and header.startswith(b"\x89PNG\r\n\x1a\n"))
+        or (
+            extension == ".webp"
+            and header.startswith(b"RIFF")
+            and header[8:12] == b"WEBP"
+        )
+    )
+    if not valid_signature:
+        raise ValueError("The file contents do not match a supported image format.")
+
+    CATALOG_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid4().hex}{extension}"
+    destination = CATALOG_UPLOAD_DIR / stored_name
+    upload.save(str(destination))
+    try:
+        os.chmod(destination, 0o644)
+    except OSError:
+        pass
+
+    return f"/static/uploads/catalog/{stored_name}"
+
+
 
 
 def _admin_session_is_expired(now, login_at, last_seen_at):
@@ -164,6 +224,7 @@ def _ensure_admin_catalog_schema(conn):
             "price": "REAL NOT NULL DEFAULT 0",
             "commission": "REAL NOT NULL DEFAULT 0",
             "icon": "TEXT DEFAULT '✦'",
+            "image_path": "TEXT DEFAULT ''",
             "description": "TEXT DEFAULT ''",
             "is_active": "INTEGER NOT NULL DEFAULT 1",
             "normal_enabled": "INTEGER NOT NULL DEFAULT 1",
@@ -175,6 +236,7 @@ def _ensure_admin_catalog_schema(conn):
         },
         "services": {
             "icon": "TEXT DEFAULT '✦'",
+            "image_path": "TEXT DEFAULT ''",
             "description": "TEXT DEFAULT ''",
             "active": "INTEGER NOT NULL DEFAULT 1",
             "status": "TEXT DEFAULT 'active'",
@@ -2680,15 +2742,24 @@ def admin_add_service():
             flash(str(error), "danger")
             return _catalog_redirect("subcategory")
 
+        try:
+            image_path = _save_catalog_image_upload(
+                request.files.get("service_image")
+            ) or ""
+        except ValueError as error:
+            flash(str(error), "danger")
+            return _catalog_redirect("subcategory")
+
         conn.execute("""
             INSERT INTO services
-                (name, icon, description, active, status, category,
+                (name, icon, image_path, description, active, status, category,
                  price, commission, partner_commission_percent, platform_commission_percent,
                  full_day_price, visit_fee, included_work, excluded_work)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             name,
             icon,
+            image_path,
             description,
             active,
             "active" if active else "inactive",
@@ -2820,9 +2891,28 @@ def admin_edit_service(service_id):
                 f"edit_service_id={service_id}",
             )
 
+        try:
+            uploaded_image_path = _save_catalog_image_upload(
+                request.files.get("service_image")
+            )
+        except ValueError as error:
+            flash(str(error), "danger")
+            return _catalog_redirect(
+                "subcategory",
+                f"edit_service_id={service_id}",
+            )
+        image_path = (
+            uploaded_image_path
+            or (
+                ""
+                if request.form.get("remove_image") == "1"
+                else (service["image_path"] or "")
+            )
+        )
+
         conn.execute("""
             UPDATE services
-            SET name=?, icon=?, description=?, active=?, status=?,
+            SET name=?, icon=?, image_path=?, description=?, active=?, status=?,
                 category=?, price=?, commission=?, partner_commission_percent=?,
                 platform_commission_percent=?, full_day_price=?, visit_fee=?,
                 included_work=?, excluded_work=?
@@ -2830,6 +2920,7 @@ def admin_edit_service(service_id):
         """, (
             name,
             icon,
+            image_path,
             description,
             active,
             "active" if active else "inactive",
@@ -3566,17 +3657,26 @@ def admin_add_category():
             )
             return _catalog_redirect("category")
 
+        try:
+            image_path = _save_catalog_image_upload(
+                request.files.get("category_image")
+            ) or ""
+        except ValueError as error:
+            flash(str(error), "danger")
+            return _catalog_redirect("category")
+
         conn.execute("""
             INSERT INTO service_categories
-                (name, price, commission, icon, description, is_active,
+                (name, price, commission, icon, image_path, description, is_active,
                  normal_enabled, full_day_enabled, full_day_price,
                  visit_fee, included_work, excluded_work)
-            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
         """, (
             name,
             price,
             commission,
             request.form.get("icon", "✦").strip() or "✦",
+            image_path,
             request.form.get("description", "").strip(),
             normal_enabled,
             full_day_enabled,
@@ -3684,11 +3784,27 @@ def admin_edit_category(category_id):
             )
             return _catalog_redirect("category")
 
+        try:
+            uploaded_image_path = _save_catalog_image_upload(
+                request.files.get("category_image")
+            )
+        except ValueError as error:
+            flash(str(error), "danger")
+            return _catalog_redirect("category")
+
+        image_path = (
+            uploaded_image_path
+            or (
+                ""
+                if request.form.get("remove_image") == "1"
+                else (old["image_path"] or "")
+            )
+        )
         old_name = old["name"]
 
         conn.execute("""
             UPDATE service_categories
-            SET name=?, price=?, commission=?, icon=?, description=?,
+            SET name=?, price=?, commission=?, icon=?, image_path=?, description=?,
                 is_active=?, normal_enabled=?, full_day_enabled=?,
                 full_day_price=?, visit_fee=?, included_work=?, excluded_work=?
             WHERE id=?
@@ -3697,6 +3813,7 @@ def admin_edit_category(category_id):
             price,
             commission,
             request.form.get("icon", old["icon"] or "✦").strip() or "✦",
+            image_path,
             request.form.get(
                 "description", old["description"] or ""
             ).strip(),
