@@ -182,6 +182,15 @@ background:#fef2f2 !important;
 .logout-form{margin:0;padding:0}
 button.logout-button{display:block;background:transparent;border:0;padding:14px;width:100%;text-align:left;font:inherit;font-size:15px;cursor:pointer} .menu-list button.logout-button:hover{background:#f3f4f6 !important}
 
+.referral-share-box{margin-top:14px;padding:16px;border:1px solid #dbeafe;border-radius:14px;background:#f8fbff}
+.referral-share-title{font-size:15px;font-weight:750;color:#111827}
+.referral-share-help{margin-top:5px;color:#64748b;font-size:12px;line-height:1.5}
+.referral-link-input{width:100%;margin-top:11px;padding:11px 12px;border:1px solid #dbe3ef;border-radius:9px;background:#fff;color:#334155;font-size:12px}
+.referral-actions{display:flex;gap:9px;margin-top:10px}
+.referral-action{flex:1;min-height:40px;display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border:0;border-radius:9px;background:#2563eb;color:#fff;text-decoration:none;font-size:12px;font-weight:700;cursor:pointer}
+.referral-action.whatsapp{background:#16a34a}
+.referral-copy-status{min-height:16px;margin-top:7px;color:#166534;font-size:11px}
+
 </style>
 
 </head>
@@ -258,6 +267,26 @@ button.logout-button{display:block;background:transparent;border:0;padding:14px;
 <div class="row">
 <div class="label">Referral Code</div>
 <div class="value">{{ partner["referral_code"] }}</div>
+
+<div class="referral-share-box">
+    <div class="referral-share-title">Invite Workers to Sivdhi</div>
+    <p class="referral-share-help">Share this link. When someone registers as a Worker through it, your referral code will be filled in automatically.</p>
+    <input
+        class="referral-link-input"
+        id="partnerReferralLink"
+        type="text"
+        value="{{ referral_link }}"
+        readonly
+        aria-label="Your Worker referral link"
+        onclick="this.select()"
+    >
+    <div class="referral-actions">
+        <button class="referral-action" id="copyPartnerReferralLink" type="button">Copy Link</button>
+        <a class="referral-action whatsapp" href="https://wa.me/?text={{ ('Join Sivdhi as a Worker using my referral link: ' ~ referral_link)|urlencode }}"
+           target="_blank" rel="noopener noreferrer">WhatsApp</a>
+    </div>
+    <div class="referral-copy-status" id="partnerReferralCopyStatus" role="status" aria-live="polite"></div>
+</div>
 </div>
 
 <div class="row">
@@ -313,6 +342,30 @@ button.logout-button{display:block;background:transparent;border:0;padding:14px;
 </div>
 
 <script>
+
+const copyReferralButton = document.getElementById("copyPartnerReferralLink");
+const referralInput = document.getElementById("partnerReferralLink");
+const referralCopyStatus = document.getElementById("partnerReferralCopyStatus");
+
+if (copyReferralButton && referralInput && referralCopyStatus) {
+    copyReferralButton.addEventListener("click", async () => {
+        const value = referralInput.value;
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(value);
+            } else {
+                referralInput.focus();
+                referralInput.select();
+                if (!document.execCommand("copy")) throw new Error("Copy unavailable");
+            }
+            referralCopyStatus.textContent = "Referral link copied. Share it with a Worker.";
+        } catch (error) {
+            referralInput.focus();
+            referralInput.select();
+            referralCopyStatus.textContent = "Select the link above and copy it manually.";
+        }
+    });
+}
 
 function toggleMenu(){
 
