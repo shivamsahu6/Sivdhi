@@ -32,8 +32,6 @@ from utils.upload_cleanup import delete_replaced_profile_photo
 from utils.worker_identity import (
     build_worker_id_card_svg,
     worker_id_card_filename,
-    ensure_worker_id_verification_schema,
-    is_worker_id_verified,
 )
 from utils.sivdhi_finance import (
     ensure_finance_schema, is_demo_mode, add_finance_ledger_entry,
@@ -931,15 +929,10 @@ def job_details(
     # Opening the job details page counts as the worker having seen the
     # assignment. The monitor still requires an accept/reject response before
     # its timeout, so simply viewing a booking does not stop escalation.
-    worker_id_verified = False
     seen_conn = get_db()
     try:
         ensure_finance_schema(seen_conn)
-        ensure_worker_id_verification_schema(seen_conn)
         current_worker_id = get_current_worker_db_id()
-        worker_id_verified = is_worker_id_verified(
-            seen_conn, job["id"], job["customer_id"], current_worker_id
-        )
         if current_worker_id:
             seen_conn.execute("""
                 UPDATE bookings
@@ -986,7 +979,6 @@ def job_details(
         can_arrive=can_arrive,
         arrive_available_at=arrive_available_at,
         payment_complete=booking_is_fully_paid(job),
-        worker_id_verified=worker_id_verified,
     )
 
 
@@ -1545,7 +1537,7 @@ def worker_arrived(job_id):
 
         if newly_arrived and customer_id:
             message = (
-                f"Your worker has arrived for booking {booking_ref}. Please verify the worker's Sivdhi ID card in My Bookings before service starts. "
+                f"Your worker has arrived for booking {booking_ref}. Please ask the worker to show their official Sivdhi ID card and match the photo and Worker ID in My Bookings. "
                 + (
                     f"Remaining balance ₹{balance_due:.2f} is now payable from My Bookings. "
                     "The worker-arrival action has NOT charged or marked this balance as paid."
@@ -1555,10 +1547,10 @@ def worker_arrived(job_id):
             )
             conn.execute(
                 "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('worker',?,'Show Your Sivdhi ID Card',?,0,CURRENT_TIMESTAMP)",
-                (str(worker_id), f"Arrival recorded for booking {booking_ref}. Show your official Sivdhi Worker ID card to the customer and ask them to verify it in My Bookings before the service starts."),
+                (str(worker_id), f"Arrival recorded for booking {booking_ref}. Show your official Sivdhi Worker ID card to the customer."),
             )
             conn.execute(
-                "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('customer',?,'Verify Your Worker ID Card',?,0,CURRENT_TIMESTAMP)",
+                "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('customer',?,'Your Worker Has Arrived',?,0,CURRENT_TIMESTAMP)",
                 (str(customer_id), message),
             )
             partner_id = row["assigned_partner_id"] or row["partner_id"]
@@ -1568,7 +1560,7 @@ def worker_arrived(job_id):
             if partner_id:
                 conn.execute(
                     "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('partner',?,'Worker ID Card Reminder',?,0,CURRENT_TIMESTAMP)",
-                    (str(partner_id), f"Worker arrival recorded for booking {booking_ref}. Remind the Worker to show the official Sivdhi ID card. Customer verification is required before service can start."),
+                    (str(partner_id), f"Worker arrival recorded for booking {booking_ref}. Remind the Worker to show the official Sivdhi ID card to the customer."),
                 )
 
         conn.commit()
@@ -1609,17 +1601,8 @@ def start_job(job_id):
         if not current:
             return jsonify({"success": False, "message": "Booking not found."}), 404
 
-        ensure_worker_id_verification_schema(conn)
         if not current["worker_arrived_at"]:
             return jsonify({"success": False, "message": "Mark arrival before starting the service."}), 400
-        if not is_worker_id_verified(
-            conn, current["id"], current["customer_id"], get_current_worker_db_id()
-        ):
-            return jsonify({
-                "success": False,
-                "message": "The customer must see your physical Sivdhi Worker ID card and verify it in My Bookings before the service can start.",
-                "code": "WORKER_ID_VERIFICATION_REQUIRED",
-            }), 409
 
         if current:
             if not booking_is_fully_paid(current):
