@@ -441,90 +441,32 @@
             width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit;
         }
 
-        .worker-id-panel {
-            margin-top: 16px;
-            padding: 14px;
-            border: 1px solid rgba(196, 143, 255, .35);
-            border-radius: 15px;
-            background: linear-gradient(145deg, rgba(164,77,255,.12), rgba(17,13,24,.86));
-        }
-        .worker-id-heading { color: #f4e7ff; font-size: 13px; font-weight: 850; }
-        .worker-id-copy { margin: 7px 0 12px; color: #c8b8d8; font-size: 10px; line-height: 1.7; }
-        .worker-id-card {
+        .worker-id-action {
             display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            border: 1px solid rgba(221,190,255,.2);
-            border-radius: 13px;
-            background: rgba(255,255,255,.045);
+            justify-content: flex-start;
+            margin-top: 11px;
         }
-        .worker-id-photo {
-            width: 66px;
-            height: 66px;
-            flex: 0 0 66px;
-            display: grid;
-            place-items: center;
-            overflow: hidden;
-            border: 2px solid rgba(221,190,255,.45);
-            border-radius: 13px;
-            background: #f4ecff;
-            color: #6d28d9;
-            font-size: 30px;
-        }
-        .worker-id-photo img { width: 100%; height: 100%; object-fit: cover; }
-        .worker-id-details { min-width: 0; }
-        .worker-id-name { color: #fff; font-size: 13px; font-weight: 850; overflow-wrap: anywhere; }
-        .worker-id-number { margin-top: 5px; color: #dfc5ff; font-size: 10px; font-weight: 800; }
-        .worker-id-skills { margin-top: 5px; color: #b9a8c9; font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; }
-        
         .worker-id-view {
-            width: 100%;
-            min-height: 43px;
-            display: flex;
+            display: inline-flex;
+            width: auto;
+            max-width: 100%;
+            min-height: 38px;
             align-items: center;
             justify-content: center;
-            margin-top: 12px;
+            padding: 8px 14px;
             border: 1px solid #a879fa;
-            border-radius: 11px;
+            border-radius: 10px;
             background: rgba(164,77,255,.12);
             color: #e7caff;
             font-size: 11px;
             font-weight: 850;
+            line-height: 1.35;
+            text-align: center;
             text-decoration: none;
         }
-        .worker-id-verify {
-            width: 100%;
-            min-height: 43px;
-            margin-top: 12px;
-            border: 0;
-            border-radius: 11px;
-            background: linear-gradient(105deg, #8b5cf6, #5b5df4);
-            color: #fff;
-            font-size: 11px;
-            font-weight: 850;
-            cursor: pointer;
-        }
-        .worker-id-state {
-            margin-top: 11px;
-            padding: 10px 11px;
-            border-radius: 10px;
-            background: rgba(120,229,176,.09);
-            color: #9cebc1;
-            font-size: 10px;
-            font-weight: 750;
-            line-height: 1.6;
-        }
-        .worker-id-state.pending { background: rgba(255,194,112,.08); color: #ffcf91; }
-        .worker-id-policy {
-            margin-top: 12px;
-            padding: 11px 12px;
-            border-left: 3px solid #b48aff;
-            border-radius: 8px;
-            background: rgba(164,77,255,.07);
-            color: #d7c5e7;
-            font-size: 10px;
-            line-height: 1.7;
+        .worker-id-view:focus-visible {
+            outline: 2px solid #d8b4fe;
+            outline-offset: 3px;
         }
         .id-card-global-reminder {
             margin: 0 0 14px;
@@ -640,26 +582,9 @@
 
 
                     {% if booking['worker_id_card'] %}
-                    <section class="worker-id-panel" aria-label="Assigned Sivdhi Worker ID">
-                        <div class="worker-id-heading">🪪 Your Assigned Sivdhi Worker</div>
-                        <p class="worker-id-copy">Please check that the person who arrives matches this photo and Worker ID. Ask them to show their official Sivdhi ID card in person.</p>
-                        <div class="worker-id-card">
-                            <div class="worker-id-photo">
-                                {% if booking['worker_id_card']['profile_photo'] %}
-                                <img src="{{ url_for('static', filename='uploads/' + booking['worker_id_card']['profile_photo']) }}" alt="Assigned Worker photo">
-                                {% else %}
-                                <span aria-label="Worker">👷</span>
-                                {% endif %}
-                            </div>
-                            <div class="worker-id-details">
-                                <div class="worker-id-name">{{ booking['worker_id_card']['fullname'] }}</div>
-                                <div class="worker-id-number">Worker ID: {{ booking['worker_id_card']['worker_id'] }}</div>
-                                <div class="worker-id-skills">{{ booking['worker_id_card']['skills'] or 'Home Service Professional' }}</div>
-                            </div>
-                        </div>
-                        <a class="worker-id-view" href="{{ booking['worker_id_card_url'] }}" target="_blank" rel="noopener noreferrer">👁 View Official Worker ID Card</a>
-                        <div class="worker-id-policy">When the Worker arrives, ask them to show this official Sivdhi ID Card. Match the photo, name and Worker ID. Never share your OTP, password or payment PIN.</div>
-                    </section>
+                    <div class="worker-id-action">
+                        <a class="worker-id-view" href="{{ booking['worker_id_card_url'] }}" target="_blank" rel="noopener noreferrer">🪪 View Worker ID Card</a>
+                    </div>
                     {% endif %}
 
                     <div class="booking-bottom">
