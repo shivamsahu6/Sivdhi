@@ -364,7 +364,7 @@ def get_commission_rates(conn) -> tuple[float, float]:
 
 
 def find_partner_for_worker(conn, worker_db_id: int) -> str | None:
-    """Find a worker's explicitly linked partner or resolve their saved referral code."""
+    """Find a worker's explicit team first; only use referral attribution if unlinked."""
     try:
         worker = conn.execute(
             "SELECT id, worker_id, referred_by FROM workers WHERE id=? LIMIT 1",
@@ -372,17 +372,27 @@ def find_partner_for_worker(conn, worker_db_id: int) -> str | None:
         ).fetchone()
         if not worker:
             return None
-        rows = conn.execute("""
-            SELECT p.partner_id
-            FROM partner_workers pw
-            JOIN partners p ON CAST(p.partner_id AS TEXT)=CAST(pw.partner_id AS TEXT)
-            WHERE CAST(pw.worker_id AS TEXT) IN (?, ?)
-              AND COALESCE(p.is_deleted,0)=0
-              AND LOWER(COALESCE(p.status,'active')) <> 'suspended'
-            ORDER BY pw.id ASC LIMIT 1
-        """, (str(worker["worker_id"]), str(worker["id"]))).fetchone()
-        if rows and rows[0]:
-            return str(rows[0])
+
+        worker_keys = (str(worker["worker_id"]), str(worker["id"]))
+        mapping = conn.execute("""
+            SELECT partner_id
+            FROM partner_workers
+            WHERE CAST(worker_id AS TEXT) IN (?, ?)
+            ORDER BY id ASC LIMIT 1
+        """, worker_keys).fetchone()
+        if mapping:
+            # An explicit mapping is authoritative even if that Partner is
+            # now suspended/deleted. Never silently transfer their worker to
+            # Sivdhi Direct just because the former Partner is inactive.
+            owner = conn.execute("""
+                SELECT partner_id
+                FROM partners
+                WHERE CAST(partner_id AS TEXT)=CAST(? AS TEXT)
+                  AND COALESCE(is_deleted,0)=0
+                  AND LOWER(COALESCE(status,'active')) <> 'suspended'
+                LIMIT 1
+            """, (str(mapping["partner_id"]),)).fetchone()
+            return str(owner["partner_id"]) if owner and owner["partner_id"] else None
 
         referral_code = str(worker["referred_by"] or "").strip()
         if not referral_code:
@@ -398,8 +408,8 @@ def find_partner_for_worker(conn, worker_db_id: int) -> str | None:
         if not partner or not partner["partner_id"]:
             return None
 
-        # Repair the relationship atomically when an older signup was saved
-        # before the referral-to-team mapping was provisioned.
+        # Repair missing mapping for an older signup; never overwrite any
+        # existing Partner attribution.
         conn.execute("""
             INSERT INTO partner_workers(partner_id, worker_id)
             SELECT ?, ?
@@ -410,13 +420,12 @@ def find_partner_for_worker(conn, worker_db_id: int) -> str | None:
         """, (
             str(partner["partner_id"]),
             str(worker["worker_id"]),
-            str(worker["worker_id"]),
-            str(worker["id"]),
+            worker_keys[0],
+            worker_keys[1],
         ))
         return str(partner["partner_id"])
     except Exception:
         return None
-
 
 def add_finance_ledger_entry(conn, booking_id: str, entry_type: str,
                              amount: float, status: str,
