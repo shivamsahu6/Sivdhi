@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="manifest" href="/static/pwa/workpartner/manifest.json">
-    <link rel="icon" type="image/png" sizes="512x512" href="/static/pwa/workpartner/icon-512.png">
+    <link rel="icon" type="image/jpeg" href="/static/sivdhi-logo.jpg">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {% if role == "worker" %}
@@ -32,12 +32,12 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Sivdhi">
     <meta property="og:locale" content="en_IN">
-    <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/workpartner/icon-512.png">
+    <meta property="og:image" content="https://sivdhi.duckdns.org/static/sivdhi-logo.jpg">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
     <meta property="og:image:alt" content="Sivdhi Worker and Partner app icon">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/pwa/workpartner/icon-512.png">
+    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/sivdhi-logo.jpg">
     <meta name="twitter:image:alt" content="Sivdhi Worker and Partner app icon">
 
     <style>
@@ -82,6 +82,7 @@
             font-weight: bold;
             color: #2563eb;
         }
+.logo img{width:100%;height:100%;object-fit:contain;border-radius:inherit;display:block;}
 
         h1 {
             font-size: 1.5em;
@@ -212,9 +213,7 @@
 
     <div class="login-box">
 
-        <div class="logo">
-            S
-        </div>
+        <div class="logo"><img src="/static/sivdhi-logo.jpg" alt="Sivdhi logo"></div>
 
         <h1>
             {% if role == "worker" %}

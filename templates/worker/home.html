@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <link rel="manifest" href="/static/pwa/workpartner/manifest.json">
+    <link rel="icon" type="image/jpeg" href="/static/sivdhi-logo.jpg">
+    <link rel="apple-touch-icon" href="/static/sivdhi-logo.jpg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -38,6 +40,15 @@
 
         .header-copy {
             min-width: 0;
+        }
+
+        .dashboard-logo {
+            width: 48px;
+            height: 48px;
+            flex: 0 0 48px;
+            object-fit: cover;
+            border-radius: 14px;
+            background: #fff;
         }
 
         .header h2 {
@@ -448,6 +459,7 @@
 
     <header class="header">
         <div class="header-top">
+            <img class="dashboard-logo" src="/static/sivdhi-logo.jpg" alt="Sivdhi logo">
             <div class="header-copy">
                 <h2>Welcome Worker 👋</h2>
                 <p>

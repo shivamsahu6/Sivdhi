@@ -9,8 +9,8 @@
     <meta name="description" content="Find local home services with Sivdhi. Browse listed categories, compare displayed prices and check availability for your location before requesting a booking.">
     <meta name="robots" content="index, follow, max-image-preview:large">
     <link rel="canonical" href="https://sivdhi.duckdns.org/">
-    <link rel="icon" type="image/png" sizes="512x512" href="/static/pwa/customer/icon-512.png">
-    <link rel="apple-touch-icon" href="/static/pwa/customer/icon-192.png">
+    <link rel="icon" type="image/jpeg" sizes="1254x1254" href="/static/sivdhi-logo.jpg">
+    <link rel="apple-touch-icon" href="/static/sivdhi-logo.jpg">
     <link rel="manifest" href="/static/pwa/customer/manifest.json">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta property="og:type" content="website">
@@ -19,14 +19,14 @@
     <meta property="og:title" content="Sivdhi | Home Services &amp; Online Booking">
     <meta property="og:description" content="Explore home services available in your area with Sivdhi. Check service details and prices, then request a booking online.">
     <meta property="og:url" content="https://sivdhi.duckdns.org/">
-    <meta property="og:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
-    <meta property="og:image:width" content="512">
-    <meta property="og:image:height" content="512">
+    <meta property="og:image" content="https://sivdhi.duckdns.org/static/sivdhi-logo.jpg">
+    <meta property="og:image:width" content="1254">
+    <meta property="og:image:height" content="1254">
     <meta property="og:image:alt" content="Sivdhi app icon">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Sivdhi | Home Services &amp; Online Booking">
     <meta name="twitter:description" content="Explore home services available in your area with Sivdhi. Check service details and prices, then request a booking online.">
-    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png">
+    <meta name="twitter:image" content="https://sivdhi.duckdns.org/static/sivdhi-logo.jpg">
     <meta name="twitter:image:alt" content="Sivdhi app icon">
     <script type="application/ld+json">
     {
@@ -41,9 +41,9 @@
           "areaServed": "Bareilly, Uttar Pradesh, India",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://sivdhi.duckdns.org/static/pwa/customer/icon-512.png",
-            "width": 512,
-            "height": 512
+            "url": "https://sivdhi.duckdns.org/static/sivdhi-logo.jpg",
+            "width": 1254,
+            "height": 1254
           }
         },
         {
@@ -141,6 +141,7 @@
             font-size: 23px;
             font-weight: 800;
         }
+.brand-icon img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;}
 
         .brand-name {
             font-size: 23px;
@@ -873,7 +874,7 @@
     <div class="app">
         <header class="header">
             <a class="brand" href="{{ url_for('customer.home') }}" aria-label="Sivdhi Home">
-                <div class="brand-icon">S</div>
+                <div class="brand-icon"><img src="/static/sivdhi-logo.jpg" alt="Sivdhi logo"></div>
                 <div>
                     <div class="brand-name">Sivdhi<span>.</span></div>
                     <span class="brand-caption">HOME SERVICES</span>

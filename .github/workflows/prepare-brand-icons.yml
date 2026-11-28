@@ -1,0 +1,60 @@
+name: Prepare Sivdhi Brand Icons
+
+on:
+  push:
+    branches:
+      - branding/unified-logo-20261127
+    paths:
+      - static/sivdhi-logo.jpg
+      - scripts/prepare_brand_icons.py
+      - .github/workflows/prepare-brand-icons.yml
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: sivdhi-brand-icons-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-icons:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout logo branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install image processor
+        run: python -m pip install --disable-pip-version-check Pillow
+
+      - name: Generate correctly sized PWA and Android icons
+        run: python scripts/prepare_brand_icons.py
+
+      - name: Commit generated icons to this branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add static/pwa/customer/icon-192.jpg static/pwa/customer/icon-512.jpg \
+            static/pwa/workpartner/icon-192.jpg static/pwa/workpartner/icon-512.jpg \
+            android-apk/app/src/customer/res android-apk/app/src/workpartner/res
+          if git diff --cached --quiet; then
+            echo "All brand icons are already up to date."
+            exit 0
+          fi
+          git commit -m "Generate correctly sized Sivdhi PWA and Android icons"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - name: Build both APKs with the generated icons
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build-sivdhi-android-apks.yml --ref "${GITHUB_REF_NAME}" -f build_type=debug
