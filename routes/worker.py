@@ -1539,7 +1539,7 @@ def worker_arrived(job_id):
 
         if newly_arrived and customer_id:
             message = (
-                f"Your worker has arrived for booking {booking_ref}. "
+                f"Your worker has arrived for booking {booking_ref}. Please verify the worker's Sivdhi ID card in My Bookings before service starts. "
                 + (
                     f"Remaining balance ₹{balance_due:.2f} is now payable from My Bookings. "
                     "The worker-arrival action has NOT charged or marked this balance as paid."
@@ -1548,8 +1548,12 @@ def worker_arrived(job_id):
                 )
             )
             conn.execute(
-                "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('worker',?,'Arrival Recorded',?,0,CURRENT_TIMESTAMP)",
-                (str(worker_id), f"Arrival recorded for booking {booking_ref}."),
+                "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('worker',?,'Show Your Sivdhi ID Card',?,0,CURRENT_TIMESTAMP)",
+                (str(worker_id), f"Arrival recorded for booking {booking_ref}. Show your official Sivdhi Worker ID card to the customer and ask them to verify it in My Bookings before the service starts."),
+            )
+            conn.execute(
+                "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('customer',?,'Verify Your Worker ID Card',?,0,CURRENT_TIMESTAMP)",
+                (str(customer_id), f"Your Worker has arrived for booking {booking_ref}. Check the person's face against the Worker photo and ID in My Bookings, ask to see the physical Sivdhi ID card, and verify it before service starts."),
             )
             partner_id = row["assigned_partner_id"] or row["partner_id"]
             if not partner_id:
@@ -1557,8 +1561,8 @@ def worker_arrived(job_id):
                 partner_id = find_partner_for_worker(conn, int(worker_id))
             if partner_id:
                 conn.execute(
-                    "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('partner',?,'Arrival Recorded',?,0,CURRENT_TIMESTAMP)",
-                    (str(partner_id), f"Arrival recorded for booking {booking_ref}."),
+                    "INSERT INTO notifications(user_type,user_id,title,message,is_read,created_at) VALUES('partner',?,'Worker ID Card Reminder',?,0,CURRENT_TIMESTAMP)",
+                    (str(partner_id), f"Worker arrival recorded for booking {booking_ref}. Remind the Worker to show the official Sivdhi ID card. Customer verification is required before service can start."),
                 )
 
         conn.commit()
