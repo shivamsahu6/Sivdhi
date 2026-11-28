@@ -689,28 +689,28 @@
                     <div class="notice warning">
                         Waiting for the customer to see your official Sivdhi Worker ID card and verify your name, photo and Worker ID in My Bookings. Service Start stays locked until verification is complete.
                     </div>
-                    {% elif not payment_complete %}
-
-                    {% if balance_due > 0 %}
-                    <div class="notice warning">
-                        Waiting for the customer to pay the remaining
-                        ₹{{ "%.2f"|format(balance_due) }} from My Bookings.
-                        Start Job will become available only after the full
-                        booking payment is confirmed.
-                    </div>
                     {% else %}
-                    <div class="notice warning">
-                        Waiting for confirmation that the complete booking
-                        amount, including the advance, has been paid.
-                    </div>
-                    {% endif %}
+                        {% if not payment_complete %}
 
-                    {% else %}
+                        {% if balance_due > 0 %}
+                        <div class="notice warning">
+                            Waiting for the customer to pay the remaining
+                            ₹{{ "%.2f"|format(balance_due) }} from My Bookings.
+                            Start Job will become available only after the full
+                            booking payment is confirmed.
+                        </div>
+                        {% else %}
+                        <div class="notice warning">
+                            Waiting for confirmation that the complete booking
+                            amount, including the advance, has been paid.
+                        </div>
+                        {% endif %}
 
-                    <button class="action start" type="button" onclick="runAction('start', this)">
-                        ▶ Start Job
-                    </button>
-
+                        {% else %}
+                        <button class="action start" type="button" onclick="runAction('start', this)">
+                            ▶ Start Job
+                        </button>
+                        {% endif %}
                     {% endif %}
 
                 {% elif status in ['started','in_progress'] %}
