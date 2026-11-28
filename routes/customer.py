@@ -36,6 +36,7 @@ from utils.otp_security import reserve_otp_request
 from utils.pending_changes import issue_pending_change, refresh_pending_change, verify_pending_change, delete_pending_change
 
 from database import get_db
+from utils.upload_cleanup import delete_replaced_profile_photo
 from utils.login_security import is_login_allowed, record_login_failure, clear_login_failures
 from utils.booking_schedule import (
     india_now as _india_now,
@@ -5076,6 +5077,7 @@ def edit_profile():
                 if key in columns:
                     updates[key] = value
 
+            old_photo_name = customer_row["profile_photo"] or ""
             photo = request.files.get("profile_photo")
             if photo and photo.filename:
                 original = os.path.basename(photo.filename)
@@ -5123,6 +5125,8 @@ def edit_profile():
                 [*updates.values(), customer_row["id"]],
             )
             db.commit()
+            new_photo_name = updates.get("profile_photo", old_photo_name)
+            delete_replaced_profile_photo(db, old_photo_name, new_photo_name)
             session["customer_name"] = fullname
             session["customer_email"] = email
             session["customer_mobile"] = mobile
