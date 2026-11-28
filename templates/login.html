@@ -319,5 +319,27 @@
 
     {% set sivdhi_footer_role = 'worker' if role == 'worker' else 'partner' %}
     {% include '_sivdhi_footer.html' %}
+    <style>
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+        }
+        .login-box {
+            flex: 0 0 auto;
+            margin: clamp(20px, 5vh, 44px) auto 0;
+        }
+        body:has(.sivdhi-site-footer[data-role="worker"]):has(.bottom),
+        body:has(.sivdhi-site-footer[data-role="partner"]):has(.bottom) {
+            padding-bottom: 20px;
+        }
+        .sivdhi-site-footer[data-role="worker"],
+        .sivdhi-site-footer[data-role="partner"] {
+            flex: 0 0 auto;
+            margin: auto auto 0;
+        }
+    </style>
 </body>
 </html>

@@ -487,8 +487,11 @@ def test_worker_partner_signup_footer_is_below_form_and_has_reviews_contact_link
     assert "min-height:100dvh" in body_css
     assert "height:auto" in body_css
     assert "flex-direction:column" in body_css
-    assert ".signup-box { flex: 0 0 auto; margin-bottom: auto; }" in signup_template
-    assert ".sivdhi-site-footer { flex: 0 0 auto; margin: 30px auto 20px; }" in signup_template
+    assert ".signup-box {" in signup_template
+    assert "margin: clamp(20px, 5vh, 44px) auto 0;" in signup_template
+    assert '.sivdhi-site-footer[data-role="worker"]' in signup_template
+    assert '.sivdhi-site-footer[data-role="partner"]' in signup_template
+    assert "margin: auto auto 0;" in signup_template
     assert signup_template.index("{% include '_sivdhi_footer.html' %}") > signup_template.index("</div>\n<script>")
 
     client = app.test_client()
